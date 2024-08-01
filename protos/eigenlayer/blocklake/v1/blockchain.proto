@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package eigenlayer.blocklake.blockchain.v1;
+
+option go_package = "github.com/Layr-Labs/sidecar/protos/eigenlayer/blocklake/v1";
+
+enum Network {
+  NETWORK_UNKNOWN = 0;
+
+  NETWORK_MAINNET = 1;
+  NETWORK_TESTNET = 2;
+}
+
+message BlockHeader {
+  string parentHash = 1;
+  string sha3Uncles = 2;
+
+  // Address of who verified the block
+  string miner = 3;
+
+  string stateRoot = 4;
+  string transactionsRoot = 5;
+  string receiptsRoot = 6;
+
+  bytes logsBloom = 7;
+  bytes difficulty = 8;
+  // block number
+  string number = 9;
+
+  uint64 gasLimit = 10;
+  uint64 gasUsed = 11;
+  uint64 timestamp = 12;
+  bytes extraData = 13;
+  string mixHash = 14;
+  uint64 nonce = 15;
+
+  bytes baseFeePerGas = 16;
+
+  string withdrawalsRoot = 17;
+
+  uint64 blobGasUsed = 18;
+
+  uint64 excessBlobGas = 19;
+
+  string parentBeaconBlockRoot = 20;
+}
+
+
+message Transaction {
+  string hash = 1;
+  uint64 size = 2;
+  string from = 3;
+  string to = 4;
+  uint64 gas = 5;
+  uint64 gas_price = 6;
+  string input = 7;
+
+  uint64 nonce = 8;
+  uint64 index = 9;
+  string value = 10;
+  uint64 type = 11;
+
+  message SignatureValues {
+    string v = 1;
+    string r = 2;
+    string s = 3;
+  }
+  SignatureValues signatureValues = 12;
+}
+
+message TransactionReceipt {
+  string transactionHash = 1;
+  uint64 transactionIndex = 2;
+  string blockHash = 3;
+  uint64 blockNumber = 4;
+  string to = 5;
+  string from = 6;
+  uint64 gasUsed = 7;
+  uint64 cumulativeGasUsed = 8;
+  string contractAddress = 9;
+  string logsBloom = 10;
+  uint64 type = 11;
+  uint64 effectiveGasPrice = 12;
+  uint64 status = 13;
+}
+
+message Withdrawal {
+  uint64 index = 1;
+  uint64 validator = 2;
+  string address = 3;
+  uint64 amount = 4;
+}
+
+message Block {
+  string hash = 1;
+  uint64 size = 2;
+
+  BlockHeader header = 3;
+
+  repeated Transaction transactions = 4;
+  repeated Withdrawal withdrawals = 5;
+  repeated BlockHeader uncles = 6;
+}

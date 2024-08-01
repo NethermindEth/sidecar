@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "blockSubscriberName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "blockSubscriberName" . }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "blockSubscriberName" . }}
+{{ toYaml .Values.blockSubscriber.updateStrategy | indent 2 }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "blockSubscriberName" . }}
+        tags.datadoghq.com/env: development
+        tags.datadoghq.com/version: "0.0.1"
+        tags.datadoghq.com/service: {{ template "blockSubscriberName" . }}
+        admission.datadoghq.com/enabled: "true"
+    spec:
+      serviceAccountName: "blocklake-pods"
+      containers:
+        - name: {{ template "blockSubscriberName" . }}
+          image: {{ .Values.common.image.name }}:{{ .Values.common.image.tag }}
+          imagePullPolicy: Always
+          command:
+            - "/build/bin/cmd/blockSubscriber"
+          env:
+          {{- $configName := .Values.common.config.name -}}
+          {{- range $k, $v := .Values.common.config.values }}
+            - name: {{ template "formatEnvVarName" $k }}
+              valueFrom:
+                configMapKeyRef:
+                  key: {{ $k }}
+                  name: {{ $configName}}
+          {{- end -}}
+          {{- $secretName := .Values.common.secret.name -}}
+          {{- range $k, $v := .Values.common.secret.values }}
+            - name: {{ template "formatEnvVarName" $k }}
+              valueFrom:
+                secretKeyRef:
+                  key: {{ $k }}
+                  name: {{ $secretName}}
+          {{- end -}}
+{{- if .Values.blockSubscriber.resources }}
+          resources:
+{{ toYaml .Values.blockSubscriber.resources | indent 12 }}
+{{- end}}

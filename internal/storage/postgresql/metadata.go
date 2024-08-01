@@ -1,0 +1,365 @@
+package postgresql
+
+import (
+	"encoding/json"
+	"errors"
+	"github.com/Layr-Labs/sidecar/internal/parser"
+	pg "github.com/Layr-Labs/sidecar/internal/postgres"
+	"github.com/Layr-Labs/sidecar/internal/storage/metadata"
+	"go.uber.org/zap"
+	"golang.org/x/xerrors"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	"strings"
+	"time"
+)
+
+type MetadataStoreConfig struct {
+	DBHost     string
+	DBPort     int
+	DBUsername string
+	DBPassword string
+	DBName     string
+}
+
+type MetadataStore struct {
+	Db       *gorm.DB
+	migrated bool
+	Logger   *zap.Logger
+}
+
+func NewMetadataStore(db *gorm.DB, l *zap.Logger) (*MetadataStore, error) {
+	mds := &MetadataStore{
+		Db:     db,
+		Logger: l,
+	}
+
+	mds.autoMigrate()
+
+	return mds, nil
+}
+
+func (m *MetadataStore) autoMigrate() {
+	if m.migrated {
+		return
+	}
+
+	m.migrated = true
+}
+
+func (m *MetadataStore) CreateTxBlock(tx *gorm.DB) *gorm.DB {
+	if tx != nil {
+		return tx
+	}
+	return m.Db.Begin()
+}
+
+func (m *MetadataStore) GetNextSequenceId() (uint64, error) {
+	return pg.WrapTxAndCommit[uint64](func(txn *gorm.DB) (uint64, error) {
+		query := `SELECT coalesce(max(id), -1) + 1 FROM block_sequences`
+
+		var nextId uint64
+		result := txn.Raw(query).Scan(&nextId)
+
+		if result.Error != nil {
+			return 0, xerrors.Errorf("Failed to get next sequence id: %w", result.Error)
+		}
+
+		return nextId, nil
+	}, nil, m.Db)
+}
+
+func (m *MetadataStore) UpdateBlockPath(sequenceId uint64, blockNumber uint64, path string) (*metadata.Block, error) {
+	return pg.WrapTxAndCommit[*metadata.Block](func(txn *gorm.DB) (*metadata.Block, error) {
+		sequence := &metadata.Block{}
+		result := txn.Model(sequence).
+			Clauses(clause.Returning{}).
+			Where("id = ? and number = ?", sequenceId, blockNumber).
+			Update("blob_path", path)
+
+		if result.Error != nil {
+			return nil, xerrors.Errorf("Failed to update block path: %w", result.Error)
+		}
+		return sequence, nil
+	}, nil, m.Db)
+}
+
+func (m *MetadataStore) InsertBlockAtHeight(
+	blockNumber uint64,
+	hash string,
+	blockTime uint64,
+) (*metadata.Block, error) {
+	return pg.WrapTxAndCommit[*metadata.Block](func(txn *gorm.DB) (*metadata.Block, error) {
+
+		blockSeq := &metadata.Block{
+			Number:    blockNumber,
+			Hash:      hash,
+			BlockTime: time.Unix(int64(blockTime), 0),
+		}
+
+		result := m.Db.Model(&metadata.Block{}).Clauses(clause.Returning{}).Create(&blockSeq)
+
+		if result.Error != nil {
+			return nil, xerrors.Errorf("Failed to insert block sequence: %w", result.Error)
+		}
+		return blockSeq, nil
+	}, nil, m.Db)
+}
+
+func (m *MetadataStore) InsertBlockTransaction(
+	sequenceId uint64,
+	blockNumber uint64,
+	txHash string,
+	txIndex uint64,
+	from string,
+	to string,
+	contractAddress string,
+	bytecodeHash string,
+) (*metadata.Transaction, error) {
+	return pg.WrapTxAndCommit[*metadata.Transaction](func(txn *gorm.DB) (*metadata.Transaction, error) {
+		tx := &metadata.Transaction{
+			BlockSequenceId:  sequenceId,
+			BlockNumber:      blockNumber,
+			TransactionHash:  txHash,
+			TransactionIndex: txIndex,
+			FromAddress:      from,
+			ToAddress:        to,
+			ContractAddress:  contractAddress,
+			BytecodeHash:     bytecodeHash,
+		}
+
+		result := m.Db.Model(&metadata.Transaction{}).Clauses(clause.Returning{}).Create(&tx)
+
+		if result.Error != nil {
+			return nil, xerrors.Errorf("Failed to insert block transaction: %w", result.Error)
+		}
+		return tx, nil
+	}, nil, m.Db)
+}
+
+func (m *MetadataStore) BatchInsertBlockTransactions(
+	sequenceId uint64,
+	blockNumber uint64,
+	transactions []metadata.BatchTransaction,
+) ([]*metadata.Transaction, error) {
+	if len(transactions) == 0 {
+		return make([]*metadata.Transaction, 0), nil
+	}
+	return pg.WrapTxAndCommit[[]*metadata.Transaction](func(txn *gorm.DB) ([]*metadata.Transaction, error) {
+		txs := make([]*metadata.Transaction, 0, len(transactions))
+		for _, tx := range transactions {
+			txs = append(txs, &metadata.Transaction{
+				BlockSequenceId:  sequenceId,
+				BlockNumber:      blockNumber,
+				TransactionHash:  tx.TxHash,
+				TransactionIndex: tx.TxIndex,
+				FromAddress:      tx.From,
+				ToAddress:        tx.To,
+				ContractAddress:  tx.ContractAddress,
+				BytecodeHash:     tx.BytecodeHash,
+			})
+		}
+
+		result := m.Db.Model(&metadata.Transaction{}).Clauses(clause.Returning{}).Create(&txs)
+
+		if result.Error != nil {
+			return nil, xerrors.Errorf("Failed to insert block transaction: %w", result.Error)
+		}
+		return txs, nil
+	}, nil, m.Db)
+}
+
+func (m *MetadataStore) InsertTransactionLog(
+	txHash string,
+	transactionIndex uint64,
+	blockNumber uint64,
+	blockSequenceId uint64,
+	log *parser.DecodedLog,
+	outputData map[string]interface{},
+) (*metadata.TransactionLog, error) {
+	return pg.WrapTxAndCommit[*metadata.TransactionLog](func(txn *gorm.DB) (*metadata.TransactionLog, error) {
+		argsJson, err := json.Marshal(log.Arguments)
+		if err != nil {
+			m.Logger.Sugar().Errorw("Failed to marshal arguments", zap.Error(err))
+		}
+
+		outputDataJson := []byte{}
+		outputDataJson, err = json.Marshal(outputData)
+		if err != nil {
+			m.Logger.Sugar().Errorw("Failed to marshal output data", zap.Error(err))
+		}
+
+		txLog := &metadata.TransactionLog{
+			TransactionHash:  txHash,
+			TransactionIndex: transactionIndex,
+			BlockNumber:      blockNumber,
+			BlockSequenceId:  blockSequenceId,
+			Address:          strings.ToLower(log.Address),
+			Arguments:        string(argsJson),
+			EventName:        log.EventName,
+			LogIndex:         log.LogIndex,
+			OutputData:       string(outputDataJson),
+		}
+		result := m.Db.Model(&metadata.TransactionLog{}).Clauses(clause.Returning{}).Create(&txLog)
+
+		if result.Error != nil {
+			return nil, xerrors.Errorf("Failed to insert transaction log: %w - %+v", result.Error, txLog)
+		}
+		return txLog, nil
+	}, nil, m.Db)
+}
+
+func (m *MetadataStore) BatchInsertTransactionLogs(transactions []*metadata.BatchInsertTransactionLogs) ([]*metadata.TransactionLog, error) {
+	logs := make([]*metadata.TransactionLog, 0)
+
+	for _, tx := range transactions {
+		for _, log := range tx.ParsedTransaction.Logs {
+			argsJson, err := json.Marshal(log.Arguments)
+			if err != nil {
+				m.Logger.Sugar().Errorw("Failed to marshal arguments", zap.Error(err))
+			}
+			logs = append(logs, &metadata.TransactionLog{
+				TransactionHash:  tx.Transaction.Hash.Value(),
+				TransactionIndex: tx.Transaction.Index.Value(),
+				BlockNumber:      tx.Transaction.BlockNumber.Value(),
+				BlockSequenceId:  0,
+				Address:          strings.ToLower(log.Address),
+				Arguments:        string(argsJson),
+				EventName:        log.EventName,
+				LogIndex:         log.LogIndex,
+			})
+		}
+	}
+
+	result := m.Db.Model(&metadata.TransactionLog{}).Clauses(clause.Returning{}).Create(&logs)
+
+	if result.Error != nil {
+		return nil, xerrors.Errorf("Failed to insert block transaction: %w", result.Error)
+	}
+	return logs, nil
+}
+
+type latestBlockNumber struct {
+	BlockNumber uint64
+}
+
+func (m *MetadataStore) GetLatestBlock() (uint64, error) {
+	block := &latestBlockNumber{}
+
+	query := `select max(number) as block_number from blocks`
+
+	result := m.Db.Raw(query).Scan(&block)
+	if result.Error != nil {
+		return 0, xerrors.Errorf("Failed to get latest block: %w", result.Error)
+	}
+	return block.BlockNumber, nil
+}
+
+func (m *MetadataStore) GetBlockByNumber(blockNumber uint64) (*metadata.Block, error) {
+	block := &metadata.Block{}
+
+	result := m.Db.Model(block).Where("number = ?", blockNumber).First(&block)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, result.Error
+	}
+	return block, nil
+}
+
+func (m *MetadataStore) DeleteTransactionLogsForBlock(blockNumber uint64) error {
+	result := m.Db.Where("block_number = ?", blockNumber).Delete(&metadata.TransactionLog{})
+	if result.Error != nil {
+		return xerrors.Errorf("Failed to delete transaction logs: %w", result.Error)
+	}
+	return nil
+}
+
+func (m *MetadataStore) GetTransactionByHash(txHash string) (*metadata.Transaction, error) {
+	tx := &metadata.Transaction{}
+
+	result := m.Db.Model(&tx).Where("transaction_hash = ?", strings.ToLower(txHash)).First(&tx)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, result.Error
+	}
+	return tx, nil
+}
+
+func (m *MetadataStore) ListTransactionsForContractAddress(contractAddress string) ([]*metadata.Transaction, error) {
+	contractAddress = strings.ToLower(contractAddress)
+	var txs []*metadata.Transaction
+
+	result := m.Db.Model(&metadata.Transaction{}).
+		Where("contract_address = ? or to_address = ?", contractAddress, contractAddress).
+		Find(&txs)
+	if result.Error != nil {
+		return nil, xerrors.Errorf("Failed to list transactions for contract address: %w", result.Error)
+	}
+	return txs, nil
+}
+
+func (m *MetadataStore) ListTransactionLogsForContractAddress(contractAddress string) ([]*metadata.TransactionLog, error) {
+	contractAddress = strings.ToLower(contractAddress)
+	var txLogs []*metadata.TransactionLog
+
+	result := m.Db.Model(&metadata.TransactionLog{}).
+		Where("address = ?", contractAddress).
+		Find(&txLogs)
+	if result.Error != nil {
+		return nil, xerrors.Errorf("Failed to list transaction logs for contract address: %w", result.Error)
+	}
+	return txLogs, nil
+}
+
+func (m *MetadataStore) InsertOperatorRestakedStrategies(avsDirectorAddress string, blockNumber uint64, blockTime time.Time, operator string, avs string, strategy string) (*metadata.OperatorRestakedStrategies, error) {
+	return pg.WrapTxAndCommit[*metadata.OperatorRestakedStrategies](func(txn *gorm.DB) (*metadata.OperatorRestakedStrategies, error) {
+		ors := &metadata.OperatorRestakedStrategies{
+			AvsDirectoryAddress: strings.ToLower(avsDirectorAddress),
+			BlockNumber:         blockNumber,
+			Operator:            operator,
+			Avs:                 avs,
+			Strategy:            strategy,
+			BlockTime:           blockTime,
+		}
+
+		result := m.Db.Model(&metadata.OperatorRestakedStrategies{}).Clauses(clause.Returning{}).Create(&ors)
+
+		if result.Error != nil {
+			return nil, xerrors.Errorf("Failed to insert operator restaked strategies: %w", result.Error)
+		}
+		return ors, nil
+	}, nil, m.Db)
+
+}
+
+func (m *MetadataStore) GetLatestActiveAvsOperators(blockNumber uint64, avsDirectoryAddress string) ([]*metadata.ActiveAvsOperator, error) {
+	avsDirectoryAddress = strings.ToLower(avsDirectoryAddress)
+
+	rows := make([]*metadata.ActiveAvsOperator, 0)
+	query := `
+		WITH latest_status AS (
+			SELECT 
+				lower(tl.arguments #>> '{0,Value}') as operator,
+				lower(tl.arguments #>> '{1,Value}') as avs,
+				lower(tl.output_data #>> '{status}') as status,
+				ROW_NUMBER() OVER (PARTITION BY lower(tl.arguments #>> '{0,Value}'), lower(tl.arguments #>> '{1,Value}') ORDER BY block_number DESC) AS row_number
+			FROM transaction_logs as tl
+			WHERE
+				tl.address = ?
+				AND tl.event_name = 'OperatorAVSRegistrationStatusUpdated'
+				AND tl.block_number <= ?
+		)
+		SELECT avs, operator
+		FROM latest_status
+		WHERE row_number = 1 AND status = '1';
+	`
+	result := m.Db.Raw(query, avsDirectoryAddress, blockNumber).Scan(&rows)
+	if result.Error != nil {
+		return nil, xerrors.Errorf("Failed to get latest active AVS operators: %w", result.Error)
+	}
+	return rows, nil
+}
