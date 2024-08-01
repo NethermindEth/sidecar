@@ -9,7 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/fetcher"
 	"github.com/Layr-Labs/sidecar/internal/indexer"
 	"github.com/Layr-Labs/sidecar/internal/queue/rabbitmq"
-	"github.com/Layr-Labs/sidecar/internal/storage/metadata"
+	"github.com/Layr-Labs/sidecar/internal/storage"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
@@ -149,7 +149,7 @@ func (ci *RestakedStrategiesIndexer) processRestakedStrategiesForBlock(ctx conte
 	return nil
 }
 
-func (ci *RestakedStrategiesIndexer) processRestakedStrategiesForBlockAndAvsDirectory(ctx context.Context, block *metadata.Block, avsDirectoryAddress string) error {
+func (ci *RestakedStrategiesIndexer) processRestakedStrategiesForBlockAndAvsDirectory(ctx context.Context, block *storage.Block, avsDirectoryAddress string) error {
 	ci.logger.Sugar().Infof(fmt.Sprintf("Using avs directory address '%s", avsDirectoryAddress))
 
 	blockNumber := block.Number

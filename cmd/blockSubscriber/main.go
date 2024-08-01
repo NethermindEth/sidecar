@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/internal/clients/etherscan"
@@ -16,29 +15,14 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/postgres"
 	"github.com/Layr-Labs/sidecar/internal/postgres/migrations"
 	"github.com/Layr-Labs/sidecar/internal/queue/rabbitmq"
+	"github.com/Layr-Labs/sidecar/internal/shutdown"
 	"github.com/Layr-Labs/sidecar/internal/storage/postgresql"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
 	"log"
+	"time"
 )
-
-func publishBlockProcessedToQueue(blockNumber uint64, rmq *rabbitmq.RabbitMQ, l *zap.Logger) error {
-	blockMessage := &rabbitmq.BlockProcessedMessage{
-		BlockNumber: blockNumber,
-	}
-	msgJson, err := json.Marshal(blockMessage)
-	if err != nil {
-		l.Sugar().Errorw("Failed to marshal message", zap.Error(err))
-		return err
-	}
-	rmq.Publish(rabbitmq.Exchange_blocks, rabbitmq.RoutingKey_blockIndexer, amqp091.Publishing{
-		ContentType: "application/json",
-		Body:        msgJson,
-	})
-	return nil
-}
 
 func main() {
 	ctx := context.Background()
@@ -89,38 +73,72 @@ func main() {
 
 	fetchr := fetcher.NewFetcher(client, l)
 
-	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, l)
+	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, l, cfg)
+
+	queues, exchanges := rabbitmq.GetQueuesAndExchanges()
+	rmq := rabbitmq.NewRabbitMQ(&rabbitmq.RabbitMQConfig{
+		Username:  cfg.RabbitMqConfig.Username,
+		Password:  cfg.RabbitMqConfig.Password,
+		Url:       cfg.RabbitMqConfig.Url,
+		Exchanges: exchanges,
+		Queues:    queues,
+		Secure:    cfg.RabbitMqConfig.Secure,
+	}, l)
+
+	rmqConn, err := rmq.Connect()
+	if err != nil {
+		l.Sugar().Fatalf("Failed to connect to RabbitMQ", zap.Error(err))
+	}
+	defer rmqConn.Close()
+
+	shouldShutdown := false
+	shouldShutdownCh := make(chan bool)
+	gracefulShutdown := shutdown.CreateGracefulShutdownChannel()
+	websocketQuitCh := make(chan struct{})
+
+	go shutdown.ListenForShutdown(gracefulShutdown, shouldShutdownCh, func() {
+		shouldShutdown = true
+		shouldShutdownCh <- true
+		websocketQuitCh <- struct{}{}
+	}, time.Second*20, l)
 
 	lastIndexedBlockNumber, err := mds.GetLatestBlock()
 	if err != nil {
 		l.Sugar().Fatal("Failed to get latest block", zap.Error(err))
 	}
-	l.Sugar().Infow("Last indexed block", zap.Uint64("block", lastIndexedBlockNumber))
+	l.Sugar().Infow("Last indexed block", zap.Uint64("blockNumber", lastIndexedBlockNumber))
 
 	onChainBlock, err := client.GetBlockNumber(ctx)
 	if err != nil {
 		l.Sugar().Fatal("Failed to get block number", zap.Error(err))
 	}
-	l.Sugar().Infow("On chain block number", zap.String("block", onChainBlock))
-
 	blockNumber, err := hexutil.DecodeUint64(onChainBlock)
 
+	l.Sugar().Infow("On chain block number", zap.Uint64("blockNumber", blockNumber))
+
 	if blockNumber <= lastIndexedBlockNumber {
-		l.Sugar().Infow("Got block number is less than last indexed; nothing to do", zap.Uint64("block", blockNumber), zap.Uint64("lastIndexedBlock", lastIndexedBlockNumber))
+		l.Sugar().Infow("Got block number is less than last indexed; nothing to do", zap.Uint64("blockNumber", blockNumber), zap.Uint64("lastIndexedBlock", lastIndexedBlockNumber))
 		return
 	}
 
 	l.Sugar().Info(fmt.Sprintf("Difference: %d\n", blockNumber-(lastIndexedBlockNumber+1)))
 
 	for i := lastIndexedBlockNumber + 1; i <= blockNumber; i++ {
-		fetchedBlock, indexedBlock, _, err := idxr.FetchAndIndexBlock(ctx, i, false)
+		if shouldShutdown {
+			l.Sugar().Infof("ShouldShutdown is set to true, exiting backfill loop...")
+			return
+		}
+		fetchedBlock, indexedBlock, previouslyIndexed, err := idxr.FetchAndIndexBlock(ctx, i, false)
 		if err != nil {
 			l.Sugar().Errorw("Failed to fetch and index block", zap.Error(err))
 			continue
 		}
+		if previouslyIndexed {
+			l.Sugar().Infow("Block already indexed, skipping", zap.Uint64("blockNumber", i))
+			continue
+		}
 
-		idxr.ParseAndIndexTransactionLogs(ctx, fetchedBlock, indexedBlock.Id)
-		l.Sugar().Infow("Indexed block and transactions", zap.String("block", onChainBlock))
+		l.Sugar().Infow("Indexed block and transactions", zap.Uint64("blockNumber", i))
 
 		updatedRecentBlock, err := client.GetBlockNumber(ctx)
 		if err != nil {
@@ -129,9 +147,14 @@ func main() {
 
 		updatedRecentBlockNumber, err := hexutil.DecodeUint64(updatedRecentBlock)
 		if updatedRecentBlockNumber > blockNumber {
-			l.Sugar().Infow("Block number has increased", zap.Uint64("block", updatedRecentBlockNumber))
+			l.Sugar().Infow("Block number has increased", zap.Uint64("blockNumber", updatedRecentBlockNumber))
 			blockNumber = updatedRecentBlockNumber
 		}
+	}
+
+	if shouldShutdown {
+		l.Sugar().Infof("ShouldShutdown is set to true, cleaning up...")
+		return
 	}
 
 	wsc, err := client.GetWebsocketConnection(cfg.EthereumRpcConfig.WsUrl)
@@ -140,10 +163,12 @@ func main() {
 	}
 	defer wsc.Close()
 
-	quitCh := make(chan struct{})
-
-	client.ListenForNewBlocks(context.Background(), wsc, quitCh, func(header *types.Header) error {
-		l.Sugar().Infow("Got block number", zap.Uint64("block", header.Number.Uint64()))
+	client.ListenForNewBlocks(context.Background(), wsc, websocketQuitCh, func(header *types.Header) error {
+		if shouldShutdown {
+			l.Sugar().Infof("ShouldShutdown is set to true, exiting websocket block listener...")
+			return nil
+		}
+		l.Sugar().Infow("Got block number", zap.Uint64("blockNumber", header.Number.Uint64()))
 		// Delay by 2 blocks to ensure finality and not have to deal with re-orgs
 		blockNumber := header.Number.Uint64() - 2
 
@@ -153,17 +178,16 @@ func main() {
 			return err
 		}
 		if block != nil {
-			l.Sugar().Info("Block already indexed", zap.Uint64("block", blockNumber))
+			l.Sugar().Info("Block already indexed", zap.Uint64("blockNumber", blockNumber))
 			return nil
 		}
 
-		fetchedBlock, indexedBlock, _, err := idxr.FetchAndIndexBlock(ctx, blockNumber, false)
+		_, _, _, err = idxr.FetchAndIndexBlock(ctx, blockNumber, false)
 		if err != nil {
 			l.Sugar().Errorw("Failed to fetch and index block", zap.Error(err))
 			return err
 		}
 
-		idxr.ParseAndIndexTransactionLogs(ctx, fetchedBlock, indexedBlock.Id)
 		return nil
 	})
 }

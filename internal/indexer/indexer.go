@@ -10,14 +10,14 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/contractStore"
 	"github.com/Layr-Labs/sidecar/internal/fetcher"
 	"github.com/Layr-Labs/sidecar/internal/parser"
-	"github.com/Layr-Labs/sidecar/internal/storage/metadata"
+	"github.com/Layr-Labs/sidecar/internal/storage"
 	"go.uber.org/zap"
 	"slices"
 )
 
 type Indexer struct {
 	Logger          *zap.Logger
-	MetadataStore   metadata.MetadataStore
+	MetadataStore   storage.MetadataStore
 	ContractStore   contractStore.ContractStore
 	ContractManager *contractManager.ContractManager
 	EtherscanClient *etherscan.EtherscanClient
@@ -27,7 +27,7 @@ type Indexer struct {
 }
 
 func NewIndexer(
-	ms metadata.MetadataStore,
+	ms storage.MetadataStore,
 	cs contractStore.ContractStore,
 	es *etherscan.EtherscanClient,
 	cm *contractManager.ContractManager,
@@ -48,7 +48,7 @@ func NewIndexer(
 	}
 }
 
-func (idx *Indexer) FetchAndIndexBlock(ctx context.Context, blockNumber uint64, reindex bool) (*fetcher.FetchedBlock, *metadata.Block, bool, error) {
+func (idx *Indexer) FetchAndIndexBlock(ctx context.Context, blockNumber uint64, reindex bool) (*fetcher.FetchedBlock, *storage.Block, bool, error) {
 	previouslyIndexed := false
 	b, err := idx.Fetcher.FetchBlock(ctx, blockNumber)
 	if err != nil {
@@ -126,7 +126,7 @@ func (idx *Indexer) ParseAndIndexTransactionLogs(ctx context.Context, fetchedBlo
 	}
 }
 
-func (idx *Indexer) IndexFetchedBlock(ctx context.Context, fetchedBlock *fetcher.FetchedBlock) (*metadata.Block, error, bool) {
+func (idx *Indexer) IndexFetchedBlock(ctx context.Context, fetchedBlock *fetcher.FetchedBlock) (*storage.Block, error, bool) {
 	blockNumber := fetchedBlock.Block.Number.Value()
 	blockHash := fetchedBlock.Block.Hash.Value()
 
@@ -162,17 +162,17 @@ func (idx *Indexer) isInterestingAddress(addr string) bool {
 
 func (idx *Indexer) IndexTransactions(
 	ctx context.Context,
-	block *metadata.Block,
+	block *storage.Block,
 	fetchedBlock *fetcher.FetchedBlock,
 	asBatch bool,
-) ([]*metadata.Transaction, error) {
-	indexedTransactions := make([]*metadata.Transaction, 0)
+) ([]*storage.Transaction, error) {
+	indexedTransactions := make([]*storage.Transaction, 0)
 
 	var err error
-	txsToInsert := make([]metadata.BatchTransaction, 0)
+	txsToInsert := make([]storage.BatchTransaction, 0)
 	for _, tx := range fetchedBlock.Block.Transactions {
 
-		insertTx := metadata.BatchTransaction{
+		insertTx := storage.BatchTransaction{
 			TxHash:  tx.Hash.Value(),
 			TxIndex: tx.Index.Value(),
 			From:    tx.From.Value(),
@@ -255,7 +255,7 @@ func (idx *Indexer) IndexTransactions(
 // Handles indexing a contract created by a transaction
 // Does NOT include contracts that are part of logs
 func (idx *Indexer) IndexContractsForBlock(
-	block *metadata.Block,
+	block *storage.Block,
 	fetchedBlock *fetcher.FetchedBlock,
 	reindexContract bool,
 ) {
@@ -311,7 +311,7 @@ func (idx *Indexer) IndexLog(
 	txHash string,
 	txIndex uint64,
 	log *parser.DecodedLog,
-) (*metadata.TransactionLog, error) {
+) (*storage.TransactionLog, error) {
 	insertedLog, err := idx.MetadataStore.InsertTransactionLog(
 		txHash,
 		txIndex,
