@@ -126,7 +126,7 @@ func (idx *Indexer) ParseAndIndexTransactionLogs(ctx context.Context, fetchedBlo
 	}
 }
 
-func (idx *Indexer) IndexFetchedBlock(ctx context.Context, fetchedBlock *fetcher.FetchedBlock) (*storage.Block, error, bool) {
+func (idx *Indexer) IndexFetchedBlock(ctx context.Context, fetchedBlock *fetcher.FetchedBlock) (*storage.Block, bool, error) {
 	blockNumber := fetchedBlock.Block.Number.Value()
 	blockHash := fetchedBlock.Block.Hash.Value()
 
@@ -136,11 +136,11 @@ func (idx *Indexer) IndexFetchedBlock(ctx context.Context, fetchedBlock *fetcher
 			zap.Error(err),
 			zap.Uint64("blockNumber", blockNumber),
 		)
-		return nil, err, false
+		return nil, false, err
 	}
 	if foundBlock != nil {
 		idx.Logger.Sugar().Debugw(fmt.Sprintf("Block '%d' already indexed", blockNumber))
-		return foundBlock, nil, true
+		return foundBlock, true, nil
 	}
 
 	insertedBlock, err := idx.MetadataStore.InsertBlockAtHeight(blockNumber, blockHash, fetchedBlock.Block.Timestamp.Value())
@@ -150,25 +150,20 @@ func (idx *Indexer) IndexFetchedBlock(ctx context.Context, fetchedBlock *fetcher
 			zap.Uint64("blockNumber", blockNumber),
 			zap.String("blockHash", blockHash),
 		)
-		return nil, err, false
+		return nil, false, err
 	}
 
-	return insertedBlock, nil, false
+	return insertedBlock, false, nil
 }
 
 func (idx *Indexer) isInterestingAddress(addr string) bool {
 	return slices.Contains(idx.Config.GetInterestingAddressForConfigEnv(), addr)
 }
 
-func (idx *Indexer) IndexTransactions(
-	ctx context.Context,
+func (idx *Indexer) FilterInterestingTransactions(
 	block *storage.Block,
 	fetchedBlock *fetcher.FetchedBlock,
-	asBatch bool,
-) ([]*storage.Transaction, error) {
-	indexedTransactions := make([]*storage.Transaction, 0)
-
-	var err error
+) []storage.BatchTransaction {
 	txsToInsert := make([]storage.BatchTransaction, 0)
 	for _, tx := range fetchedBlock.Block.Transactions {
 
@@ -201,6 +196,20 @@ func (idx *Indexer) IndexTransactions(
 			txsToInsert = append(txsToInsert, insertTx)
 		}
 	}
+	return txsToInsert
+}
+
+func (idx *Indexer) IndexTransactions(
+	ctx context.Context,
+	block *storage.Block,
+	fetchedBlock *fetcher.FetchedBlock,
+	asBatch bool,
+) ([]*storage.Transaction, error) {
+	indexedTransactions := make([]*storage.Transaction, 0)
+
+	var err error
+	txsToInsert := idx.FilterInterestingTransactions(block, fetchedBlock)
+
 	if asBatch {
 		indexedTransactions, err = idx.MetadataStore.BatchInsertBlockTransactions(block.Id, block.Number, txsToInsert)
 	} else {
@@ -224,9 +233,18 @@ func (idx *Indexer) IndexTransactions(
 		)
 		return nil, err
 	}
-	// More performant to loop twice and use a bulk insert than to insert one by one
-	for _, tx := range fetchedBlock.Block.Transactions {
-		txReceipt, ok := fetchedBlock.TxReceipts[tx.Hash.Value()]
+
+	return indexedTransactions, nil
+}
+
+func (idx *Indexer) FindAndHandleContractCreationForTransactions(
+	transactions []*ethereum.EthereumTransaction,
+	receipts map[string]*ethereum.EthereumTransactionReceipt,
+	contractStorage map[string]string,
+	blockNumber uint64,
+) {
+	for _, tx := range transactions {
+		txReceipt, ok := receipts[tx.Hash.Value()]
 		if !ok {
 			continue
 		}
@@ -235,7 +253,7 @@ func (idx *Indexer) IndexTransactions(
 		contractAddress := txReceipt.ContractAddress.Value()
 		eip1197StoredValue := ""
 		if contractAddress != "" {
-			eip1197StoredValue = fetchedBlock.ContractStorage[contractAddress]
+			eip1197StoredValue = contractStorage[contractAddress]
 		}
 
 		if txReceipt.ContractAddress.Value() != "" {
@@ -243,13 +261,11 @@ func (idx *Indexer) IndexTransactions(
 				txReceipt.ContractAddress.Value(),
 				txReceipt.GetBytecodeHash(),
 				eip1197StoredValue,
-				block.Number,
+				blockNumber,
 				false,
 			)
 		}
 	}
-
-	return indexedTransactions, nil
 }
 
 // Handles indexing a contract created by a transaction

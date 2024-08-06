@@ -14,7 +14,7 @@ type MetadataStore interface {
 	InsertTransactionLog(txHash string, transactionIndex uint64, blockNumber uint64, blockSequenceId uint64, log *parser.DecodedLog, outputData map[string]interface{}) (*TransactionLog, error)
 	BatchInsertBlockTransactions(sequenceId uint64, blockNumber uint64, transactions []BatchTransaction) ([]*Transaction, error)
 	BatchInsertTransactionLogs(transactions []*BatchInsertTransactionLogs) ([]*TransactionLog, error)
-	GetLatestBlock() (uint64, error)
+	GetLatestBlock() (int64, error)
 	GetBlockByNumber(blockNumber uint64) (*Block, error)
 	DeleteTransactionLogsForBlock(blockNumber uint64) error
 	GetTransactionByHash(txHash string) (*Transaction, error)

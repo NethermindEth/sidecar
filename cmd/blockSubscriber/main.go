@@ -102,10 +102,14 @@ func main() {
 		websocketQuitCh <- struct{}{}
 	}, time.Second*20, l)
 
-	lastIndexedBlockNumber, err := mds.GetLatestBlock()
+	bNumber, err := mds.GetLatestBlock()
 	if err != nil {
 		l.Sugar().Fatal("Failed to get latest block", zap.Error(err))
 	}
+	if bNumber == -1 {
+		l.Sugar().Fatal("No blocks indexed yet")
+	}
+	lastIndexedBlockNumber := uint64(bNumber)
 	l.Sugar().Infow("Last indexed block", zap.Uint64("blockNumber", lastIndexedBlockNumber))
 
 	onChainBlock, err := client.GetBlockNumber(ctx)

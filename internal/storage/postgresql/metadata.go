@@ -243,16 +243,16 @@ type latestBlockNumber struct {
 	BlockNumber uint64
 }
 
-func (m *MetadataStore) GetLatestBlock() (uint64, error) {
+func (m *MetadataStore) GetLatestBlock() (int64, error) {
 	block := &latestBlockNumber{}
 
-	query := `select max(number) as block_number from blocks`
+	query := `select coalesce(max(number), -1) as block_number from blocks`
 
 	result := m.Db.Raw(query).Scan(&block)
 	if result.Error != nil {
 		return 0, xerrors.Errorf("Failed to get latest block: %w", result.Error)
 	}
-	return block.BlockNumber, nil
+	return int64(block.BlockNumber), nil
 }
 
 func (m *MetadataStore) GetBlockByNumber(blockNumber uint64) (*storage.Block, error) {
