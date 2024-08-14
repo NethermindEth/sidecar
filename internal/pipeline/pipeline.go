@@ -59,3 +59,7 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 
 	return nil
 }
+
+func (p *Pipeline) CalculateSomething() {
+
+}

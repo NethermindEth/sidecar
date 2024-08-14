@@ -234,9 +234,9 @@ func (c *Config) GetInterestingAddressForConfigEnv() []string {
 func (c *Config) GetGenesisBlockNumber() uint64 {
 	switch c.Environment {
 	case Environment_PreProd:
-		return 1477020
+		return 1140406
 	case Environment_Testnet:
-		return 1477020
+		return 1140406
 	case Environment_Mainnet:
 		return 19492759
 	default:

@@ -46,6 +46,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		return err
 	}
 	if latestBlock == 0 {
+		s.Logger.Sugar().Infow("No blocks indexed, starting from genesis block", zap.Uint64("genesisBlock", s.Config.GenesisBlockNumber))
 		latestBlock = int64(s.Config.GenesisBlockNumber)
 	}
 
