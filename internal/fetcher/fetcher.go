@@ -2,7 +2,6 @@ package fetcher
 
 import (
 	"context"
-	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/clients/ethereum"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
@@ -65,7 +64,6 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 			)
 			return nil, err
 		}
-		fmt.Printf("Receipt: %+v\n", r)
 		receipts[r.TransactionHash.Value()] = r
 	}
 

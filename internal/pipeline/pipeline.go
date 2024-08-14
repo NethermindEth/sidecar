@@ -38,7 +38,7 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		return err
 	}
 
-	indexedBlock, found, err := p.Indexer.IndexFetchedBlock(ctx, block)
+	indexedBlock, found, err := p.Indexer.IndexFetchedBlock(block)
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to index block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err

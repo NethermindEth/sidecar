@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"go.uber.org/zap"
@@ -132,6 +133,20 @@ func (c *Client) GetBlockNumber(ctx context.Context) (string, error) {
 	}
 
 	return strings.ReplaceAll(string(res.Result), "\"", ""), nil
+}
+
+func (c *Client) GetBlockNumberUint64(ctx context.Context) (uint64, error) {
+	blockNumber, err := c.GetBlockNumber(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	blockNumberUint64, err := hexutil.DecodeUint64(blockNumber)
+	if err != nil {
+		return 0, err
+	}
+
+	return blockNumberUint64, nil
 }
 
 func (c *Client) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*EthereumBlock, error) {
@@ -336,6 +351,7 @@ func (c *Client) BatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 
 func (c *Client) Call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse, error) {
 	requestBody, err := json.Marshal(rpcRequest)
+
 	c.Logger.Sugar().Debug("Request body", zap.String("requestBody", string(requestBody)))
 	if err != nil {
 		return nil, err

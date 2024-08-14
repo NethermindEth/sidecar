@@ -87,7 +87,7 @@ func (cm *ContractManager) CreateContract(
 
 	// If the bytecode hash wasnt provided, fetch it
 	if bytecodeHash == "" {
-		cm.Logger.Sugar().Debug("No bytecode hash provided for contract, fetching",
+		cm.Logger.Sugar().Debugw("No bytecode hash provided for contract, fetching",
 			zap.String("contractAddress", contractAddress),
 		)
 		bytecode, err := cm.EthereumClient.GetCode(context.Background(), contractAddress)
@@ -98,7 +98,7 @@ func (cm *ContractManager) CreateContract(
 			)
 		} else {
 			bytecodeHash = ethereum.HashBytecode(bytecode)
-			cm.Logger.Sugar().Debug("Fetched contract bytecode",
+			cm.Logger.Sugar().Debugw("Fetched contract bytecode",
 				zap.String("contractAddress", contractAddress),
 				zap.String("bytecodeHash", bytecodeHash),
 			)

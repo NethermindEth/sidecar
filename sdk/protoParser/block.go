@@ -80,8 +80,6 @@ func (p *Parser) ParseTransactionsToProto(transactions []*types.Transaction) ([]
 
 		jsonBlock, _ := json.MarshalIndent(receiptsMap[t.Hash()], "", "\t")
 
-		fmt.Printf("Receipt: %+v\n", string(jsonBlock))
-
 		parsedTransaction := &v1.Transaction{
 			Hash:     t.Hash().String(),
 			Size:     t.Size(),

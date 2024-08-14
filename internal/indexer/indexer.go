@@ -56,14 +56,13 @@ func (idx *Indexer) FetchAndIndexBlock(ctx context.Context, blockNumber uint64, 
 		return b, nil, previouslyIndexed, err
 	}
 
-	block, err, alreadyIndexed := idx.IndexFetchedBlock(ctx, b)
-	previouslyIndexed = alreadyIndexed
+	block, previouslyIndexed, err := idx.IndexFetchedBlock(b)
 	if err != nil {
 		idx.Logger.Sugar().Errorw(fmt.Sprintf("Failed to index block: %v", blockNumber), zap.Error(err))
 		return b, nil, previouslyIndexed, err
 	}
 	// If we want to re-index the block, continue
-	if alreadyIndexed && reindex == false {
+	if previouslyIndexed && reindex == false {
 		return b, block, previouslyIndexed, nil
 	}
 
@@ -126,7 +125,7 @@ func (idx *Indexer) ParseAndIndexTransactionLogs(ctx context.Context, fetchedBlo
 	}
 }
 
-func (idx *Indexer) IndexFetchedBlock(ctx context.Context, fetchedBlock *fetcher.FetchedBlock) (*storage.Block, bool, error) {
+func (idx *Indexer) IndexFetchedBlock(fetchedBlock *fetcher.FetchedBlock) (*storage.Block, bool, error) {
 	blockNumber := fetchedBlock.Block.Number.Value()
 	blockHash := fetchedBlock.Block.Hash.Value()
 
@@ -249,7 +248,7 @@ func (idx *Indexer) FindAndHandleContractCreationForTransactions(
 			continue
 		}
 
-		idx.Logger.Sugar().Debug("processing transaction", zap.String("txHash", tx.Hash.Value()))
+		idx.Logger.Sugar().Debugw("processing transaction", zap.String("txHash", tx.Hash.Value()))
 		contractAddress := txReceipt.ContractAddress.Value()
 		eip1197StoredValue := ""
 		if contractAddress != "" {

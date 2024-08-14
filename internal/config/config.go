@@ -9,9 +9,7 @@ import (
 
 type EnvScope string
 
-const ENV_VAR_PREFIX = "SIDE_CAR"
-
-const s3BlobStoreConfigScope EnvScope = "BLOB_STORE_S3"
+const ENV_VAR_PREFIX = "SIDECAR"
 
 type Network uint
 type Environment int
@@ -116,20 +114,11 @@ type Config struct {
 	Environment                Environment
 	Debug                      bool
 	StatsdUrl                  string
-	S3BlobStoreConfig          S3BlobStoreConfig
 	EthereumRpcConfig          EthereumRpcConfig
 	QuickNodeEthereumRpcConfig EthereumRpcConfig
 	PostgresConfig             PostgresConfig
 	EtherscanConfig            EtherscanConfig
 	RabbitMqConfig             RabbitMqConfig
-}
-
-type S3BlobStoreConfig struct {
-	Prefix          string
-	BucketName      string
-	AccessKeyId     string
-	SecretAccessKey string
-	Region          string
 }
 
 type EthereumRpcConfig struct {
@@ -163,14 +152,6 @@ func NewConfig() *Config {
 		Environment: parseEnvironment(getPrefixedEnvVar("ENVIRONMENT")),
 		Debug:       parseBooleanEnvVar(getPrefixedEnvVar("DEBUG")),
 		StatsdUrl:   getPrefixedEnvVar("STATSD_URL"),
-
-		S3BlobStoreConfig: S3BlobStoreConfig{
-			Prefix:          getScopedEnvVar(s3BlobStoreConfigScope, "PREFIX"),
-			BucketName:      getScopedEnvVar(s3BlobStoreConfigScope, "BUCKET_NAME"),
-			AccessKeyId:     getScopedEnvVar(s3BlobStoreConfigScope, "ACCESS_KEY_ID"),
-			SecretAccessKey: getScopedEnvVar(s3BlobStoreConfigScope, "SECRET_ACCESS_KEY"),
-			Region:          getScopedEnvVar(s3BlobStoreConfigScope, "REGION"),
-		},
 
 		EthereumRpcConfig: EthereumRpcConfig{
 			BaseUrl: getPrefixedEnvVar("ETHEREUM_RPC_BASE_URL"),
@@ -247,6 +228,19 @@ func (c *Config) GetInterestingAddressForConfigEnv() []string {
 		}
 	} else {
 		return []string{}
+	}
+}
+
+func (c *Config) GetGenesisBlockNumber() uint64 {
+	switch c.Environment {
+	case Environment_PreProd:
+		return 1477020
+	case Environment_Testnet:
+		return 1477020
+	case Environment_Mainnet:
+		return 19492759
+	default:
+		return 0
 	}
 }
 

@@ -2,7 +2,6 @@ package ethereum
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"strings"
 	"time"
@@ -46,7 +45,7 @@ var (
 		},
 		ResponseParser: func(res json.RawMessage) (*EthereumTransaction, error) {
 			receipt := &EthereumTransaction{}
-			fmt.Printf("res: %+v\n", string(res))
+
 			if err := json.Unmarshal(res, receipt); err != nil {
 				return nil, err
 			}
