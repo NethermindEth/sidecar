@@ -33,32 +33,12 @@ proto:
 clean:
 	rm -rf bin || true
 
-.PHONY: build/cmd/server
-build/cmd/server:
-	go build -o bin/cmd/server cmd/server/main.go
-
-.PHONY: build/cmd/blockSubscriber
-build/cmd/blockSubscriber:
-	go build -o bin/cmd/blockSubscriber cmd/blockSubscriber/main.go
-
-.PHONY: build/cmd/workers/backfillBlockIndexer
-build/cmd/workers/backfillBlockIndexer:
-	go build -o bin/cmd/workers/backfillBlockIndexer cmd/workers/backfillBlockIndexer/main.go
-
-.PHONY: build/cmd/workers/transactionLogIndexer
-build/cmd/workers/transactionLogIndexer:
-	go build -o bin/cmd/workers/transactionLogIndexer cmd/workers/transactionLogIndexer/main.go
-
-.PHONY: build/cmd/workers/contractIndexer
-build/cmd/workers/contractIndexer:
-	go build -o bin/cmd/workers/contractIndexer cmd/workers/contractIndexer/main.go
-
-.PHONY: build/cmd/workers/restakedStrategiesIndexer
-build/cmd/workers/restakedStrategiesIndexer:
-	go build -o bin/cmd/workers/restakedStrategiesIndexer cmd/workers/restakedStrategiesIndexer/main.go
+.PHONY: build/cmd/sidecar
+build/cmd/sidecar:
+	go build -o bin/cmd/sidecar cmd/sidecar/main.go
 
 .PHONY: build
-build: build/cmd/server build/cmd/workers/backfillBlockIndexer build/cmd/workers/transactionLogIndexer build/cmd/blockSubscriber build/cmd/workers/contractIndexer build/cmd/workers/restakedStrategiesIndexer
+build: build/cmd/sidecar
 
 docker-buildx:
 	docker-buildx build --platform linux/amd64 --push -t 767397703211.dkr.ecr.us-east-1.amazonaws.com/blocklake:$(shell date +%s) -t 767397703211.dkr.ecr.us-east-1.amazonaws.com/blocklake:latest .

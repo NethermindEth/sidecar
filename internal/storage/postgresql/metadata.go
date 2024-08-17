@@ -116,6 +116,9 @@ func (m *MetadataStore) InsertBlockTransaction(
 	contractAddress string,
 	bytecodeHash string,
 ) (*storage.Transaction, error) {
+	to = strings.ToLower(to)
+	from = strings.ToLower(from)
+	contractAddress = strings.ToLower(contractAddress)
 	return pg.WrapTxAndCommit[*storage.Transaction](func(txn *gorm.DB) (*storage.Transaction, error) {
 		tx := &storage.Transaction{
 			BlockSequenceId:  sequenceId,

@@ -1,9 +1,13 @@
 package parser
 
+import "github.com/Layr-Labs/sidecar/internal/clients/ethereum"
+
 type ParsedTransaction struct {
 	MethodName  string
 	DecodedData string
 	Logs        []*DecodedLog
+	Transaction *ethereum.EthereumTransaction
+	Receipt     *ethereum.EthereumTransactionReceipt
 }
 
 type DecodedLog struct {

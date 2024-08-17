@@ -46,10 +46,12 @@ func (idx *Indexer) getAbi(json string) (*abi.ABI, error) {
 func (idx *Indexer) ParseTransactionLogs(
 	transaction *ethereum.EthereumTransaction,
 	receipt *ethereum.EthereumTransactionReceipt,
-) (*parser.ParsedTransaction, error) {
+) (*parser.ParsedTransaction, *IndexError) {
 	idx.Logger.Sugar().Debugf("ProcessingTransaction '%s'", transaction.Hash.Value())
 	parsedTransaction := &parser.ParsedTransaction{
-		Logs: make([]*parser.DecodedLog, 0),
+		Logs:        make([]*parser.DecodedLog, 0),
+		Transaction: transaction,
+		Receipt:     receipt,
 	}
 
 	contractAddress := receipt.GetTargetAddress()
@@ -58,70 +60,84 @@ func (idx *Indexer) ParseTransactionLogs(
 		return nil, nil
 	}
 
-	// Fetch the contract from the database if it is there, otherwise, create a new entry and determine if it is a proxy contract
-	contract, err := idx.ContractManager.FindOrCreateContractWithProxy(contractAddress.Value(), transaction.BlockNumber.Value(), receipt.GetBytecodeHash(), false)
-	if err != nil {
-		idx.Logger.Sugar().Errorw(fmt.Sprintf("Failed to get contract for address %s", contractAddress), zap.Error(err))
-		return nil, err
-	}
-
-	if contract == nil {
-		idx.Logger.Sugar().Debugw("No contract found for address", zap.String("hash", transaction.Hash.Value()))
-		return parsedTransaction, nil
-	}
-
-	contractAbi := contract.CombineAbis()
-	if err != nil {
-		idx.Logger.Sugar().Errorw("Failed to combine ABIs")
-		return nil, err
-	}
-
-	if contractAbi == "" {
-		idx.Logger.Sugar().Debugw("No ABI found for contract", zap.String("hash", transaction.Hash.Value()))
-		return parsedTransaction, nil
-	}
-	a, err := idx.getAbi(contractAbi)
-	if err != nil {
-		idx.Logger.Sugar().Errorw(fmt.Sprintf("Failed to parse ABI for contract %s", contractAddress), zap.Error(err))
-		return nil, err
-	}
-
-	// First, attempt to decode the transaction input
-	txInput := transaction.Input.Value()
-	if len(txInput) >= 10 {
-		decodedSig, err := hex.DecodeString(txInput[2:10])
+	// Check if the transaction address is interesting.
+	// It may be the case that the transaction isnt interesting, but it emitted an interesting log, in which case
+	// the log address would be different than the transaction address
+	var a *abi.ABI
+	if idx.IsInterestingAddress(contractAddress.Value()) {
+		contract, err := idx.ContractManager.FindOrCreateContractWithProxy(contractAddress.Value(), transaction.BlockNumber.Value(), receipt.GetBytecodeHash(), false)
 		if err != nil {
-			idx.Logger.Sugar().Errorw("Failed to decode signature")
-			return nil, err
+			idx.Logger.Sugar().Errorw(fmt.Sprintf("Failed to get contract for address %s", contractAddress), zap.Error(err))
+			return nil, NewIndexError(IndexError_FailedToFindContract, err).
+				WithMessage("Failed to find contract").
+				WithBlockNumber(transaction.BlockNumber.Value()).
+				WithTransactionHash(transaction.Hash.Value()).
+				WithMetadata("contractAddress", contractAddress.Value())
 		}
 
-		method, err := a.MethodById(decodedSig)
+		if contract == nil {
+			idx.Logger.Sugar().Debugw("No contract found for address", zap.String("hash", transaction.Hash.Value()))
+			return nil, nil
+		}
+
+		contractAbi := contract.CombineAbis()
 		if err != nil {
-			idx.Logger.Sugar().Debugw(fmt.Sprintf("Failed to find method by ID '%s'", common.BytesToHash(decodedSig).String()))
-			parsedTransaction.MethodName = "unknown"
+			idx.Logger.Sugar().Errorw("Failed to combine ABIs")
+			return nil, NewIndexError(IndexError_FailedToCombineAbis, err).
+				WithMessage("Failed to combine ABIs").
+				WithBlockNumber(transaction.BlockNumber.Value()).
+				WithTransactionHash(transaction.Hash.Value())
+		}
+
+		if contractAbi == "" {
+			idx.Logger.Sugar().Debugw("No ABI found for contract", zap.String("hash", transaction.Hash.Value()))
+			return parsedTransaction, nil
+		}
+		a, err = idx.getAbi(contractAbi)
+		if err != nil {
+			idx.Logger.Sugar().Errorw(fmt.Sprintf("Failed to parse ABI for contract %s", contractAddress), zap.Error(err))
+			return nil, NewIndexError(IndexError_FailedToParseAbi, err).
+				WithMessage("Failed to parse ABI").
+				WithBlockNumber(transaction.BlockNumber.Value()).
+				WithTransactionHash(transaction.Hash.Value()).
+				WithMetadata("contractAddress", contractAddress.Value())
+		}
+
+		// First, attempt to decode the transaction input
+		txInput := transaction.Input.Value()
+		if len(txInput) >= 10 {
+			var method *abi.Method
+			decodedSig, err := hex.DecodeString(txInput[2:10])
+			if err != nil {
+				idx.Logger.Sugar().Errorw("Failed to decode signature")
+			}
+
+			if decodedSig != nil && len(decodedSig) > 0 {
+				method, err = a.MethodById(decodedSig)
+				if err != nil {
+					idx.Logger.Sugar().Debugw(fmt.Sprintf("Failed to find method by ID '%s'", common.BytesToHash(decodedSig).String()))
+					parsedTransaction.MethodName = "unknown"
+				} else {
+					parsedTransaction.MethodName = method.RawName
+					decodedData, err := hex.DecodeString(txInput[10:])
+					if err != nil {
+						idx.Logger.Sugar().Errorw("Failed to decode input data")
+					} else {
+						callMap := map[string]interface{}{}
+						if err := method.Inputs.UnpackIntoMap(callMap, decodedData); err != nil {
+							idx.Logger.Sugar().Errorw("Failed to unpack data")
+						}
+						callMapBytes, err := json.Marshal(callMap)
+						if err != nil {
+							idx.Logger.Sugar().Errorw("Failed to marshal callMap data", zap.String("hash", transaction.Hash.Value()))
+						}
+						parsedTransaction.DecodedData = string(callMapBytes)
+					}
+				}
+			}
 		} else {
-			parsedTransaction.MethodName = method.RawName
-			decodedData, err := hex.DecodeString(txInput[10:])
-			if err != nil {
-				idx.Logger.Sugar().Errorw("Failed to decode input data")
-				return nil, err
-			}
-
-			callMap := map[string]interface{}{}
-			if err := method.Inputs.UnpackIntoMap(callMap, decodedData); err != nil {
-				idx.Logger.Sugar().Errorw("Failed to unpack data")
-				return nil, err
-			}
-			callMapBytes, err := json.Marshal(callMap)
-			if err != nil {
-				idx.Logger.Sugar().Errorw("Failed to marshal callMap data", zap.String("hash", transaction.Hash.Value()))
-				return nil, err
-			}
-			parsedTransaction.DecodedData = string(callMapBytes)
+			idx.Logger.Sugar().Debugw(fmt.Sprintf("Transaction input is empty %s", contractAddress))
 		}
-
-	} else {
-		idx.Logger.Sugar().Debugw(fmt.Sprintf("Transaction input is empty %s", contractAddress))
 	}
 
 	logs := make([]*parser.DecodedLog, 0)
@@ -129,22 +145,22 @@ func (idx *Indexer) ParseTransactionLogs(
 	idx.Logger.Sugar().Debugw(fmt.Sprintf("Decoding '%d' logs for transaction '%s'", len(receipt.Logs), transaction.Hash.Value()))
 
 	for i, lg := range receipt.Logs {
-
-		decodedLog, err := idx.DecodeLogWithAbi(a, receipt, lg)
-		if err != nil {
-			idx.Logger.Sugar().Debugw(fmt.Sprintf("Error decoding log - index: '%d' - '%s'", i, transaction.Hash.Value()), zap.Error(err))
-		}
-		idx.Logger.Sugar().Debugw(fmt.Sprintf("Decoded log - index: '%d' - '%s'", i, transaction.Hash.Value()), zap.Any("decodedLog", decodedLog))
-
-		if !idx.isInterestingAddress(lg.Address.Value()) {
-			idx.Logger.Sugar().Infow("Skipping log with non-interesting address",
+		if !idx.IsInterestingAddress(lg.Address.Value()) {
+			idx.Logger.Sugar().Debugw("Skipping log with non-interesting address",
 				zap.String("address", contractAddress.Value()),
 				zap.String("transactionHash", transaction.Hash.Value()),
 				zap.Uint64("logIndex", lg.LogIndex.Value()),
 			)
-		} else {
-			logs = append(logs, decodedLog)
+			continue
 		}
+		decodedLog, err := idx.DecodeLogWithAbi(a, receipt, lg)
+		if err != nil {
+			idx.Logger.Sugar().Debugw(fmt.Sprintf("Error decoding log - index: '%d' - '%s'", i, transaction.Hash.Value()), zap.Error(err))
+		} else {
+			idx.Logger.Sugar().Debugw(fmt.Sprintf("Decoded log - index: '%d' - '%s'", i, transaction.Hash.Value()), zap.Any("decodedLog", decodedLog))
+		}
+
+		logs = append(logs, decodedLog)
 	}
 	parsedTransaction.Logs = logs
 	return parsedTransaction, nil
