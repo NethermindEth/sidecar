@@ -70,7 +70,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	fetchr := fetcher.NewFetcher(client, l)
+	fetchr := fetcher.NewFetcher(client, cfg, l)
 
 	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, l, cfg)
 

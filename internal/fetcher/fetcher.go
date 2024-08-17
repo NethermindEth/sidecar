@@ -3,20 +3,24 @@ package fetcher
 import (
 	"context"
 	"github.com/Layr-Labs/sidecar/internal/clients/ethereum"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
+	"slices"
 	"sync"
 )
 
 type Fetcher struct {
 	EthClient *ethereum.Client
 	Logger    *zap.Logger
+	Config    *config.Config
 }
 
-func NewFetcher(ethClient *ethereum.Client, l *zap.Logger) *Fetcher {
+func NewFetcher(ethClient *ethereum.Client, cfg *config.Config, l *zap.Logger) *Fetcher {
 	return &Fetcher{
 		EthClient: ethClient,
 		Logger:    l,
+		Config:    cfg,
 	}
 }
 
@@ -70,7 +74,7 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 	// Use a map to get only unique contract addresses
 	createdContractMap := make(map[string]bool, 0)
 	for _, r := range receipts {
-		if r.To == "" && r.ContractAddress != "" {
+		if r.To == "" && r.ContractAddress != "" && f.IsInterestingAddress(r.ContractAddress.Value()) {
 			createdContractMap[r.ContractAddress.Value()] = true
 		}
 	}
@@ -141,6 +145,10 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 		TxReceipts:      receipts,
 		ContractStorage: contractStorage,
 	}, nil
+}
+
+func (f *Fetcher) IsInterestingAddress(contractAddress string) bool {
+	return slices.Contains(f.Config.GetInterestingAddressForConfigEnv(), contractAddress)
 }
 
 func (f *Fetcher) GetContractStorageSlot(ctx context.Context, contractAddress string, blockNumber uint64) (string, error) {
