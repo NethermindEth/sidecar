@@ -1,0 +1,123 @@
+common:
+  image:
+    name: 767397703211.dkr.ecr.us-east-1.amazonaws.com/sidecar
+    tag: latest
+  config:
+    name: sidecar
+    values:
+      debug: "false"
+      network: "holesky"
+      environment: "preprod"
+      blob_store.s3.prefix: ""
+      blob_store.s3.region: ""
+      ethereum.rpc_base_url: "http://54.198.82.217:8545"
+      ethereum.ws_url: "ws://54.198.82.217:8546"
+      postgres.host: ""
+      postgres.port: ""
+      postgres.dbname: ""
+      rabbitmq.url: ""
+      rabbitmq.secure: "true"
+  secret:
+    name: block-lake
+    values:
+      blob_store.s3.access_key_id: ""
+      blob_store.s3.secret_access_key: ""
+      postgres.username: ""
+      postgres.password: ""
+      rabbitmq.username: ""
+      rabbitmq.password: ""
+      etherscan.api_keys: ""
+      quicknode.ethereum.rpc_base_url: ""
+      quicknode.ethereum.ws_url: ""
+backfillServer:
+  name: backfill-server
+  updateStrategy:
+    replicas: 1
+    strategy:
+      rollingUpdate:
+        maxUnavailable: 0
+        maxSurge: 1
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: .1
+    limits:
+      memory: 250Mi
+      cpu: .5
+workers:
+  blockIndexer:
+    name: block-indexer-worker
+    updateStrategy:
+      replicas: 1
+      strategy:
+        rollingUpdate:
+          maxUnavailable: 0
+          maxSurge: 1
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: .5
+      limits:
+        memory: 512Mi
+        cpu: .8
+  transactionLogIndexer:
+    name: transaction-log-indexer-worker
+    updateStrategy:
+      replicas: 1
+      strategy:
+        rollingUpdate:
+          maxUnavailable: 0
+          maxSurge: 1
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: .5
+      limits:
+        memory: 512Mi
+        cpu: .8
+  contractIndexer:
+    name: contract-indexer-worker
+    updateStrategy:
+      replicas: 1
+      strategy:
+        rollingUpdate:
+          maxUnavailable: 0
+          maxSurge: 1
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: .5
+      limits:
+        memory: 512Mi
+        cpu: .8
+  restakedStrategies:
+    name: restaked-strategies-worker
+    updateStrategy:
+      replicas: 1
+      strategy:
+        rollingUpdate:
+          maxUnavailable: 0
+          maxSurge: 1
+    resources:
+      requests:
+        memory: 128Mi
+        cpu: .2
+      limits:
+        memory: 256Mi
+        cpu: .6
+blockSubscriber:
+  name: block-subscriber
+  updateStrategy:
+    replicas: 0
+    strategy:
+      rollingUpdate:
+        maxUnavailable: 0
+        maxSurge: 1
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: .5
+    limits:
+      memory: 512Mi
+      cpu: .8
+
