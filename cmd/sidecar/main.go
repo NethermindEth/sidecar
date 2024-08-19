@@ -65,7 +65,7 @@ func main() {
 
 	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
 
-	mds, err := postgresql.NewMetadataStore(grm, l)
+	mds, err := postgresql.NewPostgresBlockStore(grm, l)
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-type MetadataStoreConfig struct {
+type PostgresBlockStoreConfig struct {
 	DBHost     string
 	DBPort     int
 	DBUsername string
@@ -22,14 +22,14 @@ type MetadataStoreConfig struct {
 	DBName     string
 }
 
-type MetadataStore struct {
+type PostgresBlockStore struct {
 	Db       *gorm.DB
 	migrated bool
 	Logger   *zap.Logger
 }
 
-func NewMetadataStore(db *gorm.DB, l *zap.Logger) (*MetadataStore, error) {
-	mds := &MetadataStore{
+func NewPostgresBlockStore(db *gorm.DB, l *zap.Logger) (*PostgresBlockStore, error) {
+	mds := &PostgresBlockStore{
 		Db:     db,
 		Logger: l,
 	}
@@ -39,7 +39,7 @@ func NewMetadataStore(db *gorm.DB, l *zap.Logger) (*MetadataStore, error) {
 	return mds, nil
 }
 
-func (m *MetadataStore) autoMigrate() {
+func (m *PostgresBlockStore) autoMigrate() {
 	if m.migrated {
 		return
 	}
@@ -47,14 +47,14 @@ func (m *MetadataStore) autoMigrate() {
 	m.migrated = true
 }
 
-func (m *MetadataStore) CreateTxBlock(tx *gorm.DB) *gorm.DB {
+func (m *PostgresBlockStore) CreateTxBlock(tx *gorm.DB) *gorm.DB {
 	if tx != nil {
 		return tx
 	}
 	return m.Db.Begin()
 }
 
-func (m *MetadataStore) GetNextSequenceId() (uint64, error) {
+func (m *PostgresBlockStore) GetNextSequenceId() (uint64, error) {
 	return pg.WrapTxAndCommit[uint64](func(txn *gorm.DB) (uint64, error) {
 		query := `SELECT coalesce(max(id), -1) + 1 FROM block_sequences`
 
@@ -69,7 +69,7 @@ func (m *MetadataStore) GetNextSequenceId() (uint64, error) {
 	}, nil, m.Db)
 }
 
-func (m *MetadataStore) UpdateBlockPath(sequenceId uint64, blockNumber uint64, path string) (*storage.Block, error) {
+func (m *PostgresBlockStore) UpdateBlockPath(sequenceId uint64, blockNumber uint64, path string) (*storage.Block, error) {
 	return pg.WrapTxAndCommit[*storage.Block](func(txn *gorm.DB) (*storage.Block, error) {
 		sequence := &storage.Block{}
 		result := txn.Model(sequence).
@@ -84,7 +84,7 @@ func (m *MetadataStore) UpdateBlockPath(sequenceId uint64, blockNumber uint64, p
 	}, nil, m.Db)
 }
 
-func (m *MetadataStore) InsertBlockAtHeight(
+func (m *PostgresBlockStore) InsertBlockAtHeight(
 	blockNumber uint64,
 	hash string,
 	blockTime uint64,
@@ -106,7 +106,7 @@ func (m *MetadataStore) InsertBlockAtHeight(
 	}, nil, m.Db)
 }
 
-func (m *MetadataStore) InsertBlockTransaction(
+func (m *PostgresBlockStore) InsertBlockTransaction(
 	sequenceId uint64,
 	blockNumber uint64,
 	txHash string,
@@ -140,7 +140,7 @@ func (m *MetadataStore) InsertBlockTransaction(
 	}, nil, m.Db)
 }
 
-func (m *MetadataStore) BatchInsertBlockTransactions(
+func (m *PostgresBlockStore) BatchInsertBlockTransactions(
 	sequenceId uint64,
 	blockNumber uint64,
 	transactions []storage.BatchTransaction,
@@ -172,7 +172,7 @@ func (m *MetadataStore) BatchInsertBlockTransactions(
 	}, nil, m.Db)
 }
 
-func (m *MetadataStore) InsertTransactionLog(
+func (m *PostgresBlockStore) InsertTransactionLog(
 	txHash string,
 	transactionIndex uint64,
 	blockNumber uint64,
@@ -212,7 +212,7 @@ func (m *MetadataStore) InsertTransactionLog(
 	}, nil, m.Db)
 }
 
-func (m *MetadataStore) BatchInsertTransactionLogs(transactions []*storage.BatchInsertTransactionLogs) ([]*storage.TransactionLog, error) {
+func (m *PostgresBlockStore) BatchInsertTransactionLogs(transactions []*storage.BatchInsertTransactionLogs) ([]*storage.TransactionLog, error) {
 	logs := make([]*storage.TransactionLog, 0)
 
 	for _, tx := range transactions {
@@ -246,7 +246,7 @@ type latestBlockNumber struct {
 	BlockNumber uint64
 }
 
-func (m *MetadataStore) GetLatestBlock() (int64, error) {
+func (m *PostgresBlockStore) GetLatestBlock() (int64, error) {
 	block := &latestBlockNumber{}
 
 	query := `select coalesce(max(number), 0) as block_number from blocks`
@@ -258,7 +258,7 @@ func (m *MetadataStore) GetLatestBlock() (int64, error) {
 	return int64(block.BlockNumber), nil
 }
 
-func (m *MetadataStore) GetBlockByNumber(blockNumber uint64) (*storage.Block, error) {
+func (m *PostgresBlockStore) GetBlockByNumber(blockNumber uint64) (*storage.Block, error) {
 	block := &storage.Block{}
 
 	result := m.Db.Model(block).Where("number = ?", blockNumber).First(&block)
@@ -271,7 +271,7 @@ func (m *MetadataStore) GetBlockByNumber(blockNumber uint64) (*storage.Block, er
 	return block, nil
 }
 
-func (m *MetadataStore) DeleteTransactionLogsForBlock(blockNumber uint64) error {
+func (m *PostgresBlockStore) DeleteTransactionLogsForBlock(blockNumber uint64) error {
 	result := m.Db.Where("block_number = ?", blockNumber).Delete(&storage.TransactionLog{})
 	if result.Error != nil {
 		return xerrors.Errorf("Failed to delete transaction logs: %w", result.Error)
@@ -279,7 +279,7 @@ func (m *MetadataStore) DeleteTransactionLogsForBlock(blockNumber uint64) error 
 	return nil
 }
 
-func (m *MetadataStore) GetTransactionByHash(txHash string) (*storage.Transaction, error) {
+func (m *PostgresBlockStore) GetTransactionByHash(txHash string) (*storage.Transaction, error) {
 	tx := &storage.Transaction{}
 
 	result := m.Db.Model(&tx).Where("transaction_hash = ?", strings.ToLower(txHash)).First(&tx)
@@ -292,7 +292,7 @@ func (m *MetadataStore) GetTransactionByHash(txHash string) (*storage.Transactio
 	return tx, nil
 }
 
-func (m *MetadataStore) ListTransactionsForContractAddress(contractAddress string) ([]*storage.Transaction, error) {
+func (m *PostgresBlockStore) ListTransactionsForContractAddress(contractAddress string) ([]*storage.Transaction, error) {
 	contractAddress = strings.ToLower(contractAddress)
 	var txs []*storage.Transaction
 
@@ -305,7 +305,7 @@ func (m *MetadataStore) ListTransactionsForContractAddress(contractAddress strin
 	return txs, nil
 }
 
-func (m *MetadataStore) ListTransactionLogsForContractAddress(contractAddress string) ([]*storage.TransactionLog, error) {
+func (m *PostgresBlockStore) ListTransactionLogsForContractAddress(contractAddress string) ([]*storage.TransactionLog, error) {
 	contractAddress = strings.ToLower(contractAddress)
 	var txLogs []*storage.TransactionLog
 
@@ -318,7 +318,7 @@ func (m *MetadataStore) ListTransactionLogsForContractAddress(contractAddress st
 	return txLogs, nil
 }
 
-func (m *MetadataStore) InsertOperatorRestakedStrategies(avsDirectorAddress string, blockNumber uint64, blockTime time.Time, operator string, avs string, strategy string) (*storage.OperatorRestakedStrategies, error) {
+func (m *PostgresBlockStore) InsertOperatorRestakedStrategies(avsDirectorAddress string, blockNumber uint64, blockTime time.Time, operator string, avs string, strategy string) (*storage.OperatorRestakedStrategies, error) {
 	return pg.WrapTxAndCommit[*storage.OperatorRestakedStrategies](func(txn *gorm.DB) (*storage.OperatorRestakedStrategies, error) {
 		ors := &storage.OperatorRestakedStrategies{
 			AvsDirectoryAddress: strings.ToLower(avsDirectorAddress),
@@ -339,7 +339,7 @@ func (m *MetadataStore) InsertOperatorRestakedStrategies(avsDirectorAddress stri
 
 }
 
-func (m *MetadataStore) GetLatestActiveAvsOperators(blockNumber uint64, avsDirectoryAddress string) ([]*storage.ActiveAvsOperator, error) {
+func (m *PostgresBlockStore) GetLatestActiveAvsOperators(blockNumber uint64, avsDirectoryAddress string) ([]*storage.ActiveAvsOperator, error) {
 	avsDirectoryAddress = strings.ToLower(avsDirectoryAddress)
 
 	rows := make([]*storage.ActiveAvsOperator, 0)

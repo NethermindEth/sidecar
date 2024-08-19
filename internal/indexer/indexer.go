@@ -18,7 +18,7 @@ import (
 
 type Indexer struct {
 	Logger          *zap.Logger
-	MetadataStore   storage.MetadataStore
+	MetadataStore   storage.BlockStore
 	ContractStore   contractStore.ContractStore
 	ContractManager *contractManager.ContractManager
 	EtherscanClient *etherscan.EtherscanClient
@@ -80,7 +80,7 @@ func (e *IndexError) WithMessage(message string) *IndexError {
 }
 
 func NewIndexer(
-	ms storage.MetadataStore,
+	ms storage.BlockStore,
 	cs contractStore.ContractStore,
 	es *etherscan.EtherscanClient,
 	cm *contractManager.ContractManager,

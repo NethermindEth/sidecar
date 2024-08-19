@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type MetadataStore interface {
+type BlockStore interface {
 	GetNextSequenceId() (uint64, error)
 	InsertBlockAtHeight(blockNumber uint64, hash string, blockTime uint64) (*Block, error)
 	UpdateBlockPath(sequenceId uint64, blockNumber uint64, path string) (*Block, error)

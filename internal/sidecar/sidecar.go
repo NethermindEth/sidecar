@@ -17,7 +17,7 @@ type Sidecar struct {
 	Logger         *zap.Logger
 	Config         *SidecarConfig
 	GlobalConfig   *config.Config
-	Storage        storage.MetadataStore
+	Storage        storage.BlockStore
 	Pipeline       *pipeline.Pipeline
 	EthereumClient *ethereum.Client
 }
@@ -25,7 +25,7 @@ type Sidecar struct {
 func NewSidecar(
 	cfg *SidecarConfig,
 	gCfg *config.Config,
-	s storage.MetadataStore,
+	s storage.BlockStore,
 	p *pipeline.Pipeline,
 	l *zap.Logger,
 	ethClient *ethereum.Client,
