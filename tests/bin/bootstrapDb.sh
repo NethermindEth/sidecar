@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DATABASE=blocklake_test
+DATABASE=sidecar_test
 
 echo 'Dropping database'
 dropdb $DATABASE || true
