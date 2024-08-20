@@ -74,7 +74,7 @@ func main() {
 
 	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, l, cfg)
 
-	p := pipeline.NewPipeline(fetchr, idxr, l)
+	p := pipeline.NewPipeline(fetchr, idxr, mds, l)
 
 	sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
 		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),

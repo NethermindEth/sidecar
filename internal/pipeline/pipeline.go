@@ -4,20 +4,23 @@ import (
 	"context"
 	"github.com/Layr-Labs/sidecar/internal/fetcher"
 	"github.com/Layr-Labs/sidecar/internal/indexer"
+	"github.com/Layr-Labs/sidecar/internal/storage"
 	"go.uber.org/zap"
 )
 
 type Pipeline struct {
-	Fetcher *fetcher.Fetcher
-	Indexer *indexer.Indexer
-	Logger  *zap.Logger
+	Fetcher    *fetcher.Fetcher
+	Indexer    *indexer.Indexer
+	BlockStore storage.BlockStore
+	Logger     *zap.Logger
 }
 
-func NewPipeline(f *fetcher.Fetcher, i *indexer.Indexer, l *zap.Logger) *Pipeline {
+func NewPipeline(f *fetcher.Fetcher, i *indexer.Indexer, bs storage.BlockStore, l *zap.Logger) *Pipeline {
 	return &Pipeline{
-		Fetcher: f,
-		Indexer: i,
-		Logger:  l,
+		Fetcher:    f,
+		Indexer:    i,
+		Logger:     l,
+		BlockStore: bs,
 	}
 }
 
@@ -122,6 +125,34 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 	return nil
 }
 
-func (p *Pipeline) CalculateSomething() {
+func (p *Pipeline) CloneAggregatedStateTablesFromPreviousblock(currentBlock uint64) error {
+	if err := p.BlockStore.CloneRegisteredAvsOperatorsForNewBlock(currentBlock); err != nil {
+		p.Logger.Sugar().Errorw("Failed to clone registered avs operators", zap.Uint64("blockNumber", currentBlock), zap.Error(err))
+		return err
+	}
+	if err := p.BlockStore.CloneOperatorSharesForNewBlock(currentBlock); err != nil {
+		p.Logger.Sugar().Errorw("Failed to clone operator shares", zap.Uint64("blockNumber", currentBlock), zap.Error(err))
+		return err
+	}
+	if err := p.BlockStore.CloneStakerSharesForNewBlock(currentBlock); err != nil {
+		p.Logger.Sugar().Errorw("Failed to clone staker shares", zap.Uint64("blockNumber", currentBlock), zap.Error(err))
+		return err
+	}
+	if err := p.BlockStore.CloneDelegatedStakersForNewBlock(currentBlock); err != nil {
+		p.Logger.Sugar().Errorw("Failed to clone delegated stakers", zap.Uint64("blockNumber", currentBlock), zap.Error(err))
+		return err
+	}
+	if err := p.BlockStore.SetActiveRewardsForNewBlock(currentBlock); err != nil {
+		p.Logger.Sugar().Errorw("Failed to set active rewards", zap.Uint64("blockNumber", currentBlock), zap.Error(err))
+		return err
+	}
+	if err := p.BlockStore.SetActiveRewardForAllForNewBlock(currentBlock); err != nil {
+		p.Logger.Sugar().Errorw("Failed to set active rewards for all", zap.Uint64("blockNumber", currentBlock), zap.Error(err))
+		return err
+	}
+	return nil
+}
 
+func (p *Pipeline) GenerateStateTransactionsFromLogs(currentBlock uint64) error {
+	return nil
 }

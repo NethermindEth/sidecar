@@ -27,5 +27,5 @@
 {{- end -}}
 
 {{- define "formatEnvVarName" -}}
-SIDE_CAR_{{ regexReplaceAll "\\." . "_" | upper }}
+SIDECAR_{{ regexReplaceAll "\\." . "_" | upper }}
 {{- end -}}
