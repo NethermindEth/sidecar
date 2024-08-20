@@ -201,33 +201,57 @@ var AVSDirectoryAddresses = map[Environment]map[Network]string{
 	},
 }
 
-func (c *Config) GetInterestingAddressForConfigEnv() []string {
+type ContractAddresses struct {
+	RewardsCoordinator string
+	EigenpodManager    string
+	StrategyManager    string
+	DelegationManager  string
+	AvsDirectory       string
+}
+
+func (c *Config) GetContractsMapForEnvAndNetwork() *ContractAddresses {
 	if c.Environment == Environment_PreProd {
-		return []string{
-			"0xb22ef643e1e067c994019a4c19e403253c05c2b0", // rewards coordinator
-			"0xb8d8952f572e67b11e43bc21250967772fa883ff", // eigenpod manager
-			"0xf9fbf2e35d8803273e214c99bf15174139f4e67a", // strategy manager
-			"0x75dfe5b44c2e530568001400d3f704bc8ae350cc", // delegation manager
-			"0x141d6995556135d4997b2ff72eb443be300353bc", // avs directory
+		return &ContractAddresses{
+			RewardsCoordinator: "0xb22ef643e1e067c994019a4c19e403253c05c2b0",
+			EigenpodManager:    "0xb8d8952f572e67b11e43bc21250967772fa883ff",
+			StrategyManager:    "0xf9fbf2e35d8803273e214c99bf15174139f4e67a",
+			DelegationManager:  "0x75dfe5b44c2e530568001400d3f704bc8ae350cc",
+			AvsDirectory:       "0x141d6995556135d4997b2ff72eb443be300353bc",
 		}
 	} else if c.Environment == Environment_Testnet {
-		return []string{
-			"0xacc1fb458a1317e886db376fc8141540537e68fe", // rewards coordinator
-			"0x30770d7e3e71112d7a6b7259542d1f680a70e315", // eigenpod manager
-			"0xdfb5f6ce42aaa7830e94ecfccad411bef4d4d5b6", // strategy manager
-			"0xa44151489861fe9e3055d95adc98fbd462b948e7", // delegation manager
-			"0x055733000064333caddbc92763c58bf0192ffebf", // avs directory
+		return &ContractAddresses{
+			RewardsCoordinator: "0xacc1fb458a1317e886db376fc8141540537e68fe",
+			EigenpodManager:    "0x30770d7e3e71112d7a6b7259542d1f680a70e315",
+			StrategyManager:    "0xdfb5f6ce42aaa7830e94ecfccad411bef4d4d5b6",
+			DelegationManager:  "0xa44151489861fe9e3055d95adc98fbd462b948e7",
+			AvsDirectory:       "0x055733000064333caddbc92763c58bf0192ffebf",
 		}
 	} else if c.Environment == Environment_Mainnet {
-		return []string{
-			"0x7750d328b314effa365a0402ccfd489b80b0adda", // rewards coordinator
-			"0x91e677b07f7af907ec9a428aafa9fc14a0d3a338", // eigenpod manager
-			"0x858646372cc42e1a627fce94aa7a7033e7cf075a", // strategy manager
-			"0x39053d51b77dc0d36036fc1fcc8cb819df8ef37a", // delegation manager
-			"0x135dda560e946695d6f155dacafc6f1f25c1f5af", // avs directory
+		return &ContractAddresses{
+			RewardsCoordinator: "0x7750d328b314effa365a0402ccfd489b80b0adda",
+			EigenpodManager:    "0x91e677b07f7af907ec9a428aafa9fc14a0d3a338",
+			StrategyManager:    "0x858646372cc42e1a627fce94aa7a7033e7cf075a",
+			DelegationManager:  "0x39053d51b77dc0d36036fc1fcc8cb819df8ef37a",
+			AvsDirectory:       "0x135dda560e946695d6f155dacafc6f1f25c1f5af",
 		}
 	} else {
+		return nil
+	}
+}
+
+func (c *Config) GetInterestingAddressForConfigEnv() []string {
+	addresses := c.GetContractsMapForEnvAndNetwork()
+
+	if addresses == nil {
 		return []string{}
+	}
+
+	return []string{
+		addresses.RewardsCoordinator,
+		addresses.EigenpodManager,
+		addresses.StrategyManager,
+		addresses.DelegationManager,
+		addresses.AvsDirectory,
 	}
 }
 

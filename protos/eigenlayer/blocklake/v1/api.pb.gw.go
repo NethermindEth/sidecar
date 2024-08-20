@@ -183,6 +183,7 @@ func local_request_Backfiller_ReIndexRestakedStrategies_0(ctx context.Context, m
 // UnaryRPC     :call ApiServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterApiHandlerFromEndpoint instead.
+// GRPC interceptors will not work for this type of registration. To use interceptors, you must use the "runtime.WithMiddlewares" option in the "runtime.NewServeMux" call.
 func RegisterApiHandlerServer(ctx context.Context, mux *runtime.ServeMux, server ApiServer) error {
 
 	mux.Handle("POST", pattern_Api_SayHello_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
@@ -217,6 +218,7 @@ func RegisterApiHandlerServer(ctx context.Context, mux *runtime.ServeMux, server
 // UnaryRPC     :call BackfillerServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterBackfillerHandlerFromEndpoint instead.
+// GRPC interceptors will not work for this type of registration. To use interceptors, you must use the "runtime.WithMiddlewares" option in the "runtime.NewServeMux" call.
 func RegisterBackfillerHandlerServer(ctx context.Context, mux *runtime.ServeMux, server BackfillerServer) error {
 
 	mux.Handle("POST", pattern_Backfiller_StartBackfill_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
@@ -382,7 +384,7 @@ func RegisterApiHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.C
 // to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "ApiClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "ApiClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
-// "ApiClient" to call the correct interceptors.
+// "ApiClient" to call the correct interceptors. This client ignores the HTTP middlewares.
 func RegisterApiHandlerClient(ctx context.Context, mux *runtime.ServeMux, client ApiClient) error {
 
 	mux.Handle("POST", pattern_Api_SayHello_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
@@ -453,7 +455,7 @@ func RegisterBackfillerHandler(ctx context.Context, mux *runtime.ServeMux, conn 
 // to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "BackfillerClient".
 // Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "BackfillerClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
-// "BackfillerClient" to call the correct interceptors.
+// "BackfillerClient" to call the correct interceptors. This client ignores the HTTP middlewares.
 func RegisterBackfillerHandlerClient(ctx context.Context, mux *runtime.ServeMux, client BackfillerClient) error {
 
 	mux.Handle("POST", pattern_Backfiller_StartBackfill_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
