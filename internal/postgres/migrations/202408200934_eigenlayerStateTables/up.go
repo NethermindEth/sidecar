@@ -44,7 +44,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			transaction_hash varchar,
 			log_index bigint,
 			block_number bigint,
-			created_at timestamp with time zone
+			created_at timestamp with time zone default current_timestamp
 		);
 		`,
 		`create index if not exists idx_staker_share_changes_staker_strat on staker_share_changes (staker, strategy)`,
@@ -53,10 +53,11 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			id serial primary key,
 			staker varchar,
 			operator varchar,
+			delegated boolean,
 			transaction_hash varchar,
 			log_index bigint,
 			block_number bigint,
-			created_at timestamp with time zone
+			created_at timestamp with time zone default current_timestamp
 		);
 		`,
 		`create index if not exists idx_staker_delegation_changes_staker_operator on staker_delegation_changes (staker, operator)`,
@@ -76,7 +77,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			start_timestamp timestamp,
 			end_timestamp timestamp,
 			duration bigint,
-			created_at timestamp with time zone
+			created_at timestamp with time zone default current_timestamp
 		);
 		`,
 		`create index if not exists idx_active_reward_submissions_avs on active_reward_submissions (avs)`,
@@ -96,7 +97,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			start_timestamp timestamp,
 			end_timestamp timestamp,
 			duration bigint,
-			created_at timestamp with time zone
+			created_at timestamp with time zone default current_timestamp
 		);
 		`,
 		`create index if not exists idx_active_reward_for_all_submissions_avs on active_reward_for_all_submissions (avs)`,
@@ -105,7 +106,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			operator varchar,
 			avs varchar,
 			block_number bigint,
-			created_at timestamp with time zone,
+			created_at timestamp with time zone default current_timestamp,
 			unique(operator, avs, block_number)
 		);
 		`,
@@ -116,7 +117,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			strategy varchar,
 			shares numeric,
 			block_number bigint,
-			created_at timestamp with time zone,
+			created_at timestamp with time zone default current_timestamp,
 			unique (operator, strategy, block_number)
 		)`,
 		`create index if not exists idx_operator_shares_operator_strategy on operator_shares (operator, strategy)`,
@@ -126,7 +127,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			strategy varchar,
 			shares numeric,
 			block_number bigint,
-			created_at timestamp with time zone,
+			created_at timestamp with time zone default current_timestamp,
 			unique(staker, strategy, block_number)
 		)
 		`,
@@ -136,7 +137,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			staker varchar,
 			operator varchar,
 			block_number bigint,
-			created_at timestamp with time zone,
+			created_at timestamp with time zone default current_timestamp,
 			unique(staker, operator, block_number)
 		)`,
 		`create index if not exists idx_delegated_stakers_staker_operator on delegated_stakers (staker, operator)`,
@@ -153,7 +154,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			start_timestamp timestamp,
 			end_timestamp timestamp,
 			duration bigint,
-			created_at timestamp with time zone
+			created_at timestamp with time zone default current_timestamp
 		)`,
 		`create index if not exists idx_active_rewards_avs on active_rewards (avs)`,
 		`create index if not exists idx_active_rewards_block on active_rewards (block_number)`,
@@ -169,7 +170,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			start_timestamp timestamp,
 			end_timestamp timestamp,
 			duration bigint,
-			created_at timestamp with time zone
+			created_at timestamp with time zone default current_timestamp
 		)`,
 		`create index if not exists idx_active_reward_for_all_avs on active_reward_for_all (avs)`,
 		`create index if not exists idx_active_reward_for_all_block on active_reward_for_all (block_number)`,

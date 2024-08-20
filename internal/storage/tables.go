@@ -99,10 +99,10 @@ type StakerDelegationChanges struct {
 	Id              uint64 `gorm:"type:serial"`
 	Staker          string
 	Operator        string
+	Delegated       bool
 	TransactionHash string
 	LogIndex        uint64
 	BlockNumber     uint64
-	Delegated       bool
 	CreatedAt       time.Time
 }
 
