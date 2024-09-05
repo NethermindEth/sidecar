@@ -3,7 +3,7 @@
 --
 
 -- Dumped from database version 14.11 (Homebrew)
--- Dumped by pg_dump version 15.7 (Homebrew)
+-- Dumped by pg_dump version 15.8 (Homebrew)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -28,132 +28,6 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- Name: active_reward_for_all; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.active_reward_for_all (
-    avs character varying,
-    reward_hash character varying,
-    token character varying,
-    amount numeric,
-    strategy character varying,
-    multiplier numeric,
-    strategy_index bigint,
-    block_number bigint,
-    start_timestamp timestamp without time zone,
-    end_timestamp timestamp without time zone,
-    duration bigint,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-
---
--- Name: active_reward_for_all_submissions; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.active_reward_for_all_submissions (
-    id integer NOT NULL,
-    avs character varying,
-    reward_hash character varying,
-    token character varying,
-    amount numeric,
-    strategy character varying,
-    multiplier numeric,
-    strategy_index bigint,
-    transaction_hash character varying,
-    log_index bigint,
-    block_number bigint,
-    start_timestamp timestamp without time zone,
-    end_timestamp timestamp without time zone,
-    duration bigint,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-
---
--- Name: active_reward_for_all_submissions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.active_reward_for_all_submissions_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: active_reward_for_all_submissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.active_reward_for_all_submissions_id_seq OWNED BY public.active_reward_for_all_submissions.id;
-
-
---
--- Name: active_reward_submissions; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.active_reward_submissions (
-    id integer NOT NULL,
-    avs character varying,
-    reward_hash character varying,
-    token character varying,
-    amount numeric,
-    strategy character varying,
-    multiplier numeric,
-    strategy_index bigint,
-    transaction_hash character varying,
-    log_index bigint,
-    block_number bigint,
-    start_timestamp timestamp without time zone,
-    end_timestamp timestamp without time zone,
-    duration bigint,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-
---
--- Name: active_reward_submissions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.active_reward_submissions_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: active_reward_submissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.active_reward_submissions_id_seq OWNED BY public.active_reward_submissions.id;
-
-
---
--- Name: active_rewards; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.active_rewards (
-    avs character varying,
-    reward_hash character varying,
-    token character varying,
-    amount numeric,
-    strategy character varying,
-    multiplier numeric,
-    strategy_index bigint,
-    block_number bigint,
-    start_timestamp timestamp without time zone,
-    end_timestamp timestamp without time zone,
-    duration bigint,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-
---
 -- Name: avs_operator_changes; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -163,8 +37,10 @@ CREATE TABLE public.avs_operator_changes (
     avs character varying,
     registered boolean,
     transaction_hash character varying,
+    transaction_index bigint,
     log_index bigint,
-    block_number bigint
+    block_number bigint,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -264,18 +140,6 @@ ALTER SEQUENCE public.contracts_id_seq OWNED BY public.contracts.id;
 
 
 --
--- Name: delegated_stakers; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.delegated_stakers (
-    staker character varying,
-    operator character varying,
-    block_number bigint,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-
---
 -- Name: migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -325,54 +189,6 @@ ALTER SEQUENCE public.operator_restaked_strategies_id_seq OWNED BY public.operat
 
 
 --
--- Name: operator_share_changes; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.operator_share_changes (
-    id integer NOT NULL,
-    operator character varying,
-    strategy character varying,
-    shares numeric,
-    transaction_hash character varying,
-    log_index bigint,
-    block_number bigint
-);
-
-
---
--- Name: operator_share_changes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.operator_share_changes_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: operator_share_changes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.operator_share_changes_id_seq OWNED BY public.operator_share_changes.id;
-
-
---
--- Name: operator_shares; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.operator_shares (
-    operator character varying,
-    strategy character varying,
-    shares numeric,
-    block_number bigint,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-
---
 -- Name: proxy_contracts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -393,91 +209,6 @@ CREATE TABLE public.proxy_contracts (
 CREATE TABLE public.registered_avs_operators (
     operator character varying,
     avs character varying,
-    block_number bigint,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-
---
--- Name: staker_delegation_changes; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.staker_delegation_changes (
-    id integer NOT NULL,
-    staker character varying,
-    operator character varying,
-    delegated boolean,
-    transaction_hash character varying,
-    log_index bigint,
-    block_number bigint,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-
---
--- Name: staker_delegation_changes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.staker_delegation_changes_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: staker_delegation_changes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.staker_delegation_changes_id_seq OWNED BY public.staker_delegation_changes.id;
-
-
---
--- Name: staker_share_changes; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.staker_share_changes (
-    id integer NOT NULL,
-    staker character varying,
-    strategy character varying,
-    shares numeric,
-    transaction_hash character varying,
-    log_index bigint,
-    block_number bigint,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-
---
--- Name: staker_share_changes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.staker_share_changes_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: staker_share_changes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.staker_share_changes_id_seq OWNED BY public.staker_share_changes.id;
-
-
---
--- Name: staker_shares; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.staker_shares (
-    staker character varying,
-    strategy character varying,
-    shares numeric,
     block_number bigint,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
@@ -518,7 +249,10 @@ CREATE TABLE public.transactions (
     to_address character varying(255) DEFAULT NULL::character varying,
     block_sequence_id bigint NOT NULL,
     contract_address character varying(255) DEFAULT NULL::character varying,
-    bytecode_hash character varying(64) DEFAULT NULL::character varying
+    bytecode_hash character varying(64) DEFAULT NULL::character varying,
+    gas_used numeric,
+    cumulative_gas_used numeric,
+    effective_gas_price numeric
 );
 
 
@@ -532,20 +266,6 @@ CREATE TABLE public.unverified_contracts (
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone
 );
-
-
---
--- Name: active_reward_for_all_submissions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.active_reward_for_all_submissions ALTER COLUMN id SET DEFAULT nextval('public.active_reward_for_all_submissions_id_seq'::regclass);
-
-
---
--- Name: active_reward_submissions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.active_reward_submissions ALTER COLUMN id SET DEFAULT nextval('public.active_reward_submissions_id_seq'::regclass);
 
 
 --
@@ -574,43 +294,6 @@ ALTER TABLE ONLY public.contracts ALTER COLUMN id SET DEFAULT nextval('public.co
 --
 
 ALTER TABLE ONLY public.operator_restaked_strategies ALTER COLUMN id SET DEFAULT nextval('public.operator_restaked_strategies_id_seq'::regclass);
-
-
---
--- Name: operator_share_changes id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.operator_share_changes ALTER COLUMN id SET DEFAULT nextval('public.operator_share_changes_id_seq'::regclass);
-
-
---
--- Name: staker_delegation_changes id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.staker_delegation_changes ALTER COLUMN id SET DEFAULT nextval('public.staker_delegation_changes_id_seq'::regclass);
-
-
---
--- Name: staker_share_changes id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.staker_share_changes ALTER COLUMN id SET DEFAULT nextval('public.staker_share_changes_id_seq'::regclass);
-
-
---
--- Name: active_reward_for_all_submissions active_reward_for_all_submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.active_reward_for_all_submissions
-    ADD CONSTRAINT active_reward_for_all_submissions_pkey PRIMARY KEY (id);
-
-
---
--- Name: active_reward_submissions active_reward_submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.active_reward_submissions
-    ADD CONSTRAINT active_reward_submissions_pkey PRIMARY KEY (id);
 
 
 --
@@ -646,14 +329,6 @@ ALTER TABLE ONLY public.contracts
 
 
 --
--- Name: delegated_stakers delegated_stakers_staker_operator_block_number_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.delegated_stakers
-    ADD CONSTRAINT delegated_stakers_staker_operator_block_number_key UNIQUE (staker, operator, block_number);
-
-
---
 -- Name: migrations migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -670,51 +345,11 @@ ALTER TABLE ONLY public.operator_restaked_strategies
 
 
 --
--- Name: operator_share_changes operator_share_changes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.operator_share_changes
-    ADD CONSTRAINT operator_share_changes_pkey PRIMARY KEY (id);
-
-
---
--- Name: operator_shares operator_shares_operator_strategy_block_number_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.operator_shares
-    ADD CONSTRAINT operator_shares_operator_strategy_block_number_key UNIQUE (operator, strategy, block_number);
-
-
---
 -- Name: registered_avs_operators registered_avs_operators_operator_avs_block_number_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.registered_avs_operators
     ADD CONSTRAINT registered_avs_operators_operator_avs_block_number_key UNIQUE (operator, avs, block_number);
-
-
---
--- Name: staker_delegation_changes staker_delegation_changes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.staker_delegation_changes
-    ADD CONSTRAINT staker_delegation_changes_pkey PRIMARY KEY (id);
-
-
---
--- Name: staker_share_changes staker_share_changes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.staker_share_changes
-    ADD CONSTRAINT staker_share_changes_pkey PRIMARY KEY (id);
-
-
---
--- Name: staker_shares staker_shares_staker_strategy_block_number_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.staker_shares
-    ADD CONSTRAINT staker_shares_staker_strategy_block_number_key UNIQUE (staker, strategy, block_number);
 
 
 --
@@ -731,62 +366,6 @@ ALTER TABLE ONLY public.transactions
 
 ALTER TABLE ONLY public.unverified_contracts
     ADD CONSTRAINT unverified_contracts_pkey PRIMARY KEY (contract_address);
-
-
---
--- Name: idx_active_reward_for_all_avs; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_active_reward_for_all_avs ON public.active_reward_for_all USING btree (avs);
-
-
---
--- Name: idx_active_reward_for_all_block; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_active_reward_for_all_block ON public.active_reward_for_all USING btree (block_number);
-
-
---
--- Name: idx_active_reward_for_all_submissions_avs; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_active_reward_for_all_submissions_avs ON public.active_reward_for_all_submissions USING btree (avs);
-
-
---
--- Name: idx_active_reward_for_all_submissions_block; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_active_reward_for_all_submissions_block ON public.active_reward_for_all_submissions USING btree (block_number);
-
-
---
--- Name: idx_active_reward_submissions_avs; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_active_reward_submissions_avs ON public.active_reward_submissions USING btree (avs);
-
-
---
--- Name: idx_active_reward_submissions_block; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_active_reward_submissions_block ON public.active_reward_submissions USING btree (block_number);
-
-
---
--- Name: idx_active_rewards_avs; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_active_rewards_avs ON public.active_rewards USING btree (avs);
-
-
---
--- Name: idx_active_rewards_block; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_active_rewards_block ON public.active_rewards USING btree (block_number);
 
 
 --
@@ -808,48 +387,6 @@ CREATE INDEX idx_avs_operator_changes_block ON public.avs_operator_changes USING
 --
 
 CREATE INDEX idx_bytecode_hash ON public.contracts USING btree (bytecode_hash);
-
-
---
--- Name: idx_delegated_stakers_block; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_delegated_stakers_block ON public.delegated_stakers USING btree (block_number);
-
-
---
--- Name: idx_delegated_stakers_staker_operator; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_delegated_stakers_staker_operator ON public.delegated_stakers USING btree (staker, operator);
-
-
---
--- Name: idx_operator_share_changes_block; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_operator_share_changes_block ON public.operator_share_changes USING btree (block_number);
-
-
---
--- Name: idx_operator_share_changes_operator_strat; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_operator_share_changes_operator_strat ON public.operator_share_changes USING btree (operator, strategy);
-
-
---
--- Name: idx_operator_shares_block; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_operator_shares_block ON public.operator_shares USING btree (block_number);
-
-
---
--- Name: idx_operator_shares_operator_strategy; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_operator_shares_operator_strategy ON public.operator_shares USING btree (operator, strategy);
 
 
 --
@@ -881,48 +418,6 @@ CREATE INDEX idx_registered_avs_operators_block ON public.registered_avs_operato
 
 
 --
--- Name: idx_staker_delegation_changes_block; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_staker_delegation_changes_block ON public.staker_delegation_changes USING btree (block_number);
-
-
---
--- Name: idx_staker_delegation_changes_staker_operator; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_staker_delegation_changes_staker_operator ON public.staker_delegation_changes USING btree (staker, operator);
-
-
---
--- Name: idx_staker_share_changes_block; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_staker_share_changes_block ON public.staker_share_changes USING btree (block_number);
-
-
---
--- Name: idx_staker_share_changes_staker_strat; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_staker_share_changes_staker_strat ON public.staker_share_changes USING btree (staker, strategy);
-
-
---
--- Name: idx_staker_shares_block; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_staker_shares_block ON public.staker_shares USING btree (block_number);
-
-
---
--- Name: idx_staker_shares_staker_strategy; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_staker_shares_staker_strategy ON public.staker_shares USING btree (staker, strategy);
-
-
---
 -- Name: idx_transaciton_logs_block_number; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -941,6 +436,13 @@ CREATE UNIQUE INDEX idx_transaction_hash ON public.transaction_logs USING btree 
 --
 
 CREATE INDEX idx_transaction_logs_address ON public.transaction_logs USING btree (address);
+
+
+--
+-- Name: idx_transaction_logs_transaction_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_transaction_logs_transaction_hash ON public.transaction_logs USING btree (transaction_hash);
 
 
 --
@@ -1033,7 +535,7 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 --
 
 -- Dumped from database version 14.11 (Homebrew)
--- Dumped by pg_dump version 15.7 (Homebrew)
+-- Dumped by pg_dump version 15.8 (Homebrew)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -1070,9 +572,9 @@ INSERT INTO public.migrations VALUES ('202406251424_addTransactionLogsOutputData
 INSERT INTO public.migrations VALUES ('202406251426_addTransactionIndexes', '2024-06-25 14:29:47.500543-05', NULL);
 INSERT INTO public.migrations VALUES ('202407101440_addOperatorRestakedStrategiesTable', '2024-07-11 09:48:48.933519-05', NULL);
 INSERT INTO public.migrations VALUES ('202407110946_addBlockTimeToRestakedStrategies', '2024-07-11 09:49:17.325774-05', NULL);
-INSERT INTO public.migrations VALUES ('202407111116_addAvsDirectoryAddress', '2024-08-20 16:12:38.890285-05', NULL);
-INSERT INTO public.migrations VALUES ('202407121407_updateProxyContractIndex', '2024-08-20 16:12:38.893514-05', NULL);
-INSERT INTO public.migrations VALUES ('202408200934_eigenlayerStateTables', '2024-08-20 16:12:38.950484-05', NULL);
+INSERT INTO public.migrations VALUES ('202407111116_addAvsDirectoryAddress', '2024-07-24 09:13:18.235218-05', NULL);
+INSERT INTO public.migrations VALUES ('202407121407_updateProxyContractIndex', '2024-07-24 09:13:18.240594-05', NULL);
+INSERT INTO public.migrations VALUES ('202408200934_eigenlayerStateTables', '2024-09-05 16:16:40.950631-05', NULL);
 
 
 --

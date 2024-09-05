@@ -10,30 +10,6 @@ import (
 // ----------------------------------------------------------------------------
 
 /*
-create table if not exists avs_operator_changes (
-
-	id serial primary key,
-	operator varchar,
-	avs varchar,
-	registered boolean,
-	transaction_hash varchar,
-	log_index bigint,
-	block_number bigint
-
-);
-*/
-type AvsOperatorChange struct {
-	Id              uint64 `gorm:"type:serial"`
-	Operator        string
-	Avs             string
-	Registered      bool
-	TransactionHash string
-	LogIndex        uint64
-	BlockNumber     uint64
-	CreatedAt       time.Time
-}
-
-/*
 create table if not exists operator_share_changes (
 
 	id serial primary key,
@@ -187,24 +163,6 @@ type RewardForAllSubmissions struct {
 // ----------------------------------------------------------------------------
 // Block-based "summary" tables
 // ----------------------------------------------------------------------------
-
-/*
-create table if not exists registered_avs_operators (
-
-	operator varchar,
-	avs varchar,
-	block_number bigint,
-	created_at timestamp with time zone
-	unique idx_uniq_operator_abs_block (operator, avs, block_number)
-
-);
-*/
-type RegisteredAvsOperators struct {
-	Operator    string
-	Avs         string
-	BlockNumber uint64
-	CreatedAt   time.Time
-}
 
 /*
 create table if not exists operator_shares (

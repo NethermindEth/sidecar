@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/indexer"
 	"github.com/Layr-Labs/sidecar/internal/storage"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type Pipeline struct {
@@ -122,37 +123,23 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 	}
 	p.Indexer.FindAndHandleContractCreationForTransactions(interestingTransactions, block.TxReceipts, block.ContractStorage, blockNumber)
 
+	// if err := p.CloneAggregatedStateTablesFromPreviousBlock(blockNumber); err != nil {
+	// 	p.Logger.Sugar().Errorw("Failed to clone aggregated state tables", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+	// 	return err
+	// }
+	// if err := p.GenerateStateTransactionsFromLogs(blockNumber, nil, nil); err != nil {
+	// 	p.Logger.Sugar().Errorw("Failed to generate state transactions from logs", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+	// 	return err
+	// }
+
 	return nil
 }
 
-func (p *Pipeline) CloneAggregatedStateTablesFromPreviousblock(currentBlock uint64) error {
-	if err := p.BlockStore.CloneRegisteredAvsOperatorsForNewBlock(currentBlock); err != nil {
-		p.Logger.Sugar().Errorw("Failed to clone registered avs operators", zap.Uint64("blockNumber", currentBlock), zap.Error(err))
-		return err
-	}
-	if err := p.BlockStore.CloneOperatorSharesForNewBlock(currentBlock); err != nil {
-		p.Logger.Sugar().Errorw("Failed to clone operator shares", zap.Uint64("blockNumber", currentBlock), zap.Error(err))
-		return err
-	}
-	if err := p.BlockStore.CloneStakerSharesForNewBlock(currentBlock); err != nil {
-		p.Logger.Sugar().Errorw("Failed to clone staker shares", zap.Uint64("blockNumber", currentBlock), zap.Error(err))
-		return err
-	}
-	if err := p.BlockStore.CloneDelegatedStakersForNewBlock(currentBlock); err != nil {
-		p.Logger.Sugar().Errorw("Failed to clone delegated stakers", zap.Uint64("blockNumber", currentBlock), zap.Error(err))
-		return err
-	}
-	if err := p.BlockStore.SetActiveRewardsForNewBlock(currentBlock); err != nil {
-		p.Logger.Sugar().Errorw("Failed to set active rewards", zap.Uint64("blockNumber", currentBlock), zap.Error(err))
-		return err
-	}
-	if err := p.BlockStore.SetActiveRewardForAllForNewBlock(currentBlock); err != nil {
-		p.Logger.Sugar().Errorw("Failed to set active rewards for all", zap.Uint64("blockNumber", currentBlock), zap.Error(err))
-		return err
-	}
+func (p *Pipeline) CloneAggregatedStateTablesFromPreviousBlock(currentBlock uint64) error {
 	return nil
 }
 
-func (p *Pipeline) GenerateStateTransactionsFromLogs(currentBlock uint64) error {
+func (p *Pipeline) GenerateStateTransactionsFromLogs(currentBlock uint64, db *gorm.DB, tx *gorm.DB) error {
+
 	return nil
 }

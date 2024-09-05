@@ -18,90 +18,14 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			avs varchar,
 			registered boolean,
 			transaction_hash varchar,
+			transaction_index bigint,
 			log_index bigint,
-			block_number bigint
+			block_number bigint,
+			created_at timestamp with time zone default current_timestamp
 		)
 		`,
 		`create index if not exists idx_avs_operator_changes_avs_operator on avs_operator_changes (avs, operator)`,
 		`create index if not exists idx_avs_operator_changes_block on avs_operator_changes (block_number)`,
-		`create table if not exists operator_share_changes (
-			id serial primary key,
-			operator varchar,
-			strategy varchar,
-			shares numeric,
-			transaction_hash varchar,
-			log_index bigint,
-			block_number bigint
-		)
-		`,
-		`create index if not exists idx_operator_share_changes_operator_strat on operator_share_changes (operator, strategy)`,
-		`create index if not exists idx_operator_share_changes_block on operator_share_changes (block_number)`,
-		`create table if not exists staker_share_changes (
-			id serial primary key,
-			staker varchar,
-			strategy varchar,
-			shares numeric,
-			transaction_hash varchar,
-			log_index bigint,
-			block_number bigint,
-			created_at timestamp with time zone default current_timestamp
-		);
-		`,
-		`create index if not exists idx_staker_share_changes_staker_strat on staker_share_changes (staker, strategy)`,
-		`create index if not exists idx_staker_share_changes_block on staker_share_changes (block_number)`,
-		`create table if not exists staker_delegation_changes (
-			id serial primary key,
-			staker varchar,
-			operator varchar,
-			delegated boolean,
-			transaction_hash varchar,
-			log_index bigint,
-			block_number bigint,
-			created_at timestamp with time zone default current_timestamp
-		);
-		`,
-		`create index if not exists idx_staker_delegation_changes_staker_operator on staker_delegation_changes (staker, operator)`,
-		`create index if not exists idx_staker_delegation_changes_block on staker_delegation_changes (block_number)`,
-		`create table if not exists active_reward_submissions (
-			id serial primary key,
-			avs varchar,
-			reward_hash varchar,
-			token varchar,
-			amount numeric,
-			strategy varchar,
-			multiplier numeric,
-			strategy_index bigint,
-			transaction_hash varchar,
-			log_index bigint,
-			block_number bigint,
-			start_timestamp timestamp,
-			end_timestamp timestamp,
-			duration bigint,
-			created_at timestamp with time zone default current_timestamp
-		);
-		`,
-		`create index if not exists idx_active_reward_submissions_avs on active_reward_submissions (avs)`,
-		`create index if not exists idx_active_reward_submissions_block on active_reward_submissions (block_number)`,
-		`create table if not exists active_reward_for_all_submissions (
-			id serial primary key,
-			avs varchar,
-			reward_hash varchar,
-			token varchar,
-			amount numeric,
-			strategy varchar,
-			multiplier numeric,
-			strategy_index bigint,
-			transaction_hash varchar,
-			log_index bigint,
-			block_number bigint,
-			start_timestamp timestamp,
-			end_timestamp timestamp,
-			duration bigint,
-			created_at timestamp with time zone default current_timestamp
-		);
-		`,
-		`create index if not exists idx_active_reward_for_all_submissions_avs on active_reward_for_all_submissions (avs)`,
-		`create index if not exists idx_active_reward_for_all_submissions_block on active_reward_for_all_submissions (block_number)`,
 		`create table if not exists registered_avs_operators (
 			operator varchar,
 			avs varchar,
@@ -112,68 +36,149 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 		`,
 		`create index if not exists idx_registered_avs_operators_avs_operator on registered_avs_operators (avs, operator)`,
 		`create index if not exists idx_registered_avs_operators_block on registered_avs_operators (block_number)`,
-		`create table if not exists operator_shares (
-			operator varchar,
-			strategy varchar,
-			shares numeric,
-			block_number bigint,
-			created_at timestamp with time zone default current_timestamp,
-			unique (operator, strategy, block_number)
-		)`,
-		`create index if not exists idx_operator_shares_operator_strategy on operator_shares (operator, strategy)`,
-		`create index if not exists idx_operator_shares_block on operator_shares (block_number)`,
-		`create table if not exists staker_shares (
-			staker varchar,
-			strategy varchar,
-			shares numeric,
-			block_number bigint,
-			created_at timestamp with time zone default current_timestamp,
-			unique(staker, strategy, block_number)
-		)
-		`,
-		`create index if not exists idx_staker_shares_staker_strategy on staker_shares (staker, strategy)`,
-		`create index if not exists idx_staker_shares_block on staker_shares (block_number)`,
-		`create table if not exists delegated_stakers (
-			staker varchar,
-			operator varchar,
-			block_number bigint,
-			created_at timestamp with time zone default current_timestamp,
-			unique(staker, operator, block_number)
-		)`,
-		`create index if not exists idx_delegated_stakers_staker_operator on delegated_stakers (staker, operator)`,
-		`create index if not exists idx_delegated_stakers_block on delegated_stakers (block_number)`,
-		`create table if not exists active_rewards (
-			avs varchar,
-			reward_hash varchar,
-			token varchar,
-			amount numeric,
-			strategy varchar,
-			multiplier numeric,
-			strategy_index bigint,
-			block_number bigint,
-			start_timestamp timestamp,
-			end_timestamp timestamp,
-			duration bigint,
-			created_at timestamp with time zone default current_timestamp
-		)`,
-		`create index if not exists idx_active_rewards_avs on active_rewards (avs)`,
-		`create index if not exists idx_active_rewards_block on active_rewards (block_number)`,
-		`create table if not exists active_reward_for_all (
-			avs varchar,
-			reward_hash varchar,
-			token varchar,
-			amount numeric,
-			strategy varchar,
-			multiplier numeric,
-			strategy_index bigint,
-			block_number bigint,
-			start_timestamp timestamp,
-			end_timestamp timestamp,
-			duration bigint,
-			created_at timestamp with time zone default current_timestamp
-		)`,
-		`create index if not exists idx_active_reward_for_all_avs on active_reward_for_all (avs)`,
-		`create index if not exists idx_active_reward_for_all_block on active_reward_for_all (block_number)`,
+		/*
+			`create table if not exists operator_share_changes (
+				id serial primary key,
+				operator varchar,
+				strategy varchar,
+				shares numeric,
+				transaction_hash varchar,
+				log_index bigint,
+				block_number bigint,
+				created_at timestamp with time zone default current_timestamp
+			)
+			`,
+			`create index if not exists idx_operator_share_changes_operator_strat on operator_share_changes (operator, strategy)`,
+			`create index if not exists idx_operator_share_changes_block on operator_share_changes (block_number)`,
+			`create table if not exists staker_share_changes (
+				id serial primary key,
+				staker varchar,
+				strategy varchar,
+				shares numeric,
+				transaction_hash varchar,
+				log_index bigint,
+				block_number bigint,
+				created_at timestamp with time zone default current_timestamp
+			);
+			`,
+			`create index if not exists idx_staker_share_changes_staker_strat on staker_share_changes (staker, strategy)`,
+			`create index if not exists idx_staker_share_changes_block on staker_share_changes (block_number)`,
+			`create table if not exists staker_delegation_changes (
+				id serial primary key,
+				staker varchar,
+				operator varchar,
+				delegated boolean,
+				transaction_hash varchar,
+				log_index bigint,
+				block_number bigint,
+				created_at timestamp with time zone default current_timestamp
+			);
+			`,
+			`create index if not exists idx_staker_delegation_changes_staker_operator on staker_delegation_changes (staker, operator)`,
+			`create index if not exists idx_staker_delegation_changes_block on staker_delegation_changes (block_number)`,
+			`create table if not exists active_reward_submissions (
+				id serial primary key,
+				avs varchar,
+				reward_hash varchar,
+				token varchar,
+				amount numeric,
+				strategy varchar,
+				multiplier numeric,
+				strategy_index bigint,
+				transaction_hash varchar,
+				log_index bigint,
+				block_number bigint,
+				start_timestamp timestamp,
+				end_timestamp timestamp,
+				duration bigint,
+				created_at timestamp with time zone default current_timestamp
+			);
+			`,
+			`create index if not exists idx_active_reward_submissions_avs on active_reward_submissions (avs)`,
+			`create index if not exists idx_active_reward_submissions_block on active_reward_submissions (block_number)`,
+			`create table if not exists active_reward_for_all_submissions (
+				id serial primary key,
+				avs varchar,
+				reward_hash varchar,
+				token varchar,
+				amount numeric,
+				strategy varchar,
+				multiplier numeric,
+				strategy_index bigint,
+				transaction_hash varchar,
+				log_index bigint,
+				block_number bigint,
+				start_timestamp timestamp,
+				end_timestamp timestamp,
+				duration bigint,
+				created_at timestamp with time zone default current_timestamp
+			);
+			`,
+			`create index if not exists idx_active_reward_for_all_submissions_avs on active_reward_for_all_submissions (avs)`,
+			`create index if not exists idx_active_reward_for_all_submissions_block on active_reward_for_all_submissions (block_number)`,
+			`create table if not exists operator_shares (
+				operator varchar,
+				strategy varchar,
+				shares numeric,
+				block_number bigint,
+				created_at timestamp with time zone default current_timestamp,
+				unique (operator, strategy, block_number)
+			)`,
+			`create index if not exists idx_operator_shares_operator_strategy on operator_shares (operator, strategy)`,
+			`create index if not exists idx_operator_shares_block on operator_shares (block_number)`,
+			`create table if not exists staker_shares (
+				staker varchar,
+				strategy varchar,
+				shares numeric,
+				block_number bigint,
+				created_at timestamp with time zone default current_timestamp,
+				unique(staker, strategy, block_number)
+			)
+			`,
+			`create index if not exists idx_staker_shares_staker_strategy on staker_shares (staker, strategy)`,
+			`create index if not exists idx_staker_shares_block on staker_shares (block_number)`,
+			`create table if not exists delegated_stakers (
+				staker varchar,
+				operator varchar,
+				block_number bigint,
+				created_at timestamp with time zone default current_timestamp,
+				unique(staker, operator, block_number)
+			)`,
+			`create index if not exists idx_delegated_stakers_staker_operator on delegated_stakers (staker, operator)`,
+			`create index if not exists idx_delegated_stakers_block on delegated_stakers (block_number)`,
+			`create table if not exists active_rewards (
+				avs varchar,
+				reward_hash varchar,
+				token varchar,
+				amount numeric,
+				strategy varchar,
+				multiplier numeric,
+				strategy_index bigint,
+				block_number bigint,
+				start_timestamp timestamp,
+				end_timestamp timestamp,
+				duration bigint,
+				created_at timestamp with time zone default current_timestamp
+			)`,
+			`create index if not exists idx_active_rewards_avs on active_rewards (avs)`,
+			`create index if not exists idx_active_rewards_block on active_rewards (block_number)`,
+			`create table if not exists active_reward_for_all (
+				avs varchar,
+				reward_hash varchar,
+				token varchar,
+				amount numeric,
+				strategy varchar,
+				multiplier numeric,
+				strategy_index bigint,
+				block_number bigint,
+				start_timestamp timestamp,
+				end_timestamp timestamp,
+				duration bigint,
+				created_at timestamp with time zone default current_timestamp
+			)`,
+			`create index if not exists idx_active_reward_for_all_avs on active_reward_for_all (avs)`,
+			`create index if not exists idx_active_reward_for_all_block on active_reward_for_all (block_number)`,
+		*/
 	}
 
 	// Wrap the queries in a transaction so they all create or fail atomically

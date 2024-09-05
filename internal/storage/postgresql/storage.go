@@ -42,6 +42,10 @@ func NewPostgresBlockStore(db *gorm.DB, cfg *config.Config, l *zap.Logger) (*Pos
 	return mds, nil
 }
 
+func (m *PostgresBlockStore) GetDb() *gorm.DB {
+	return m.Db
+}
+
 func (m *PostgresBlockStore) autoMigrate() {
 	if m.migrated {
 		return
