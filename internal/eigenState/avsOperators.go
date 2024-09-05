@@ -172,8 +172,10 @@ func (a *AvsOperators) writeStateChange(change *AvsOperatorChange) (*AvsOperator
 //
 // 1. Get latest distinct change value for each avs/operator
 // 2. Join the latest unique change value with the previous blocks state to overlay new changes
-// 3. Filter joined set on registered = true to omit unregistered operators
-// 3. Write the new state as the final state
+// 3. Filter joined set on registered = false to get unregistrations
+// 4. Determine which rows from the previous block should be carried over and which shouldnt (i.e. deregistrations)
+// 5. Geneate the final state by unioning the carryover and the new registrations
+// 6. Insert the final state into the registered_avs_operators table
 func (a *AvsOperators) WriteFinalState(blockNumber uint64) error {
 	query := `
 		with new_changes as (
