@@ -293,7 +293,3 @@ func (cm *ContractManager) HandleProxyContractCreation(
 
 	cm.CreateProxyContract(contractAddress, proxyContractAddress, blockNumber, reindexContract)
 }
-
-func (cm *ContractManager) getContractForAddress(contractAddress string) {
-
-}

@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Values.common.config.name }}
-  namespace: {{ .Release.Namespace }}
-data:
-{{ toYaml .Values.common.config.values | indent 2 }}

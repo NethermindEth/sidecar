@@ -118,7 +118,6 @@ type Config struct {
 	QuickNodeEthereumRpcConfig EthereumRpcConfig
 	PostgresConfig             PostgresConfig
 	EtherscanConfig            EtherscanConfig
-	RabbitMqConfig             RabbitMqConfig
 }
 
 type EthereumRpcConfig struct {
@@ -136,14 +135,6 @@ type PostgresConfig struct {
 
 type EtherscanConfig struct {
 	ApiKeys []string
-}
-
-type RabbitMqConfig struct {
-	Username      string
-	Password      string
-	Url           string
-	Secure        bool
-	PrefetchCount int
 }
 
 func NewConfig() *Config {
@@ -173,14 +164,6 @@ func NewConfig() *Config {
 
 		EtherscanConfig: EtherscanConfig{
 			ApiKeys: parseListEnvVar(getPrefixedEnvVar("ETHERSCAN_API_KEYS")),
-		},
-
-		RabbitMqConfig: RabbitMqConfig{
-			Username:      getPrefixedEnvVar("RABBITMQ_USERNAME"),
-			Password:      getPrefixedEnvVar("RABBITMQ_PASSWORD"),
-			Url:           getPrefixedEnvVar("RABBITMQ_URL"),
-			Secure:        parseBooleanEnvVar(getPrefixedEnvVar("RABBITMQ_SECURE")),
-			PrefetchCount: parseIntEnvVar(getPrefixedEnvVar("RABBITMQ_PREFETCH_COUNT"), 1),
 		},
 	}
 }

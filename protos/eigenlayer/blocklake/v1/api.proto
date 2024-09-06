@@ -47,9 +47,6 @@ message BackfillRequest {
 message BackfillResponse {
 }
 
-message PurgeQueuesRequest{}
-message PurgeQueuesResponse{}
-
 message IndexContractsRequest {
   BackfillRange range = 1;
 }
@@ -74,11 +71,6 @@ service Backfiller {
     option (google.api.http) = {
       post: "/v1/backfill"
       body: "*"
-    };
-  }
-  rpc PurgeQueues(PurgeQueuesRequest) returns (PurgeQueuesResponse) {
-    option (google.api.http) = {
-      post: "/v1/purge-queues"
     };
   }
   rpc IndexContracts(IndexContractsRequest) returns (IndexContractsResponse) {
