@@ -1,9 +1,11 @@
 package sqlite
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/internal/parser"
 	"github.com/Layr-Labs/sidecar/internal/storage"
 	"github.com/Layr-Labs/sidecar/internal/storage/sqlite/migrations"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -141,6 +143,84 @@ func Test_SqliteBlockstore(t *testing.T) {
 		})
 	})
 	t.Run("TransactionLogs", func(t *testing.T) {
+		t.Run("InsertTransactionLog", func(t *testing.T) {
+			decodedLog := &parser.DecodedLog{
+				LogIndex: 0,
+				Address:  "log-address",
+				Arguments: []parser.Argument{
+					parser.Argument{
+						Name:    "arg1",
+						Type:    "string",
+						Value:   "some-value",
+						Indexed: true,
+					},
+				},
+				EventName: "SomeEvent",
+				OutputData: map[string]interface{}{
+					"output": "data",
+				},
+			}
 
+			jsonArguments, _ := json.Marshal(decodedLog.Arguments)
+			jsonOutputData, _ := json.Marshal(decodedLog.OutputData)
+
+			txLog := &storage.TransactionLog{
+				TransactionHash:  insertedTransactions[0].TransactionHash,
+				TransactionIndex: insertedTransactions[0].TransactionIndex,
+				BlockNumber:      insertedTransactions[0].BlockNumber,
+			}
+
+			insertedTxLog, err := sqliteStore.InsertTransactionLog(
+				txLog.TransactionHash,
+				txLog.TransactionIndex,
+				txLog.BlockNumber,
+				decodedLog,
+				decodedLog.OutputData,
+			)
+			assert.Nil(t, err)
+
+			assert.Equal(t, txLog.TransactionHash, insertedTxLog.TransactionHash)
+			assert.Equal(t, txLog.TransactionIndex, insertedTxLog.TransactionIndex)
+			assert.Equal(t, txLog.BlockNumber, insertedTxLog.BlockNumber)
+			assert.Equal(t, decodedLog.Address, insertedTxLog.Address)
+			assert.Equal(t, decodedLog.EventName, insertedTxLog.EventName)
+			assert.Equal(t, decodedLog.LogIndex, insertedTxLog.LogIndex)
+			assert.Equal(t, string(jsonArguments), insertedTxLog.Arguments)
+			assert.Equal(t, string(jsonOutputData), insertedTxLog.OutputData)
+		})
+		t.Run("Fail to insert a duplicate transaction log", func(t *testing.T) {
+			decodedLog := &parser.DecodedLog{
+				LogIndex: 0,
+				Address:  "log-address",
+				Arguments: []parser.Argument{
+					parser.Argument{
+						Name:    "arg1",
+						Type:    "string",
+						Value:   "some-value",
+						Indexed: true,
+					},
+				},
+				EventName: "SomeEvent",
+				OutputData: map[string]interface{}{
+					"output": "data",
+				},
+			}
+
+			txLog := &storage.TransactionLog{
+				TransactionHash:  insertedTransactions[0].TransactionHash,
+				TransactionIndex: insertedTransactions[0].TransactionIndex,
+				BlockNumber:      insertedTransactions[0].BlockNumber,
+			}
+
+			_, err := sqliteStore.InsertTransactionLog(
+				txLog.TransactionHash,
+				txLog.TransactionIndex,
+				txLog.BlockNumber,
+				decodedLog,
+				decodedLog.OutputData,
+			)
+			assert.NotNil(t, err)
+			assert.Contains(t, err.Error(), "UNIQUE constraint failed")
+		})
 	})
 }

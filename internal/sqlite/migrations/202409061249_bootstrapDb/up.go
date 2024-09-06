@@ -42,10 +42,10 @@ func (m *SqliteMigration) Up(grm *gorm.DB) error {
 			log_index INTEGER NOT NULL,
 			block_number INTEGER NOT NULL REFERENCES blocks(number) ON DELETE CASCADE,
 			transaction_index INTEGER NOT NULL,
-			output_data TEXT
+			output_data TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME zone,
-			deleted_at DATETIME zone,
+			updated_at DATETIME,
+			deleted_at DATETIME,
 			UNIQUE(transaction_hash, log_index)
     	)`,
 		`CREATE TABLE IF NOT EXISTS contracts (
