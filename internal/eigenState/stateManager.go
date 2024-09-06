@@ -1,8 +1,13 @@
 package eigenState
 
 import (
+	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/storage"
+	"github.com/Layr-Labs/sidecar/internal/utils"
+	"github.com/wealdtech/go-merkletree/v2"
+	"github.com/wealdtech/go-merkletree/v2/keccak256"
 	"go.uber.org/zap"
+	"slices"
 )
 
 type EigenStateManager struct {
@@ -27,7 +32,8 @@ func (e *EigenStateManager) RegisterState(model IEigenStateModel, index int) {
 
 // Given a log, allow each state model to determine if/how to process it
 func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog) error {
-	for _, state := range e.StateModels {
+	for _, index := range e.getSortedModelIndexes() {
+		state := e.StateModels[index]
 		if state.IsInterestingLog(log) {
 			_, err := state.HandleStateChange(log)
 			if err != nil {
@@ -40,7 +46,8 @@ func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog) er
 
 // With all transactions/logs processed for a block, commit the final state to the table
 func (e *EigenStateManager) CommitFinalState(blockNumber uint64) error {
-	for _, state := range e.StateModels {
+	for _, index := range e.getSortedModelIndexes() {
+		state := e.StateModels[index]
 		err := state.WriteFinalState(blockNumber)
 		if err != nil {
 			return err
@@ -50,14 +57,44 @@ func (e *EigenStateManager) CommitFinalState(blockNumber uint64) error {
 }
 
 func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64) (StateRoot, error) {
-	roots := make([]StateRoot, len(e.StateModels))
-	for i, state := range e.StateModels {
-		root, err := state.GenerateStateRoot(blockNumber)
+	sortedIndexes := e.getSortedModelIndexes()
+	roots := [][]byte{
+		[]byte(fmt.Sprintf("%d", blockNumber)),
+	}
+
+	for _, state := range sortedIndexes {
+		state := e.StateModels[state]
+		leaf, err := e.encodeModelLeaf(state, blockNumber)
 		if err != nil {
 			return "", err
 		}
-		roots[i] = root
+		roots = append(roots, leaf)
 	}
-	// TODO: generate this
-	return "", nil
+
+	tree, err := merkletree.NewTree(
+		merkletree.WithData(roots),
+		merkletree.WithHashType(keccak256.New()),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	return StateRoot(utils.ConvertBytesToString(tree.Root())), nil
+}
+
+func (e *EigenStateManager) encodeModelLeaf(model IEigenStateModel, blockNumber uint64) ([]byte, error) {
+	root, err := model.GenerateStateRoot(blockNumber)
+	if err != nil {
+		return nil, err
+	}
+	return append([]byte(model.GetModelName()), []byte(root)[:]...), nil
+}
+
+func (e *EigenStateManager) getSortedModelIndexes() []int {
+	indexes := make([]int, 0, len(e.StateModels))
+	for i := range e.StateModels {
+		indexes = append(indexes, i)
+	}
+	slices.Sort(indexes)
+	return indexes
 }
