@@ -130,6 +130,13 @@ func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[A
 			s.stateAccumulator[log.BlockNumber][slotId] = record
 		}
 		if log.EventName == "StakerUndelegated" {
+			if ok {
+				// In this situation, we've encountered a delegate and undelegate in the same block
+				// which functionally results in no state change at all so we want to remove the record
+				// from the accumulated state.
+				delete(s.stateAccumulator[log.BlockNumber], slotId)
+				return nil, nil
+			}
 			record.Delegated = false
 		} else if log.EventName == "StakerDelegated" {
 			record.Delegated = true
@@ -166,8 +173,8 @@ func (s *StakerDelegationsModel) IsInterestingLog(log *storage.TransactionLog) b
 	return s.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
+// StartBlockProcessing Initialize state accumulator for the block
 func (s *StakerDelegationsModel) StartBlockProcessing(blockNumber uint64) error {
-	// Initialize state accumulator for the block
 	s.stateAccumulator[blockNumber] = make(map[SlotId]*AccumulatedStateChange)
 	return nil
 }
@@ -214,8 +221,8 @@ func (s *StakerDelegationsModel) clonePreviousBlocksToNewBlock(blockNumber uint6
 	return nil
 }
 
-// prepareState prepares the state for the current block by comparing the accumulated state changes
-// it separates out the changes into inserts and deletes
+// prepareState prepares the state for the current block by comparing the accumulated state changes.
+// It separates out the changes into inserts and deletes
 func (s *StakerDelegationsModel) prepareState(blockNumber uint64) ([]DelegatedStakers, []DelegatedStakers, error) {
 	accumulatedState, ok := s.stateAccumulator[blockNumber]
 	if !ok {
@@ -252,7 +259,6 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 	}
 
 	recordsToInsert, recordsToDelete, err := s.prepareState(blockNumber)
-	fmt.Printf("recordsToInsert: %v\nrecordsToDelete %+v\n", recordsToInsert, recordsToDelete)
 
 	// TODO(seanmcgary): should probably wrap the operations of this function in a db transaction
 	for _, record := range recordsToDelete {
@@ -277,11 +283,14 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 	return nil
 }
 
+// ClearAccumulatedState clears the accumulated state for the given block number to free up memory
 func (s *StakerDelegationsModel) ClearAccumulatedState(blockNumber uint64) error {
 	delete(s.stateAccumulator, blockNumber)
 	return nil
 }
 
+// GenerateStateRoot generates the state root for the given block number by storing
+// the state changes in a merkle tree.
 func (s *StakerDelegationsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
 	inserts, deletes, err := s.prepareState(blockNumber)
 	if err != nil {
@@ -314,8 +323,10 @@ func (s *StakerDelegationsModel) GenerateStateRoot(blockNumber uint64) (types.St
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
+// merkelizeState generates a merkle tree for the given block number and delegated stakers.
+// Changes are stored in the following format:
+// Operator -> staker:delegated
 func (s *StakerDelegationsModel) merkelizeState(blockNumber uint64, delegatedStakers []DelegatedStakersDiff) (*merkletree.MerkleTree, error) {
-	// Operator -> staker:delegated
 	om := orderedmap.New[string, *orderedmap.OrderedMap[string, bool]]()
 
 	for _, result := range delegatedStakers {
