@@ -1,7 +1,8 @@
-package eigenState
+package stateManager
 
 import (
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/sidecar/internal/storage"
 	"github.com/Layr-Labs/sidecar/internal/utils"
 	"github.com/wealdtech/go-merkletree/v2"
@@ -11,19 +12,19 @@ import (
 )
 
 type EigenStateManager struct {
-	StateModels map[int]IEigenStateModel
+	StateModels map[int]types.IEigenStateModel
 	logger      *zap.Logger
 }
 
 func NewEigenStateManager(logger *zap.Logger) *EigenStateManager {
 	return &EigenStateManager{
-		StateModels: make(map[int]IEigenStateModel),
+		StateModels: make(map[int]types.IEigenStateModel),
 		logger:      logger,
 	}
 }
 
 // Allows a model to register itself with the state manager
-func (e *EigenStateManager) RegisterState(model IEigenStateModel, index int) {
+func (e *EigenStateManager) RegisterState(model types.IEigenStateModel, index int) {
 	if m, ok := e.StateModels[index]; ok {
 		e.logger.Sugar().Fatalf("Registering model model at index %d which already exists and belongs to %s", index, m.GetModelName())
 	}
@@ -32,7 +33,7 @@ func (e *EigenStateManager) RegisterState(model IEigenStateModel, index int) {
 
 // Given a log, allow each state model to determine if/how to process it
 func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog) error {
-	for _, index := range e.getSortedModelIndexes() {
+	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
 		if state.IsInterestingLog(log) {
 			_, err := state.HandleStateChange(log)
@@ -46,7 +47,7 @@ func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog) er
 
 // With all transactions/logs processed for a block, commit the final state to the table
 func (e *EigenStateManager) CommitFinalState(blockNumber uint64) error {
-	for _, index := range e.getSortedModelIndexes() {
+	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
 		err := state.WriteFinalState(blockNumber)
 		if err != nil {
@@ -56,8 +57,8 @@ func (e *EigenStateManager) CommitFinalState(blockNumber uint64) error {
 	return nil
 }
 
-func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64) (StateRoot, error) {
-	sortedIndexes := e.getSortedModelIndexes()
+func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+	sortedIndexes := e.GetSortedModelIndexes()
 	roots := [][]byte{
 		[]byte(fmt.Sprintf("%d", blockNumber)),
 	}
@@ -79,10 +80,10 @@ func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64) (StateRoot, er
 		return "", err
 	}
 
-	return StateRoot(utils.ConvertBytesToString(tree.Root())), nil
+	return types.StateRoot(utils.ConvertBytesToString(tree.Root())), nil
 }
 
-func (e *EigenStateManager) encodeModelLeaf(model IEigenStateModel, blockNumber uint64) ([]byte, error) {
+func (e *EigenStateManager) encodeModelLeaf(model types.IEigenStateModel, blockNumber uint64) ([]byte, error) {
 	root, err := model.GenerateStateRoot(blockNumber)
 	if err != nil {
 		return nil, err
@@ -90,7 +91,7 @@ func (e *EigenStateManager) encodeModelLeaf(model IEigenStateModel, blockNumber 
 	return append([]byte(model.GetModelName()), []byte(root)[:]...), nil
 }
 
-func (e *EigenStateManager) getSortedModelIndexes() []int {
+func (e *EigenStateManager) GetSortedModelIndexes() []int {
 	indexes := make([]int, 0, len(e.StateModels))
 	for i := range e.StateModels {
 		indexes = append(indexes, i)

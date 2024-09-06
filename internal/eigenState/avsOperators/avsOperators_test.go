@@ -3,7 +3,7 @@ package avsOperators
 import (
 	"database/sql"
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/eigenState"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/storage"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -41,13 +41,13 @@ func Test_AvsOperatorState(t *testing.T) {
 	}
 
 	t.Run("Should create a new AvsOperatorState", func(t *testing.T) {
-		esm := eigenState.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l)
 		avsOperatorState, err := NewAvsOperators(esm, grm, cfg.Network, cfg.Environment, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, avsOperatorState)
 	})
 	t.Run("Should register AvsOperatorState", func(t *testing.T) {
-		esm := eigenState.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l)
 		blockNumber := uint64(200)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
@@ -75,7 +75,7 @@ func Test_AvsOperatorState(t *testing.T) {
 		teardown(avsOperatorState)
 	})
 	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
-		esm := eigenState.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l)
 		blockNumber := uint64(200)
 
 		log := storage.TransactionLog{
@@ -123,7 +123,7 @@ func Test_AvsOperatorState(t *testing.T) {
 		teardown(avsOperatorState)
 	})
 	t.Run("Should correctly generate state across multiple blocks", func(t *testing.T) {
-		esm := eigenState.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l)
 		blocks := []uint64{
 			300,
 			301,

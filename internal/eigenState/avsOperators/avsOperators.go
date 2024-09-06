@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/eigenState"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/base"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/sidecar/internal/storage"
 	"github.com/Layr-Labs/sidecar/internal/utils"
 	"github.com/wealdtech/go-merkletree/v2"
@@ -42,8 +44,8 @@ type AvsOperatorChange struct {
 
 // EigenState model for AVS operators that implements IEigenStateModel
 type AvsOperators struct {
-	eigenState.BaseEigenState
-	StateTransitions eigenState.StateTransitions[AvsOperatorChange]
+	base.BaseEigenState
+	StateTransitions types.StateTransitions[AvsOperatorChange]
 	Db               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
@@ -60,7 +62,7 @@ type RegisteredAvsOperatorDiff struct {
 
 // Create new instance of AvsOperators state model
 func NewAvsOperators(
-	esm *eigenState.EigenStateManager,
+	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
 	Network config.Network,
 	Environment config.Environment,
@@ -68,7 +70,7 @@ func NewAvsOperators(
 	globalConfig *config.Config,
 ) (*AvsOperators, error) {
 	s := &AvsOperators{
-		BaseEigenState: eigenState.BaseEigenState{
+		BaseEigenState: base.BaseEigenState{
 			Logger: logger,
 		},
 		Db:           grm,
@@ -92,8 +94,8 @@ func (a *AvsOperators) GetModelName() string {
 //
 // Returns the map and a reverse sorted list of block numbers that can be traversed when
 // processing a log to determine which state change to apply.
-func (a *AvsOperators) GetStateTransitions() (eigenState.StateTransitions[AvsOperatorChange], []uint64) {
-	stateChanges := make(eigenState.StateTransitions[AvsOperatorChange])
+func (a *AvsOperators) GetStateTransitions() (types.StateTransitions[AvsOperatorChange], []uint64) {
+	stateChanges := make(types.StateTransitions[AvsOperatorChange])
 
 	// TODO(seanmcgary): make this not a closure so this function doesnt get big an messy...
 	stateChanges[0] = func(log *storage.TransactionLog) (*AvsOperatorChange, error) {
@@ -326,7 +328,7 @@ func (a *AvsOperators) getDifferenceInStates(blockNumber uint64) ([]RegisteredAv
 // 3. Create a merkle tree for each AVS, with the operator:block_number pairs as leaves
 // 4. Create a merkle tree for all AVS trees
 // 5. Return the root of the full tree
-func (a *AvsOperators) GenerateStateRoot(blockNumber uint64) (eigenState.StateRoot, error) {
+func (a *AvsOperators) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
 	results, err := a.getDifferenceInStates(blockNumber)
 	if err != nil {
 		return "", err
@@ -336,7 +338,7 @@ func (a *AvsOperators) GenerateStateRoot(blockNumber uint64) (eigenState.StateRo
 	if err != nil {
 		return "", err
 	}
-	return eigenState.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
+	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
 func (a *AvsOperators) merkelizeState(blockNumber uint64, avsOperators []RegisteredAvsOperatorDiff) (*merkletree.MerkleTree, error) {

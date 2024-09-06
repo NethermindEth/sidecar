@@ -1,4 +1,4 @@
-package eigenState
+package types
 
 import (
 	"github.com/Layr-Labs/sidecar/internal/storage"

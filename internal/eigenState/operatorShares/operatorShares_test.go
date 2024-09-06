@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/eigenState"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/storage"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -43,13 +43,13 @@ func Test_OperatorSharesState(t *testing.T) {
 	}
 
 	t.Run("Should create a new OperatorSharesState", func(t *testing.T) {
-		esm := eigenState.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l)
 		model, err := NewOperatorSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, model)
 	})
 	t.Run("Should register OperatorSharesState", func(t *testing.T) {
-		esm := eigenState.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l)
 		blockNumber := uint64(200)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
@@ -75,7 +75,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		teardown(model)
 	})
 	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
-		esm := eigenState.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l)
 		blockNumber := uint64(200)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
