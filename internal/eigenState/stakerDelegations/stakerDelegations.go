@@ -277,6 +277,11 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 	return nil
 }
 
+func (s *StakerDelegationsModel) ClearAccumulatedState(blockNumber uint64) error {
+	delete(s.stateAccumulator, blockNumber)
+	return nil
+}
+
 func (s *StakerDelegationsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
 	inserts, deletes, err := s.prepareState(blockNumber)
 	if err != nil {

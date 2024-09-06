@@ -319,6 +319,10 @@ func (a *AvsOperators) getDifferenceInStates(blockNumber uint64) ([]RegisteredAv
 	return results, nil
 }
 
+func (a *AvsOperators) ClearAccumulatedState(blockNumber uint64) error {
+	panic("implement me")
+}
+
 // Generates a state root for the given block number.
 //
 // 1. Select all registered_avs_operators for the given block number ordered by avs and operator asc

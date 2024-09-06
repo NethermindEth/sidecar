@@ -285,6 +285,10 @@ func (osm *OperatorSharesModel) getDifferencesInStates(currentBlock uint64) ([]O
 	return diffs, nil
 }
 
+func (osm *OperatorSharesModel) ClearAccumulatedState(blockNumber uint64) error {
+	panic("implement me")
+}
+
 func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
 	diffs, err := osm.getDifferencesInStates(blockNumber)
 	if err != nil {

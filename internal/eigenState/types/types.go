@@ -11,13 +11,13 @@ type IEigenStateModel interface {
 	// Get the name of the model
 	GetModelName() string
 
-	// StartBlockProcessing
-	// Perform any necessary setup for processing a block
-	StartBlockProcessing(blockNumber uint64) error
-
 	// IsInterestingLog
 	//Determine if the log is interesting to the state model
 	IsInterestingLog(log *storage.TransactionLog) bool
+
+	// StartBlockProcessing
+	// Perform any necessary setup for processing a block
+	StartBlockProcessing(blockNumber uint64) error
 
 	// HandleStateChange
 	// Allow the state model to handle the state change
@@ -32,6 +32,10 @@ type IEigenStateModel interface {
 	// GenerateStateRoot
 	// Generate the state root for the model
 	GenerateStateRoot(blockNumber uint64) (StateRoot, error)
+
+	// ClearAccumulatedState
+	// Clear the accumulated state for the model to free up memory
+	ClearAccumulatedState(blockNumber uint64) error
 }
 
 // StateTransitions
