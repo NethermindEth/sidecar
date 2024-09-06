@@ -155,7 +155,7 @@ func (a *AvsOperators) IsInterestingLog(log *storage.TransactionLog) bool {
 	return a.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (a *AvsOperators) StartBlockProcessing(blockNumber uint64) error {
+func (a *AvsOperators) InitBlockProcessing(blockNumber uint64) error {
 	return nil
 }
 

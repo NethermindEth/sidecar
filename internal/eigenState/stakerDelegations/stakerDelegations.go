@@ -174,7 +174,7 @@ func (s *StakerDelegationsModel) IsInterestingLog(log *storage.TransactionLog) b
 }
 
 // StartBlockProcessing Initialize state accumulator for the block
-func (s *StakerDelegationsModel) StartBlockProcessing(blockNumber uint64) error {
+func (s *StakerDelegationsModel) InitBlockProcessing(blockNumber uint64) error {
 	s.stateAccumulator[blockNumber] = make(map[SlotId]*AccumulatedStateChange)
 	return nil
 }

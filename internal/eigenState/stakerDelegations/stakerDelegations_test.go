@@ -68,7 +68,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 
 		assert.Equal(t, true, model.IsInterestingLog(&log))
 
-		err = model.StartBlockProcessing(blockNumber)
+		err = model.InitBlockProcessing(blockNumber)
 		assert.Nil(t, err)
 
 		res, err := model.HandleStateChange(&log)
@@ -105,7 +105,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 
 		assert.Equal(t, true, model.IsInterestingLog(&log))
 
-		err = model.StartBlockProcessing(blockNumber)
+		err = model.InitBlockProcessing(blockNumber)
 		assert.Nil(t, err)
 
 		stateChange, err := model.HandleStateChange(&log)
@@ -180,7 +180,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 		for _, log := range logs {
 			assert.True(t, model.IsInterestingLog(log))
 
-			err = model.StartBlockProcessing(log.BlockNumber)
+			err = model.InitBlockProcessing(log.BlockNumber)
 			assert.Nil(t, err)
 
 			stateChange, err := model.HandleStateChange(log)
