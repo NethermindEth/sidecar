@@ -5,6 +5,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/sidecar/internal/storage"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/stretchr/testify/assert"
@@ -23,9 +24,16 @@ func setup() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	_, grm, err := tests.GetDatabaseConnection(cfg)
+	db, err := tests.GetSqliteDatabaseConnection()
+	if err != nil {
+		panic(err)
+	}
+	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
+	if err := sqliteMigrator.MigrateAll(); err != nil {
+		l.Sugar().Fatalw("Failed to migrate", "error", err)
+	}
 
-	return cfg, grm, l, err
+	return cfg, db, l, err
 }
 
 func teardown(model *AvsOperatorsModel) {

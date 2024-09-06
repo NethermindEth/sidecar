@@ -19,11 +19,9 @@ type BlockStore interface {
 
 // Tables
 type Block struct {
-	Id        uint64 `gorm:"type:serial"`
 	Number    uint64
 	Hash      string
 	BlockTime time.Time
-	BlobPath  string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt time.Time
