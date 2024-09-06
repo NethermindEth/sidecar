@@ -152,13 +152,7 @@ func (osm *OperatorSharesModel) getContractAddressesForEnvironment() map[string]
 
 func (osm *OperatorSharesModel) IsInterestingLog(log *storage.TransactionLog) bool {
 	addresses := osm.getContractAddressesForEnvironment()
-	logAddress := strings.ToLower(log.Address)
-	if eventNames, ok := addresses[logAddress]; ok {
-		if slices.Contains(eventNames, log.EventName) {
-			return true
-		}
-	}
-	return false
+	return osm.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
 func (osm *OperatorSharesModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {

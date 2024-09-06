@@ -152,13 +152,7 @@ func (a *AvsOperators) getContractAddressesForEnvironment() map[string][]string 
 // Given a log, determine if it is interesting to the state model
 func (a *AvsOperators) IsInterestingLog(log *storage.TransactionLog) bool {
 	addresses := a.getContractAddressesForEnvironment()
-	logAddress := strings.ToLower(log.Address)
-	if eventNames, ok := addresses[logAddress]; ok {
-		if slices.Contains(eventNames, log.EventName) {
-			return true
-		}
-	}
-	return false
+	return a.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
 // Handle the state change for the given log

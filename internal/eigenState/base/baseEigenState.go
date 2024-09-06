@@ -6,6 +6,8 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/parser"
 	"github.com/Layr-Labs/sidecar/internal/storage"
 	"go.uber.org/zap"
+	"slices"
+	"strings"
 )
 
 type BaseEigenState struct {
@@ -48,4 +50,14 @@ func (b *BaseEigenState) InitializeMerkleTreeBaseStateWithBlock(blockNumber uint
 	return [][]byte{
 		[]byte(fmt.Sprintf("%d", blockNumber)),
 	}
+}
+
+func (b *BaseEigenState) IsInterestingLog(contractsEvents map[string][]string, log *storage.TransactionLog) bool {
+	logAddress := strings.ToLower(log.Address)
+	if eventNames, ok := contractsEvents[logAddress]; ok {
+		if slices.Contains(eventNames, log.EventName) {
+			return true
+		}
+	}
+	return false
 }

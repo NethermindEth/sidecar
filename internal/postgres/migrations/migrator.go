@@ -27,6 +27,7 @@ import (
 	_202407121407_updateProxyContractIndex "github.com/Layr-Labs/sidecar/internal/postgres/migrations/202407121407_updateProxyContractIndex"
 	_202408200934_eigenlayerStateTables "github.com/Layr-Labs/sidecar/internal/postgres/migrations/202408200934_eigenlayerStateTables"
 	_202409051720_operatorShareChanges "github.com/Layr-Labs/sidecar/internal/postgres/migrations/202409051720_operatorShareChanges"
+	_202409052151_stakerDelegations "github.com/Layr-Labs/sidecar/internal/postgres/migrations/202409052151_stakerDelegations"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -78,6 +79,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202407121407_updateProxyContractIndex.Migration{},
 		&_202408200934_eigenlayerStateTables.Migration{},
 		&_202409051720_operatorShareChanges.Migration{},
+		&_202409052151_stakerDelegations.Migration{},
 	}
 
 	for _, migration := range migrations {
