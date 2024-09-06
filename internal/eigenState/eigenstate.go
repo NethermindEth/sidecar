@@ -116,7 +116,7 @@ func (b *BaseEigenState) ParseLogOutput(log *storage.TransactionLog) (map[string
 // This does two things:
 // 1. Ensures that the tree is always different for different blocks
 // 2. Allows us to have at least 1 value if there are no model changes for a block
-func (b *BaseEigenState) InitializeBaseStateWithBlock(blockNumber uint64) [][]byte {
+func (b *BaseEigenState) InitializeMerkleTreeBaseStateWithBlock(blockNumber uint64) [][]byte {
 	return [][]byte{
 		[]byte(fmt.Sprintf("%d", blockNumber)),
 	}

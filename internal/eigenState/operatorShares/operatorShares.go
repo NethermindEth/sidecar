@@ -285,14 +285,14 @@ func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (eigenStat
 		return "", err
 	}
 
-	fullTree, err := osm.merkelizeState(diffs)
+	fullTree, err := osm.merkelizeState(blockNumber, diffs)
 	if err != nil {
 		return "", err
 	}
 	return eigenState.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (osm *OperatorSharesModel) merkelizeState(diffs []OperatorShares) (*merkletree.MerkleTree, error) {
+func (osm *OperatorSharesModel) merkelizeState(blockNumber uint64, diffs []OperatorShares) (*merkletree.MerkleTree, error) {
 	// Create a merkle tree with the structure:
 	// strategy: map[operators]: shares
 	om := orderedmap.New[string, *orderedmap.OrderedMap[string, string]]()
@@ -318,7 +318,7 @@ func (osm *OperatorSharesModel) merkelizeState(diffs []OperatorShares) (*merklet
 		}
 	}
 
-	leaves := make([][]byte, 0)
+	leaves := osm.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
 	for strat := om.Oldest(); strat != nil; strat = strat.Next() {
 
 		operatorLeaves := make([][]byte, 0)

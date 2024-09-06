@@ -360,7 +360,7 @@ func (a *AvsOperators) merkelizeState(blockNumber uint64, avsOperators []Registe
 		}
 	}
 
-	avsLeaves := a.InitializeBaseStateWithBlock(blockNumber)
+	avsLeaves := a.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
 
 	for avs := om.Oldest(); avs != nil; avs = avs.Next() {
 
