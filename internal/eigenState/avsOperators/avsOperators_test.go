@@ -2,7 +2,6 @@ package avsOperators
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/eigenState"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -32,6 +31,11 @@ func setup() (
 	return cfg, grm, l, eigenState, err
 }
 
+func teardown(model *AvsOperators) {
+	model.Db.Exec("truncate table avs_operator_changes cascade")
+	model.Db.Exec("truncate table registered_avs_operators cascade")
+}
+
 func Test_AvsOperatorState(t *testing.T) {
 	cfg, grm, l, esm, err := setup()
 
@@ -45,42 +49,45 @@ func Test_AvsOperatorState(t *testing.T) {
 		assert.NotNil(t, avsOperatorState)
 	})
 	t.Run("Should register AvsOperatorState", func(t *testing.T) {
+		blockNumber := uint64(200)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
 			TransactionIndex: 100,
-			BlockNumber:      200,
+			BlockNumber:      blockNumber,
 			BlockSequenceId:  300,
-			Address:          "some address",
-			Arguments:        "some arguments",
+			Address:          cfg.GetContractsMapForEnvAndNetwork().AvsDirectory,
+			Arguments:        `[{"Value": "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e" }, { "Value": "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0" }]`,
 			EventName:        "OperatorAVSRegistrationStatusUpdated",
 			LogIndex:         400,
-			OutputData:       "some output data",
+			OutputData:       `{ "status": 1 }`,
 			CreatedAt:        time.Time{},
 			UpdatedAt:        time.Time{},
 			DeletedAt:        time.Time{},
 		}
 
 		avsOperatorState, err := NewAvsOperators(esm, grm, cfg.Network, cfg.Environment, l, cfg)
-		fmt.Printf("avsOperatorState err: %+v\n", err)
+
+		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
 
 		res, err := avsOperatorState.HandleStateChange(&log)
 		assert.Nil(t, err)
-		t.Logf("res_typed: %+v\n", res)
+		assert.NotNil(t, res)
 
-		avsOperatorState.Db.Raw("truncate table avs_operator_changes cascade").Scan(&res)
-		avsOperatorState.Db.Raw("truncate table registered_avs_operators cascade").Scan(&res)
+		teardown(avsOperatorState)
 	})
 	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
+		blockNumber := uint64(200)
+
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
 			TransactionIndex: 100,
-			BlockNumber:      200,
+			BlockNumber:      blockNumber,
 			BlockSequenceId:  300,
-			Address:          "some address",
-			Arguments:        "some arguments",
+			Address:          cfg.GetContractsMapForEnvAndNetwork().AvsDirectory,
+			Arguments:        `[{"Value": "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e" }, { "Value": "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0" }]`,
 			EventName:        "OperatorAVSRegistrationStatusUpdated",
 			LogIndex:         400,
-			OutputData:       "some output data",
+			OutputData:       `{ "status": 1 }`,
 			CreatedAt:        time.Time{},
 			UpdatedAt:        time.Time{},
 			DeletedAt:        time.Time{},
@@ -89,23 +96,111 @@ func Test_AvsOperatorState(t *testing.T) {
 		avsOperatorState, err := NewAvsOperators(esm, grm, cfg.Network, cfg.Environment, l, cfg)
 		assert.Nil(t, err)
 
+		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
+
 		stateChange, err := avsOperatorState.HandleStateChange(&log)
 		assert.Nil(t, err)
-		fmt.Printf("stateChange: %+v\n", stateChange)
+		assert.NotNil(t, stateChange)
 
-		err = avsOperatorState.WriteFinalState(200)
+		err = avsOperatorState.WriteFinalState(blockNumber)
 		assert.Nil(t, err)
 
 		states := []RegisteredAvsOperators{}
 		statesRes := avsOperatorState.Db.
 			Model(&RegisteredAvsOperators{}).
-			Raw("select * from registered_avs_operators where block_number = @blockNumber", sql.Named("blockNumber", 200)).
+			Raw("select * from registered_avs_operators where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)
 
 		if statesRes.Error != nil {
 			t.Fatalf("Failed to fetch registered_avs_operators: %v", statesRes.Error)
 		}
 		assert.Equal(t, 1, len(states))
-		fmt.Printf("states: %+v\n", states)
+
+		stateRoot, err := avsOperatorState.GenerateStateRoot(blockNumber)
+		assert.Nil(t, err)
+		assert.True(t, len(stateRoot) > 0)
+
+		teardown(avsOperatorState)
+	})
+	t.Run("Should correctly generate state across multiple blocks", func(t *testing.T) {
+		blocks := []uint64{
+			300,
+			301,
+		}
+
+		logs := []*storage.TransactionLog{
+			&storage.TransactionLog{
+				TransactionHash:  "some hash",
+				TransactionIndex: 100,
+				BlockNumber:      blocks[0],
+				BlockSequenceId:  300,
+				Address:          cfg.GetContractsMapForEnvAndNetwork().AvsDirectory,
+				Arguments:        `[{"Value": "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e" }, { "Value": "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0" }]`,
+				EventName:        "OperatorAVSRegistrationStatusUpdated",
+				LogIndex:         400,
+				OutputData:       `{ "status": 1 }`,
+				CreatedAt:        time.Time{},
+				UpdatedAt:        time.Time{},
+				DeletedAt:        time.Time{},
+			},
+			&storage.TransactionLog{
+				TransactionHash:  "some hash",
+				TransactionIndex: 100,
+				BlockNumber:      blocks[1],
+				BlockSequenceId:  300,
+				Address:          cfg.GetContractsMapForEnvAndNetwork().AvsDirectory,
+				Arguments:        `[{"Value": "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e" }, { "Value": "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0" }]`,
+				EventName:        "OperatorAVSRegistrationStatusUpdated",
+				LogIndex:         400,
+				OutputData:       `{ "status": 0 }`,
+				CreatedAt:        time.Time{},
+				UpdatedAt:        time.Time{},
+				DeletedAt:        time.Time{},
+			},
+		}
+
+		avsOperatorState, err := NewAvsOperators(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		assert.Nil(t, err)
+
+		for _, log := range logs {
+			assert.True(t, avsOperatorState.IsInterestingLog(log))
+
+			stateChange, err := avsOperatorState.HandleStateChange(log)
+			assert.Nil(t, err)
+			assert.NotNil(t, stateChange)
+
+			err = avsOperatorState.WriteFinalState(log.BlockNumber)
+			assert.Nil(t, err)
+
+			states := []RegisteredAvsOperators{}
+			statesRes := avsOperatorState.Db.
+				Model(&RegisteredAvsOperators{}).
+				Raw("select * from registered_avs_operators where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
+				Scan(&states)
+
+			if statesRes.Error != nil {
+				t.Fatalf("Failed to fetch registered_avs_operators: %v", statesRes.Error)
+			}
+
+			if log.BlockNumber == blocks[0] {
+				assert.Equal(t, 1, len(states))
+				diffs, err := avsOperatorState.getDifferenceInStates(log.BlockNumber)
+				assert.Nil(t, err)
+				assert.Equal(t, 1, len(diffs))
+				assert.Equal(t, true, diffs[0].Registered)
+			} else if log.BlockNumber == blocks[1] {
+				assert.Equal(t, 0, len(states))
+				diffs, err := avsOperatorState.getDifferenceInStates(log.BlockNumber)
+				assert.Nil(t, err)
+				assert.Equal(t, 1, len(diffs))
+				assert.Equal(t, false, diffs[0].Registered)
+			}
+
+			stateRoot, err := avsOperatorState.GenerateStateRoot(log.BlockNumber)
+			assert.Nil(t, err)
+			assert.True(t, len(stateRoot) > 0)
+		}
+
+		teardown(avsOperatorState)
 	})
 }

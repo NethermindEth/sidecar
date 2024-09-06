@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/eigenState"
 	"github.com/Layr-Labs/sidecar/internal/storage"
+	"github.com/Layr-Labs/sidecar/internal/utils"
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
@@ -50,6 +51,13 @@ type AvsOperators struct {
 	globalConfig     *config.Config
 }
 
+type RegisteredAvsOperatorDiff struct {
+	Operator    string
+	Avs         string
+	BlockNumber uint64
+	Registered  bool
+}
+
 // Create new instance of AvsOperators state model
 func NewAvsOperators(
 	esm *eigenState.EigenStateManager,
@@ -60,12 +68,14 @@ func NewAvsOperators(
 	globalConfig *config.Config,
 ) (*AvsOperators, error) {
 	s := &AvsOperators{
-		BaseEigenState: eigenState.BaseEigenState{},
-		Db:             grm,
-		Network:        Network,
-		Environment:    Environment,
-		logger:         logger,
-		globalConfig:   globalConfig,
+		BaseEigenState: eigenState.BaseEigenState{
+			Logger: logger,
+		},
+		Db:           grm,
+		Network:      Network,
+		Environment:  Environment,
+		logger:       logger,
+		globalConfig: globalConfig,
 	}
 	esm.RegisterState(s)
 	return s, nil
@@ -83,11 +93,25 @@ func (a *AvsOperators) GetStateTransitions() (eigenState.StateTransitions[AvsOpe
 
 	// TODO(seanmcgary): make this not a closure so this function doesnt get big an messy...
 	stateChanges[0] = func(log *storage.TransactionLog) (*AvsOperatorChange, error) {
-		// TODO(seanmcgary): actually parse the log
+		arguments, err := a.ParseLogArguments(log)
+		if err != nil {
+			return nil, err
+		}
+
+		outputData, err := a.ParseLogOutput(log)
+		if err != nil {
+			return nil, err
+		}
+
+		registered := false
+		if val, ok := outputData["status"]; ok {
+			registered = uint64(val.(float64)) == 1
+		}
+
 		change := &AvsOperatorChange{
-			Operator:         "operator",
-			Avs:              "avs",
-			Registered:       true,
+			Operator:         arguments[0].Value.(string),
+			Avs:              arguments[1].Value.(string),
+			Registered:       registered,
 			TransactionHash:  log.TransactionHash,
 			TransactionIndex: log.TransactionIndex,
 			LogIndex:         log.LogIndex,
@@ -203,6 +227,7 @@ func (a *AvsOperators) WriteFinalState(blockNumber uint64) error {
 				and aoc.operator = nc.operator
 				and aoc.log_index = nc.log_index
 				and aoc.transaction_index = nc.transaction_index
+				and aoc.block_number = nc.block_number
 			)
 		),
 		unregistrations as (
@@ -241,6 +266,55 @@ func (a *AvsOperators) WriteFinalState(blockNumber uint64) error {
 	return nil
 }
 
+func (a *AvsOperators) getDifferenceInStates(blockNumber uint64) ([]RegisteredAvsOperatorDiff, error) {
+	query := `
+		with new_states as (
+			select
+				avs,
+				operator,
+				block_number,
+				true as registered
+			from registered_avs_operators
+			where block_number = @currentBlock
+		),
+		previous_states as (
+			select
+				avs,
+				operator,
+				block_number,
+				true as registered
+			from registered_avs_operators
+			where block_number = @previousBlock
+		),
+		unregistered as (
+			(select avs, operator, registered from previous_states)
+			except
+			(select avs, operator, registered from new_states)
+		),
+		new_registered as (
+			(select avs, operator, registered from new_states)
+			except
+			(select avs, operator, registered from previous_states)
+		)
+		select avs, operator, false as registered from unregistered
+		union all
+		select avs, operator, true as registered from new_registered;
+	`
+	results := make([]RegisteredAvsOperatorDiff, 0)
+	res := a.Db.Model(&RegisteredAvsOperatorDiff{}).
+		Raw(query,
+			sql.Named("currentBlock", blockNumber),
+			sql.Named("previousBlock", blockNumber-1),
+		).
+		Scan(&results)
+
+	if res.Error != nil {
+		a.logger.Sugar().Errorw("Failed to fetch registered_avs_operators", zap.Error(res.Error))
+		return nil, res.Error
+	}
+	return results, nil
+}
+
 // Generates a state root for the given block number.
 //
 // 1. Select all registered_avs_operators for the given block number ordered by avs and operator asc
@@ -249,28 +323,23 @@ func (a *AvsOperators) WriteFinalState(blockNumber uint64) error {
 // 4. Create a merkle tree for all AVS trees
 // 5. Return the root of the full tree
 func (a *AvsOperators) GenerateStateRoot(blockNumber uint64) (eigenState.StateRoot, error) {
-	query := `
-		select
-			avs,
-			operator,
-			block_number
-		from registered_avs_operators
-		where
-			block_number = @blockNumber
-		order by avs asc, operator asc
-	`
-	results := make([]RegisteredAvsOperators, 0)
-	res := a.Db.Model(&results).Raw(query, sql.Named("blockNumber", blockNumber))
-
-	if res.Error != nil {
-		a.logger.Sugar().Errorw("Failed to fetch registered_avs_operators", zap.Error(res.Error))
-		return "", res.Error
+	results, err := a.getDifferenceInStates(blockNumber)
+	if err != nil {
+		return "", err
 	}
 
+	fullTree, err := a.merkelizeState(blockNumber, results)
+	if err != nil {
+		return "", err
+	}
+	return eigenState.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
+}
+
+func (a *AvsOperators) merkelizeState(blockNumber uint64, avsOperators []RegisteredAvsOperatorDiff) (*merkletree.MerkleTree, error) {
 	// Avs -> operator:block_number
 	om := orderedmap.New[string, *orderedmap.OrderedMap[string, uint64]]()
 
-	for _, result := range results {
+	for _, result := range avsOperators {
 		existingAvs, found := om.Get(result.Avs)
 		if !found {
 			existingAvs = orderedmap.New[string, uint64]()
@@ -279,7 +348,7 @@ func (a *AvsOperators) GenerateStateRoot(blockNumber uint64) (eigenState.StateRo
 			prev := om.GetPair(result.Avs).Prev()
 			if prev != nil && strings.Compare(prev.Key, result.Avs) >= 0 {
 				om.Delete(result.Avs)
-				return "", fmt.Errorf("avs not in order")
+				return nil, fmt.Errorf("avs not in order")
 			}
 		}
 		existingAvs.Set(result.Operator, result.BlockNumber)
@@ -287,18 +356,19 @@ func (a *AvsOperators) GenerateStateRoot(blockNumber uint64) (eigenState.StateRo
 		prev := existingAvs.GetPair(result.Operator).Prev()
 		if prev != nil && strings.Compare(prev.Key, result.Operator) >= 0 {
 			existingAvs.Delete(result.Operator)
-			return "", fmt.Errorf("operator not in order")
+			return nil, fmt.Errorf("operator not in order")
 		}
 	}
 
-	avsLeaves := make([][]byte, 0)
+	avsLeaves := a.InitializeBaseStateWithBlock(blockNumber)
+
 	for avs := om.Oldest(); avs != nil; avs = avs.Next() {
 
 		operatorLeafs := make([][]byte, 0)
 		for operator := avs.Value.Oldest(); operator != nil; operator = operator.Next() {
 			operatorAddr := operator.Key
 			block := operator.Value
-			operatorLeafs = append(operatorLeafs, []byte(fmt.Sprintf("%s:%d", operatorAddr, block)))
+			operatorLeafs = append(operatorLeafs, encodeOperatorLeaf(operatorAddr, block))
 		}
 
 		avsTree, err := merkletree.NewTree(
@@ -306,20 +376,22 @@ func (a *AvsOperators) GenerateStateRoot(blockNumber uint64) (eigenState.StateRo
 			merkletree.WithHashType(keccak256.New()),
 		)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		avsBytes := []byte(avs.Key)
-		root := avsTree.Root()
-		avsLeaves = append(avsLeaves, append(avsBytes, root[:]...))
+		avsLeaves = append(avsLeaves, encodeAvsLeaf(avs.Key, avsTree.Root()))
 	}
 
-	fullTree, err := merkletree.NewTree(
+	return merkletree.NewTree(
 		merkletree.WithData(avsLeaves),
 		merkletree.WithHashType(keccak256.New()),
 	)
-	if err != nil {
-		return "", err
-	}
-	return eigenState.StateRoot(fullTree.Root()), nil
+}
+
+func encodeOperatorLeaf(operator string, blockNumber uint64) []byte {
+	return []byte(fmt.Sprintf("%s:%d", operator, blockNumber))
+}
+
+func encodeAvsLeaf(avs string, avsOperatorRoot []byte) []byte {
+	return append([]byte(avs), avsOperatorRoot[:]...)
 }

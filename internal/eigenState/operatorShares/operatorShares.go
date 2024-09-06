@@ -100,7 +100,6 @@ func (osm *OperatorSharesModel) GetStateTransitions() (eigenState.StateTransitio
 			)
 			return nil, err
 		}
-		fmt.Printf("Outputdata: %+v\n", outputData)
 		shares := big.Int{}
 		sharesInt, _ := shares.SetString(outputData["shares"].(string), 10)
 
@@ -117,7 +116,6 @@ func (osm *OperatorSharesModel) GetStateTransitions() (eigenState.StateTransitio
 			LogIndex:         log.LogIndex,
 			BlockNumber:      log.BlockNumber,
 		}
-		fmt.Printf("Change: %+v\n", change)
 		return change, nil
 	}
 
