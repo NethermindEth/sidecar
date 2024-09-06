@@ -30,19 +30,7 @@ type RegisteredAvsOperators struct {
 	CreatedAt   time.Time
 }
 
-// Schema for avs_operator_changes table
-type AvsOperatorChange struct {
-	Id               uint64 `gorm:"type:serial"`
-	Operator         string
-	Avs              string
-	Registered       bool
-	TransactionHash  string
-	TransactionIndex uint64
-	LogIndex         uint64
-	BlockNumber      uint64
-	CreatedAt        time.Time
-}
-
+// AccumulatedStateChange represents the accumulated state change for a given block
 type AccumulatedStateChange struct {
 	Avs         string
 	Operator    string
@@ -50,6 +38,7 @@ type AccumulatedStateChange struct {
 	BlockNumber uint64
 }
 
+// RegisteredAvsOperatorDiff represents the diff between the registered_avs_operators table and the accumulated state
 type RegisteredAvsOperatorDiff struct {
 	Avs         string
 	Operator    string
@@ -310,13 +299,7 @@ func (a *AvsOperatorsModel) ClearAccumulatedState(blockNumber uint64) error {
 	return nil
 }
 
-// Generates a state root for the given block number.
-//
-// 1. Select all registered_avs_operators for the given block number ordered by avs and operator asc
-// 2. Create an ordered map, with AVSs at the top level that point to an ordered map of operators and block numbers
-// 3. Create a merkle tree for each AVS, with the operator:block_number pairs as leaves
-// 4. Create a merkle tree for all AVS trees
-// 5. Return the root of the full tree
+// GenerateStateRoot generates the state root for the given block number using the results of the state changes
 func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
 	inserts, deletes, err := a.prepareState(blockNumber)
 	if err != nil {
