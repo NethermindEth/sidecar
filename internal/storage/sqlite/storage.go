@@ -30,10 +30,10 @@ func NewSqliteBlockStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *Sqlite
 func (s *SqliteBlockStore) InsertBlockAtHeight(blockNumber uint64, hash string, blockTime uint64) (*storage.Block, error) {
 
 }
-func (s *SqliteBlockStore) InsertBlockTransaction(sequenceId uint64, blockNumber uint64, txHash string, txIndex uint64, from string, to string, contractAddress string, bytecodeHash string) (*storage.Transaction, error) {
+func (s *SqliteBlockStore) InsertBlockTransaction(blockNumber uint64, txHash string, txIndex uint64, from string, to string, contractAddress string, bytecodeHash string) (*storage.Transaction, error) {
 
 }
-func (s *SqliteBlockStore) InsertTransactionLog(txHash string, transactionIndex uint64, blockNumber uint64, blockSequenceId uint64, log *parser.DecodedLog, outputData map[string]interface{}) (*storage.Transaction, error) {
+func (s *SqliteBlockStore) InsertTransactionLog(txHash string, transactionIndex uint64, blockNumber uint64, log *parser.DecodedLog, outputData map[string]interface{}) (*storage.Transaction, error) {
 
 }
 func (s *SqliteBlockStore) GetLatestBlock() (int64, error) {

@@ -284,7 +284,6 @@ func (idx *Indexer) IndexTransaction(
 	receipt *ethereum.EthereumTransactionReceipt,
 ) (*storage.Transaction, error) {
 	return idx.MetadataStore.InsertBlockTransaction(
-		block.Id,
 		block.Number,
 		tx.Hash.Value(),
 		tx.Index.Value(),
@@ -390,7 +389,6 @@ func (idx *Indexer) IndexLog(
 		txHash,
 		txIndex,
 		blockNumber,
-		blockSequenceId,
 		log,
 		log.OutputData,
 	)
