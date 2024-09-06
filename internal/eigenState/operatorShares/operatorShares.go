@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/eigenState"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/base"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/sidecar/internal/parser"
 	"github.com/Layr-Labs/sidecar/internal/storage"
 	"github.com/Layr-Labs/sidecar/internal/utils"
@@ -46,8 +48,8 @@ type OperatorShares struct {
 
 // Implements IEigenStateModel
 type OperatorSharesModel struct {
-	eigenState.BaseEigenState
-	StateTransitions eigenState.StateTransitions[OperatorShareChange]
+	base.BaseEigenState
+	StateTransitions types.StateTransitions[OperatorShareChange]
 	Db               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
@@ -56,7 +58,7 @@ type OperatorSharesModel struct {
 }
 
 func NewOperatorSharesModel(
-	esm *eigenState.EigenStateManager,
+	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
 	Network config.Network,
 	Environment config.Environment,
@@ -64,20 +66,26 @@ func NewOperatorSharesModel(
 	globalConfig *config.Config,
 ) (*OperatorSharesModel, error) {
 	model := &OperatorSharesModel{
-		BaseEigenState: eigenState.BaseEigenState{},
-		Db:             grm,
-		Network:        Network,
-		Environment:    Environment,
-		logger:         logger,
-		globalConfig:   globalConfig,
+		BaseEigenState: base.BaseEigenState{
+			Logger: logger,
+		},
+		Db:           grm,
+		Network:      Network,
+		Environment:  Environment,
+		logger:       logger,
+		globalConfig: globalConfig,
 	}
 
-	esm.RegisterState(model)
+	esm.RegisterState(model, 1)
 	return model, nil
 }
 
-func (osm *OperatorSharesModel) GetStateTransitions() (eigenState.StateTransitions[OperatorShareChange], []uint64) {
-	stateChanges := make(eigenState.StateTransitions[OperatorShareChange])
+func (osm *OperatorSharesModel) GetModelName() string {
+	return "OperatorSharesModel"
+}
+
+func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[OperatorShareChange], []uint64) {
+	stateChanges := make(types.StateTransitions[OperatorShareChange])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*OperatorShareChange, error) {
 		arguments := make([]parser.Argument, 0)
@@ -100,7 +108,6 @@ func (osm *OperatorSharesModel) GetStateTransitions() (eigenState.StateTransitio
 			)
 			return nil, err
 		}
-		fmt.Printf("Outputdata: %+v\n", outputData)
 		shares := big.Int{}
 		sharesInt, _ := shares.SetString(outputData["shares"].(string), 10)
 
@@ -117,7 +124,6 @@ func (osm *OperatorSharesModel) GetStateTransitions() (eigenState.StateTransitio
 			LogIndex:         log.LogIndex,
 			BlockNumber:      log.BlockNumber,
 		}
-		fmt.Printf("Change: %+v\n", change)
 		return change, nil
 	}
 
@@ -281,20 +287,20 @@ func (osm *OperatorSharesModel) getDifferencesInStates(currentBlock uint64) ([]O
 	return diffs, nil
 }
 
-func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (eigenState.StateRoot, error) {
+func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
 	diffs, err := osm.getDifferencesInStates(blockNumber)
 	if err != nil {
 		return "", err
 	}
 
-	fullTree, err := osm.merkelizeState(diffs)
+	fullTree, err := osm.merkelizeState(blockNumber, diffs)
 	if err != nil {
 		return "", err
 	}
-	return eigenState.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
+	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (osm *OperatorSharesModel) merkelizeState(diffs []OperatorShares) (*merkletree.MerkleTree, error) {
+func (osm *OperatorSharesModel) merkelizeState(blockNumber uint64, diffs []OperatorShares) (*merkletree.MerkleTree, error) {
 	// Create a merkle tree with the structure:
 	// strategy: map[operators]: shares
 	om := orderedmap.New[string, *orderedmap.OrderedMap[string, string]]()
@@ -320,7 +326,7 @@ func (osm *OperatorSharesModel) merkelizeState(diffs []OperatorShares) (*merklet
 		}
 	}
 
-	leaves := make([][]byte, 0)
+	leaves := osm.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
 	for strat := om.Oldest(); strat != nil; strat = strat.Next() {
 
 		operatorLeaves := make([][]byte, 0)
