@@ -28,7 +28,7 @@ func setup() (
 	return cfg, grm, l, err
 }
 
-func teardown(model *AvsOperators) {
+func teardown(model *AvsOperatorsModel) {
 	model.Db.Exec("truncate table avs_operator_changes cascade")
 	model.Db.Exec("truncate table registered_avs_operators cascade")
 }
@@ -68,6 +68,9 @@ func Test_AvsOperatorState(t *testing.T) {
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
 
+		err = avsOperatorState.InitBlockProcessing(blockNumber)
+		assert.Nil(t, err)
+
 		res, err := avsOperatorState.HandleStateChange(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
@@ -97,6 +100,9 @@ func Test_AvsOperatorState(t *testing.T) {
 		assert.Nil(t, err)
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
+
+		err = avsOperatorState.InitBlockProcessing(blockNumber)
+		assert.Nil(t, err)
 
 		stateChange, err := avsOperatorState.HandleStateChange(&log)
 		assert.Nil(t, err)
@@ -166,6 +172,9 @@ func Test_AvsOperatorState(t *testing.T) {
 		for _, log := range logs {
 			assert.True(t, avsOperatorState.IsInterestingLog(log))
 
+			err = avsOperatorState.InitBlockProcessing(log.BlockNumber)
+			assert.Nil(t, err)
+
 			stateChange, err := avsOperatorState.HandleStateChange(log)
 			assert.Nil(t, err)
 			assert.NotNil(t, stateChange)
@@ -185,16 +194,16 @@ func Test_AvsOperatorState(t *testing.T) {
 
 			if log.BlockNumber == blocks[0] {
 				assert.Equal(t, 1, len(states))
-				diffs, err := avsOperatorState.getDifferenceInStates(log.BlockNumber)
+				inserts, deletes, err := avsOperatorState.prepareState(log.BlockNumber)
 				assert.Nil(t, err)
-				assert.Equal(t, 1, len(diffs))
-				assert.Equal(t, true, diffs[0].Registered)
+				assert.Equal(t, 1, len(inserts))
+				assert.Equal(t, 0, len(deletes))
 			} else if log.BlockNumber == blocks[1] {
 				assert.Equal(t, 0, len(states))
-				diffs, err := avsOperatorState.getDifferenceInStates(log.BlockNumber)
+				inserts, deletes, err := avsOperatorState.prepareState(log.BlockNumber)
 				assert.Nil(t, err)
-				assert.Equal(t, 1, len(diffs))
-				assert.Equal(t, false, diffs[0].Registered)
+				assert.Equal(t, 0, len(inserts))
+				assert.Equal(t, 1, len(deletes))
 			}
 
 			stateRoot, err := avsOperatorState.GenerateStateRoot(log.BlockNumber)
