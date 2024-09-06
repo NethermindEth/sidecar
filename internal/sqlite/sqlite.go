@@ -11,5 +11,21 @@ func NewSqlite(path string) gorm.Dialector {
 }
 
 func NewGormSqliteFromSqlite(sqlite gorm.Dialector) (*gorm.DB, error) {
-	return gorm.Open(sqlite, &gorm.Config{})
+	db, err := gorm.Open(sqlite, &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	pragmas := []string{
+		`PRAGMA foreign_keys = ON;`,
+		`PRAGMA journal_mode = WAL;`,
+	}
+
+	for _, pragma := range pragmas {
+		res := db.Exec(pragma)
+		if res.Error != nil {
+			return nil, res.Error
+		}
+	}
+	return db, nil
 }
