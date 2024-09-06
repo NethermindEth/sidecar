@@ -251,6 +251,9 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 	}
 
 	recordsToInsert, recordsToDelete, err := s.prepareState(blockNumber)
+	if err != nil {
+		return err
+	}
 
 	// TODO(seanmcgary): should probably wrap the operations of this function in a db transaction
 	for _, record := range recordsToDelete {
