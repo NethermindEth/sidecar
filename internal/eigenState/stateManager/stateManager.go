@@ -49,7 +49,7 @@ func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog) er
 func (e *EigenStateManager) CommitFinalState(blockNumber uint64) error {
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
-		err := state.WriteFinalState(blockNumber)
+		err := state.CommitFinalState(blockNumber)
 		if err != nil {
 			return err
 		}

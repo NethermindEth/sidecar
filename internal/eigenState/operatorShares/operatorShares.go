@@ -155,6 +155,10 @@ func (osm *OperatorSharesModel) IsInterestingLog(log *storage.TransactionLog) bo
 	return osm.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
+func (osm *OperatorSharesModel) StartBlockProcessing(blockNumber uint64) error {
+	return nil
+}
+
 func (osm *OperatorSharesModel) HandleStateChange(log *storage.TransactionLog) (interface{}, error) {
 	stateChanges, sortedBlockNumbers := osm.GetStateTransitions()
 
@@ -189,7 +193,7 @@ func (osm *OperatorSharesModel) writeStateChange(change *OperatorShareChange) (i
 	return change, nil
 }
 
-func (osm *OperatorSharesModel) WriteFinalState(blockNumber uint64) error {
+func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
 	query := `
 		with new_sum as (
 			select

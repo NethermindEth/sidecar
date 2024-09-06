@@ -11,6 +11,10 @@ type IEigenStateModel interface {
 	// Get the name of the model
 	GetModelName() string
 
+	// StartBlockProcessing
+	// Perform any necessary setup for processing a block
+	StartBlockProcessing(blockNumber uint64) error
+
 	// IsInterestingLog
 	//Determine if the log is interesting to the state model
 	IsInterestingLog(log *storage.TransactionLog) bool
@@ -21,9 +25,9 @@ type IEigenStateModel interface {
 	// Returns the saved value. Listed as an interface because go generics suck
 	HandleStateChange(log *storage.TransactionLog) (interface{}, error)
 
-	// WriteFinalState
-	// Once all state changes are processed, calculate and write final state
-	WriteFinalState(blockNumber uint64) error
+	// CommitFinalState
+	// Once all state changes are processed, commit the final state to the database
+	CommitFinalState(blockNumber uint64) error
 
 	// GenerateStateRoot
 	// Generate the state root for the model
