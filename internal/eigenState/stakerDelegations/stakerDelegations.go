@@ -22,6 +22,7 @@ import (
 	"time"
 )
 
+// DelegatedStakers State model for staker delegations at block_number
 type DelegatedStakers struct {
 	Staker      string
 	Operator    string
@@ -29,17 +30,7 @@ type DelegatedStakers struct {
 	CreatedAt   time.Time
 }
 
-type StakerDelegationChange struct {
-	Staker           string
-	Operator         string
-	Delegated        bool
-	TransactionHash  string
-	TransactionIndex uint64
-	LogIndex         uint64
-	BlockNumber      uint64
-	CreatedAt        time.Time
-}
-
+// AccumulatedStateChange represents the accumulated state change for a staker/operator pair
 type AccumulatedStateChange struct {
 	Staker      string
 	Operator    string
@@ -47,6 +38,7 @@ type AccumulatedStateChange struct {
 	Delegated   bool
 }
 
+// SlotId represents a unique identifier for a staker/operator pair
 type SlotId string
 
 func NewSlotId(staker string, operator string) SlotId {
@@ -55,7 +47,7 @@ func NewSlotId(staker string, operator string) SlotId {
 
 type StakerDelegationsModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[StakerDelegationChange]
+	StateTransitions types.StateTransitions[AccumulatedStateChange]
 	Db               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment

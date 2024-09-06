@@ -23,20 +23,7 @@ import (
 	"time"
 )
 
-// Changes table
-type OperatorShareChange struct {
-	Id               uint64 `gorm:"type:serial"`
-	Operator         string
-	Strategy         string
-	Shares           string `gorm:"type:numeric"`
-	TransactionHash  string
-	TransactionIndex uint64
-	LogIndex         uint64
-	BlockNumber      uint64
-	CreatedAt        time.Time
-}
-
-// Block table
+// OperatorShares represents the state of an operator's shares in a strategy at a given block number
 type OperatorShares struct {
 	Operator    string
 	Strategy    string
@@ -45,6 +32,7 @@ type OperatorShares struct {
 	CreatedAt   time.Time
 }
 
+// AccumulatedStateChange represents the accumulated state change for an operator's shares in a strategy at a given block number
 type AccumulatedStateChange struct {
 	Operator    string
 	Strategy    string
@@ -60,6 +48,7 @@ type OperatorSharesDiff struct {
 	IsNew       bool
 }
 
+// SlotId is a unique identifier for an operator's shares in a strategy
 type SlotId string
 
 func NewSlotId(operator string, strategy string) SlotId {
@@ -69,7 +58,7 @@ func NewSlotId(operator string, strategy string) SlotId {
 // Implements IEigenStateModel
 type OperatorSharesModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[OperatorShareChange]
+	StateTransitions types.StateTransitions[AccumulatedStateChange]
 	Db               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
