@@ -68,9 +68,16 @@ func Test_DelegatedStakersState(t *testing.T) {
 
 		assert.Equal(t, true, model.IsInterestingLog(&log))
 
+		err = model.StartBlockProcessing(blockNumber)
+		assert.Nil(t, err)
+
 		res, err := model.HandleStateChange(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
+
+		typedChange := res.(*AccumulatedStateChange)
+		assert.Equal(t, "0x5fc1b61816ddeb33b65a02a42b29059ecd3a20e9", typedChange.Staker)
+		assert.Equal(t, "0x5accc90436492f24e6af278569691e2c942a676d", typedChange.Operator)
 
 		teardown(model)
 	})
@@ -98,11 +105,18 @@ func Test_DelegatedStakersState(t *testing.T) {
 
 		assert.Equal(t, true, model.IsInterestingLog(&log))
 
+		err = model.StartBlockProcessing(blockNumber)
+		assert.Nil(t, err)
+
 		stateChange, err := model.HandleStateChange(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, stateChange)
 
-		err = model.WriteFinalState(blockNumber)
+		typedChange := stateChange.(*AccumulatedStateChange)
+		assert.Equal(t, "0x5fc1b61816ddeb33b65a02a42b29059ecd3a20e9", typedChange.Staker)
+		assert.Equal(t, "0x5accc90436492f24e6af278569691e2c942a676d", typedChange.Operator)
+
+		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
 		states := []DelegatedStakers{}
@@ -166,11 +180,14 @@ func Test_DelegatedStakersState(t *testing.T) {
 		for _, log := range logs {
 			assert.True(t, model.IsInterestingLog(log))
 
+			err = model.StartBlockProcessing(log.BlockNumber)
+			assert.Nil(t, err)
+
 			stateChange, err := model.HandleStateChange(log)
 			assert.Nil(t, err)
 			assert.NotNil(t, stateChange)
 
-			err = model.WriteFinalState(log.BlockNumber)
+			err = model.CommitFinalState(log.BlockNumber)
 			assert.Nil(t, err)
 
 			states := []DelegatedStakers{}
@@ -185,16 +202,16 @@ func Test_DelegatedStakersState(t *testing.T) {
 
 			if log.BlockNumber == blocks[0] {
 				assert.Equal(t, 1, len(states))
-				diffs, err := model.getDifferenceInStates(log.BlockNumber)
+				inserts, deletes, err := model.prepareState(log.BlockNumber)
 				assert.Nil(t, err)
-				assert.Equal(t, 1, len(diffs))
-				assert.Equal(t, true, diffs[0].Delegated)
+				assert.Equal(t, 1, len(inserts))
+				assert.Equal(t, 0, len(deletes))
 			} else if log.BlockNumber == blocks[1] {
 				assert.Equal(t, 0, len(states))
-				diffs, err := model.getDifferenceInStates(log.BlockNumber)
+				inserts, deletes, err := model.prepareState(log.BlockNumber)
 				assert.Nil(t, err)
-				assert.Equal(t, 1, len(diffs))
-				assert.Equal(t, false, diffs[0].Delegated)
+				assert.Equal(t, 0, len(inserts))
+				assert.Equal(t, 1, len(deletes))
 			}
 
 			stateRoot, err := model.GenerateStateRoot(log.BlockNumber)

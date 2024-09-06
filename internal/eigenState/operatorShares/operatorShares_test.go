@@ -99,7 +99,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, stateChange)
 
-		err = model.WriteFinalState(blockNumber)
+		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
 		states := []OperatorShares{}

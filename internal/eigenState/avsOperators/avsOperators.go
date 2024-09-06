@@ -155,6 +155,10 @@ func (a *AvsOperators) IsInterestingLog(log *storage.TransactionLog) bool {
 	return a.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
+func (a *AvsOperators) StartBlockProcessing(blockNumber uint64) error {
+	return nil
+}
+
 // Handle the state change for the given log
 //
 // Takes a log and iterates over the state transitions to determine which state change to apply based on block number.
@@ -201,7 +205,7 @@ func (a *AvsOperators) writeStateChange(change *AvsOperatorChange) (*AvsOperator
 // 4. Determine which rows from the previous block should be carried over and which shouldnt (i.e. deregistrations)
 // 5. Geneate the final state by unioning the carryover and the new registrations
 // 6. Insert the final state into the registered_avs_operators table
-func (a *AvsOperators) WriteFinalState(blockNumber uint64) error {
+func (a *AvsOperators) CommitFinalState(blockNumber uint64) error {
 	query := `
 		with new_changes as (
 			select
@@ -313,6 +317,10 @@ func (a *AvsOperators) getDifferenceInStates(blockNumber uint64) ([]RegisteredAv
 		return nil, res.Error
 	}
 	return results, nil
+}
+
+func (a *AvsOperators) ClearAccumulatedState(blockNumber uint64) error {
+	panic("implement me")
 }
 
 // Generates a state root for the given block number.

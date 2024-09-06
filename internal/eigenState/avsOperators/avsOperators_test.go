@@ -102,7 +102,7 @@ func Test_AvsOperatorState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, stateChange)
 
-		err = avsOperatorState.WriteFinalState(blockNumber)
+		err = avsOperatorState.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
 		states := []RegisteredAvsOperators{}
@@ -170,7 +170,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			assert.Nil(t, err)
 			assert.NotNil(t, stateChange)
 
-			err = avsOperatorState.WriteFinalState(log.BlockNumber)
+			err = avsOperatorState.CommitFinalState(log.BlockNumber)
 			assert.Nil(t, err)
 
 			states := []RegisteredAvsOperators{}
