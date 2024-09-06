@@ -15,9 +15,9 @@ type IEigenStateModel interface {
 	//Determine if the log is interesting to the state model
 	IsInterestingLog(log *storage.TransactionLog) bool
 
-	// StartBlockProcessing
+	// InitBlockProcessing
 	// Perform any necessary setup for processing a block
-	StartBlockProcessing(blockNumber uint64) error
+	InitBlockProcessing(blockNumber uint64) error
 
 	// HandleStateChange
 	// Allow the state model to handle the state change

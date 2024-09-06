@@ -59,6 +59,9 @@ func Test_EigenStateManager(t *testing.T) {
 		assert.Equal(t, 0, indexes[0])
 		assert.Equal(t, 1, indexes[1])
 
+		err = esm.InitProcessingForBlock(200)
+		assert.Nil(t, err)
+
 		root, err := esm.GenerateStateRoot(200)
 		assert.Nil(t, err)
 		assert.True(t, len(root) > 0)

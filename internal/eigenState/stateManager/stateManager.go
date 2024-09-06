@@ -45,6 +45,18 @@ func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog) er
 	return nil
 }
 
+func (e *EigenStateManager) InitProcessingForBlock(blockNumber uint64) error {
+	for _, index := range e.GetSortedModelIndexes() {
+		state := e.StateModels[index]
+		err := state.InitBlockProcessing(blockNumber)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
+}
+
 // With all transactions/logs processed for a block, commit the final state to the table
 func (e *EigenStateManager) CommitFinalState(blockNumber uint64) error {
 	for _, index := range e.GetSortedModelIndexes() {
