@@ -3,6 +3,7 @@ package storage
 import (
 	"github.com/Layr-Labs/sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/internal/parser"
+	"gorm.io/gorm"
 	"time"
 )
 
@@ -22,8 +23,25 @@ type BlockStore interface {
 	ListTransactionLogsForContractAddress(contractAddress string) ([]*TransactionLog, error)
 	InsertOperatorRestakedStrategies(avsDirectorAddress string, blockNumber uint64, blockTime time.Time, operator string, avs string, strategy string) (*OperatorRestakedStrategies, error)
 
+	GetDb() *gorm.DB
+
 	// Less generic functions
 	GetLatestActiveAvsOperators(blockNumber uint64, avsDirectoryAddress string) ([]*ActiveAvsOperator, error)
+
+	// State change functions
+	// InsertIntoAvsOperatorChangesForBlock(blockNumber uint64) error
+	// InsertIntoOperatorShareChangesForBlock(blockNumber uint64) error
+	// InsertIntoStakerShareChangesForBlock(blockNumber uint64) error
+	// InsertIntoStakerDelegationChangesForBlock(blockNumber uint64) error
+	// InsertIntoActiveRewardSubmissionsForBlock(blockNumber uint64) error
+	//
+	// // Aggregate table functions
+	// CloneRegisteredAvsOperatorsForNewBlock(newBlockNumber uint64) error
+	// CloneOperatorSharesForNewBlock(newBlockNumber uint64) error
+	// CloneStakerSharesForNewBlock(newBlockNumber uint64) error
+	// CloneDelegatedStakersForNewBlock(newBlockNumber uint64) error
+	// SetActiveRewardsForNewBlock(newBlockNumber uint64) error
+	// SetActiveRewardForAllForNewBlock(newBlockNumber uint64) error
 }
 
 // Tables

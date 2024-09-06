@@ -3,6 +3,7 @@ package postgresql
 import (
 	"encoding/json"
 	"errors"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/parser"
 	pg "github.com/Layr-Labs/sidecar/internal/postgres"
 	"github.com/Layr-Labs/sidecar/internal/storage"
@@ -23,20 +24,26 @@ type PostgresBlockStoreConfig struct {
 }
 
 type PostgresBlockStore struct {
-	Db       *gorm.DB
-	migrated bool
-	Logger   *zap.Logger
+	Db           *gorm.DB
+	migrated     bool
+	Logger       *zap.Logger
+	GlobalConfig *config.Config
 }
 
-func NewPostgresBlockStore(db *gorm.DB, l *zap.Logger) (*PostgresBlockStore, error) {
+func NewPostgresBlockStore(db *gorm.DB, cfg *config.Config, l *zap.Logger) (*PostgresBlockStore, error) {
 	mds := &PostgresBlockStore{
-		Db:     db,
-		Logger: l,
+		Db:           db,
+		Logger:       l,
+		GlobalConfig: cfg,
 	}
 
 	mds.autoMigrate()
 
 	return mds, nil
+}
+
+func (m *PostgresBlockStore) GetDb() *gorm.DB {
+	return m.Db
 }
 
 func (m *PostgresBlockStore) autoMigrate() {

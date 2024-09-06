@@ -25,6 +25,8 @@ import (
 	_202407110946_addBlockTimeToRestakedStrategies "github.com/Layr-Labs/sidecar/internal/postgres/migrations/202407110946_addBlockTimeToRestakedStrategies"
 	_202407111116_addAvsDirectoryAddress "github.com/Layr-Labs/sidecar/internal/postgres/migrations/202407111116_addAvsDirectoryAddress"
 	_202407121407_updateProxyContractIndex "github.com/Layr-Labs/sidecar/internal/postgres/migrations/202407121407_updateProxyContractIndex"
+	_202408200934_eigenlayerStateTables "github.com/Layr-Labs/sidecar/internal/postgres/migrations/202408200934_eigenlayerStateTables"
+	_202409051720_operatorShareChanges "github.com/Layr-Labs/sidecar/internal/postgres/migrations/202409051720_operatorShareChanges"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -74,6 +76,8 @@ func (m *Migrator) MigrateAll() error {
 		&_202407110946_addBlockTimeToRestakedStrategies.Migration{},
 		&_202407111116_addAvsDirectoryAddress.Migration{},
 		&_202407121407_updateProxyContractIndex.Migration{},
+		&_202408200934_eigenlayerStateTables.Migration{},
+		&_202409051720_operatorShareChanges.Migration{},
 	}
 
 	for _, migration := range migrations {

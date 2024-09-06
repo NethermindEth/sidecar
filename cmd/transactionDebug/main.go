@@ -1,25 +1,6 @@
 package main
 
-import (
-	"context"
-	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/clients/ethereum"
-	"github.com/Layr-Labs/sidecar/internal/clients/etherscan"
-	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/contractManager"
-	"github.com/Layr-Labs/sidecar/internal/contractStore/pgContractStore"
-	"github.com/Layr-Labs/sidecar/internal/fetcher"
-	"github.com/Layr-Labs/sidecar/internal/indexer"
-	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
-	"github.com/Layr-Labs/sidecar/internal/postgres"
-	"github.com/Layr-Labs/sidecar/internal/postgres/migrations"
-	"github.com/Layr-Labs/sidecar/internal/storage/postgresql"
-	"go.uber.org/zap"
-	"log"
-	"strings"
-)
-
+/*
 func main() {
 	ctx := context.Background()
 	cfg := config.NewConfig()
@@ -130,3 +111,4 @@ func main() {
 	// fmt.Printf("Tree: %+v\n", tree)
 
 }
+*/

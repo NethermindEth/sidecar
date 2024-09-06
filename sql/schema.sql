@@ -3,7 +3,7 @@
 --
 
 -- Dumped from database version 14.11 (Homebrew)
--- Dumped by pg_dump version 15.7 (Homebrew)
+-- Dumped by pg_dump version 15.8 (Homebrew)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -26,6 +26,43 @@ SET row_security = off;
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+--
+-- Name: avs_operator_changes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.avs_operator_changes (
+    id integer NOT NULL,
+    operator character varying,
+    avs character varying,
+    registered boolean,
+    transaction_hash character varying,
+    transaction_index bigint,
+    log_index bigint,
+    block_number bigint,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: avs_operator_changes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.avs_operator_changes_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: avs_operator_changes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.avs_operator_changes_id_seq OWNED BY public.avs_operator_changes.id;
+
 
 --
 -- Name: blocks; Type: TABLE; Schema: public; Owner: -
@@ -126,7 +163,8 @@ CREATE TABLE public.operator_restaked_strategies (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone,
-    block_time timestamp with time zone NOT NULL
+    block_time timestamp with time zone NOT NULL,
+    avs_directory_address character varying
 );
 
 
@@ -151,6 +189,56 @@ ALTER SEQUENCE public.operator_restaked_strategies_id_seq OWNED BY public.operat
 
 
 --
+-- Name: operator_share_changes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.operator_share_changes (
+    id integer NOT NULL,
+    operator character varying,
+    strategy character varying,
+    shares numeric,
+    transaction_hash character varying,
+    transaction_index bigint,
+    log_index bigint,
+    block_number bigint,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: operator_share_changes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.operator_share_changes_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: operator_share_changes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.operator_share_changes_id_seq OWNED BY public.operator_share_changes.id;
+
+
+--
+-- Name: operator_shares; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.operator_shares (
+    operator character varying,
+    strategy character varying,
+    shares numeric,
+    block_number bigint,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
 -- Name: proxy_contracts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -161,6 +249,18 @@ CREATE TABLE public.proxy_contracts (
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone
+);
+
+
+--
+-- Name: registered_avs_operators; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.registered_avs_operators (
+    operator character varying,
+    avs character varying,
+    block_number bigint,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -199,7 +299,10 @@ CREATE TABLE public.transactions (
     to_address character varying(255) DEFAULT NULL::character varying,
     block_sequence_id bigint NOT NULL,
     contract_address character varying(255) DEFAULT NULL::character varying,
-    bytecode_hash character varying(64) DEFAULT NULL::character varying
+    bytecode_hash character varying(64) DEFAULT NULL::character varying,
+    gas_used numeric,
+    cumulative_gas_used numeric,
+    effective_gas_price numeric
 );
 
 
@@ -213,6 +316,13 @@ CREATE TABLE public.unverified_contracts (
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone
 );
+
+
+--
+-- Name: avs_operator_changes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.avs_operator_changes ALTER COLUMN id SET DEFAULT nextval('public.avs_operator_changes_id_seq'::regclass);
 
 
 --
@@ -234,6 +344,21 @@ ALTER TABLE ONLY public.contracts ALTER COLUMN id SET DEFAULT nextval('public.co
 --
 
 ALTER TABLE ONLY public.operator_restaked_strategies ALTER COLUMN id SET DEFAULT nextval('public.operator_restaked_strategies_id_seq'::regclass);
+
+
+--
+-- Name: operator_share_changes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.operator_share_changes ALTER COLUMN id SET DEFAULT nextval('public.operator_share_changes_id_seq'::regclass);
+
+
+--
+-- Name: avs_operator_changes avs_operator_changes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.avs_operator_changes
+    ADD CONSTRAINT avs_operator_changes_pkey PRIMARY KEY (id);
 
 
 --
@@ -277,6 +402,30 @@ ALTER TABLE ONLY public.operator_restaked_strategies
 
 
 --
+-- Name: operator_share_changes operator_share_changes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.operator_share_changes
+    ADD CONSTRAINT operator_share_changes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: operator_shares operator_shares_operator_strategy_block_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.operator_shares
+    ADD CONSTRAINT operator_shares_operator_strategy_block_number_key UNIQUE (operator, strategy, block_number);
+
+
+--
+-- Name: registered_avs_operators registered_avs_operators_operator_avs_block_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.registered_avs_operators
+    ADD CONSTRAINT registered_avs_operators_operator_avs_block_number_key UNIQUE (operator, avs, block_number);
+
+
+--
 -- Name: transactions transactions_transaction_hash_sequence_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -293,10 +442,52 @@ ALTER TABLE ONLY public.unverified_contracts
 
 
 --
+-- Name: idx_avs_operator_changes_avs_operator; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_avs_operator_changes_avs_operator ON public.avs_operator_changes USING btree (avs, operator);
+
+
+--
+-- Name: idx_avs_operator_changes_block; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_avs_operator_changes_block ON public.avs_operator_changes USING btree (block_number);
+
+
+--
 -- Name: idx_bytecode_hash; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_bytecode_hash ON public.contracts USING btree (bytecode_hash);
+
+
+--
+-- Name: idx_operator_share_changes_block; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_operator_share_changes_block ON public.operator_share_changes USING btree (block_number);
+
+
+--
+-- Name: idx_operator_share_changes_operator_strat; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_operator_share_changes_operator_strat ON public.operator_share_changes USING btree (operator, strategy);
+
+
+--
+-- Name: idx_operator_shares_block; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_operator_shares_block ON public.operator_shares USING btree (block_number);
+
+
+--
+-- Name: idx_operator_shares_operator_strategy; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_operator_shares_operator_strategy ON public.operator_shares USING btree (operator, strategy);
 
 
 --
@@ -311,6 +502,20 @@ CREATE INDEX idx_proxy_contract_contract_address ON public.proxy_contracts USING
 --
 
 CREATE INDEX idx_proxy_contract_proxy_contract_address ON public.proxy_contracts USING btree (proxy_contract_address);
+
+
+--
+-- Name: idx_registered_avs_operators_avs_operator; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_registered_avs_operators_avs_operator ON public.registered_avs_operators USING btree (avs, operator);
+
+
+--
+-- Name: idx_registered_avs_operators_block; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_registered_avs_operators_block ON public.registered_avs_operators USING btree (block_number);
 
 
 --
@@ -332,6 +537,13 @@ CREATE UNIQUE INDEX idx_transaction_hash ON public.transaction_logs USING btree 
 --
 
 CREATE INDEX idx_transaction_logs_address ON public.transaction_logs USING btree (address);
+
+
+--
+-- Name: idx_transaction_logs_transaction_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_transaction_logs_transaction_hash ON public.transaction_logs USING btree (transaction_hash);
 
 
 --
@@ -363,17 +575,17 @@ CREATE INDEX idx_transactions_to_address ON public.transactions USING btree (to_
 
 
 --
+-- Name: idx_uniq_proxy_contract; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_uniq_proxy_contract ON public.proxy_contracts USING btree (block_number, contract_address);
+
+
+--
 -- Name: idx_unique_operator_restaked_strategies; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX idx_unique_operator_restaked_strategies ON public.operator_restaked_strategies USING btree (block_number, operator, avs, strategy);
-
-
---
--- Name: idx_unique_proxy_contract; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_unique_proxy_contract ON public.proxy_contracts USING btree (block_number, contract_address, proxy_contract_address);
 
 
 --
@@ -424,7 +636,7 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 --
 
 -- Dumped from database version 14.11 (Homebrew)
--- Dumped by pg_dump version 15.7 (Homebrew)
+-- Dumped by pg_dump version 15.8 (Homebrew)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -461,6 +673,10 @@ INSERT INTO public.migrations VALUES ('202406251424_addTransactionLogsOutputData
 INSERT INTO public.migrations VALUES ('202406251426_addTransactionIndexes', '2024-06-25 14:29:47.500543-05', NULL);
 INSERT INTO public.migrations VALUES ('202407101440_addOperatorRestakedStrategiesTable', '2024-07-11 09:48:48.933519-05', NULL);
 INSERT INTO public.migrations VALUES ('202407110946_addBlockTimeToRestakedStrategies', '2024-07-11 09:49:17.325774-05', NULL);
+INSERT INTO public.migrations VALUES ('202407111116_addAvsDirectoryAddress', '2024-07-24 09:13:18.235218-05', NULL);
+INSERT INTO public.migrations VALUES ('202407121407_updateProxyContractIndex', '2024-07-24 09:13:18.240594-05', NULL);
+INSERT INTO public.migrations VALUES ('202408200934_eigenlayerStateTables', '2024-09-05 16:16:40.950631-05', NULL);
+INSERT INTO public.migrations VALUES ('202409051720_operatorShareChanges', '2024-09-05 19:14:07.595987-05', NULL);
 
 
 --

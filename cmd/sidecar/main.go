@@ -65,7 +65,7 @@ func main() {
 
 	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
 
-	mds, err := postgresql.NewPostgresBlockStore(grm, l)
+	mds, err := postgresql.NewPostgresBlockStore(grm, cfg, l)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -74,7 +74,7 @@ func main() {
 
 	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, l, cfg)
 
-	p := pipeline.NewPipeline(fetchr, idxr, l)
+	p := pipeline.NewPipeline(fetchr, idxr, mds, l)
 
 	sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
 		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
