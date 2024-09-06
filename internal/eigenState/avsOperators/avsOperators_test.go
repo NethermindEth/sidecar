@@ -1,9 +1,10 @@
-package eigenState
+package avsOperators
 
 import (
 	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/eigenState"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/storage"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -18,7 +19,7 @@ func setup() (
 	*config.Config,
 	*gorm.DB,
 	*zap.Logger,
-	*EigenStateManager,
+	*eigenState.EigenStateManager,
 	error,
 ) {
 	cfg := tests.GetConfig()
@@ -26,7 +27,7 @@ func setup() (
 
 	_, grm, err := tests.GetDatabaseConnection(cfg)
 
-	eigenState := NewEigenStateManager(l)
+	eigenState := eigenState.NewEigenStateManager(l)
 
 	return cfg, grm, l, eigenState, err
 }

@@ -37,19 +37,6 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 		`create index if not exists idx_registered_avs_operators_avs_operator on registered_avs_operators (avs, operator)`,
 		`create index if not exists idx_registered_avs_operators_block on registered_avs_operators (block_number)`,
 		/*
-			`create table if not exists operator_share_changes (
-				id serial primary key,
-				operator varchar,
-				strategy varchar,
-				shares numeric,
-				transaction_hash varchar,
-				log_index bigint,
-				block_number bigint,
-				created_at timestamp with time zone default current_timestamp
-			)
-			`,
-			`create index if not exists idx_operator_share_changes_operator_strat on operator_share_changes (operator, strategy)`,
-			`create index if not exists idx_operator_share_changes_block on operator_share_changes (block_number)`,
 			`create table if not exists staker_share_changes (
 				id serial primary key,
 				staker varchar,
@@ -116,16 +103,6 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			`,
 			`create index if not exists idx_active_reward_for_all_submissions_avs on active_reward_for_all_submissions (avs)`,
 			`create index if not exists idx_active_reward_for_all_submissions_block on active_reward_for_all_submissions (block_number)`,
-			`create table if not exists operator_shares (
-				operator varchar,
-				strategy varchar,
-				shares numeric,
-				block_number bigint,
-				created_at timestamp with time zone default current_timestamp,
-				unique (operator, strategy, block_number)
-			)`,
-			`create index if not exists idx_operator_shares_operator_strategy on operator_shares (operator, strategy)`,
-			`create index if not exists idx_operator_shares_block on operator_shares (block_number)`,
 			`create table if not exists staker_shares (
 				staker varchar,
 				strategy varchar,

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 )
@@ -12,4 +13,8 @@ var (
 
 func AreAddressesEqual(a, b string) bool {
 	return strings.ToLower(a) == strings.ToLower(b)
+}
+
+func ConvertBytesToString(b []byte) string {
+	return "0x" + hex.EncodeToString(b[:])
 }

@@ -10,30 +10,6 @@ import (
 // ----------------------------------------------------------------------------
 
 /*
-create table if not exists operator_share_changes (
-
-	id serial primary key,
-	operator varchar,
-	strategy varchar,
-	shares numeric,
-	transaction_hash varchar,
-	log_index bigint,
-	block_number bigint
-
-);
-*/
-type OperatorShareChanges struct {
-	Id              uint64 `gorm:"type:serial"`
-	Operator        string
-	Strategy        string
-	Shares          big.Int `gorm:"type:numeric"`
-	TransactionHash string
-	LogIndex        uint64
-	BlockNumber     uint64
-	CreatedAt       time.Time
-}
-
-/*
 create table if not exists staker_share_changes (
 
 	id serial primary key,
@@ -163,26 +139,6 @@ type RewardForAllSubmissions struct {
 // ----------------------------------------------------------------------------
 // Block-based "summary" tables
 // ----------------------------------------------------------------------------
-
-/*
-create table if not exists operator_shares (
-
-	operator varchar,
-	strategy varchar,
-	shares numeric,
-	block_number bigint,
-	created_at timestamp with time zone
-	unique idx_uniq_operator_shares_block (operator, strategy, block_number)
-
-)
-*/
-type OperatorShares struct {
-	Operator    string
-	Strategy    string
-	Shares      big.Int `gorm:"type:numeric"`
-	BlockNumber uint64
-	CreatedAt   time.Time
-}
 
 /*
 create table if not exists staker_shares (

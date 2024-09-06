@@ -189,6 +189,56 @@ ALTER SEQUENCE public.operator_restaked_strategies_id_seq OWNED BY public.operat
 
 
 --
+-- Name: operator_share_changes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.operator_share_changes (
+    id integer NOT NULL,
+    operator character varying,
+    strategy character varying,
+    shares numeric,
+    transaction_hash character varying,
+    transaction_index bigint,
+    log_index bigint,
+    block_number bigint,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: operator_share_changes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.operator_share_changes_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: operator_share_changes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.operator_share_changes_id_seq OWNED BY public.operator_share_changes.id;
+
+
+--
+-- Name: operator_shares; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.operator_shares (
+    operator character varying,
+    strategy character varying,
+    shares numeric,
+    block_number bigint,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
 -- Name: proxy_contracts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -297,6 +347,13 @@ ALTER TABLE ONLY public.operator_restaked_strategies ALTER COLUMN id SET DEFAULT
 
 
 --
+-- Name: operator_share_changes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.operator_share_changes ALTER COLUMN id SET DEFAULT nextval('public.operator_share_changes_id_seq'::regclass);
+
+
+--
 -- Name: avs_operator_changes avs_operator_changes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -345,6 +402,22 @@ ALTER TABLE ONLY public.operator_restaked_strategies
 
 
 --
+-- Name: operator_share_changes operator_share_changes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.operator_share_changes
+    ADD CONSTRAINT operator_share_changes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: operator_shares operator_shares_operator_strategy_block_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.operator_shares
+    ADD CONSTRAINT operator_shares_operator_strategy_block_number_key UNIQUE (operator, strategy, block_number);
+
+
+--
 -- Name: registered_avs_operators registered_avs_operators_operator_avs_block_number_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -387,6 +460,34 @@ CREATE INDEX idx_avs_operator_changes_block ON public.avs_operator_changes USING
 --
 
 CREATE INDEX idx_bytecode_hash ON public.contracts USING btree (bytecode_hash);
+
+
+--
+-- Name: idx_operator_share_changes_block; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_operator_share_changes_block ON public.operator_share_changes USING btree (block_number);
+
+
+--
+-- Name: idx_operator_share_changes_operator_strat; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_operator_share_changes_operator_strat ON public.operator_share_changes USING btree (operator, strategy);
+
+
+--
+-- Name: idx_operator_shares_block; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_operator_shares_block ON public.operator_shares USING btree (block_number);
+
+
+--
+-- Name: idx_operator_shares_operator_strategy; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_operator_shares_operator_strategy ON public.operator_shares USING btree (operator, strategy);
 
 
 --
@@ -575,6 +676,7 @@ INSERT INTO public.migrations VALUES ('202407110946_addBlockTimeToRestakedStrate
 INSERT INTO public.migrations VALUES ('202407111116_addAvsDirectoryAddress', '2024-07-24 09:13:18.235218-05', NULL);
 INSERT INTO public.migrations VALUES ('202407121407_updateProxyContractIndex', '2024-07-24 09:13:18.240594-05', NULL);
 INSERT INTO public.migrations VALUES ('202408200934_eigenlayerStateTables', '2024-09-05 16:16:40.950631-05', NULL);
+INSERT INTO public.migrations VALUES ('202409051720_operatorShareChanges', '2024-09-05 19:14:07.595987-05', NULL);
 
 
 --
