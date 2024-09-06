@@ -336,13 +336,13 @@ func (a *AvsOperators) GenerateStateRoot(blockNumber uint64) (eigenState.StateRo
 }
 
 func (a *AvsOperators) merkelizeState(blockNumber uint64, avsOperators []RegisteredAvsOperatorDiff) (*merkletree.MerkleTree, error) {
-	// Avs -> operator:block_number
-	om := orderedmap.New[string, *orderedmap.OrderedMap[string, uint64]]()
+	// Avs -> operator:registered
+	om := orderedmap.New[string, *orderedmap.OrderedMap[string, bool]]()
 
 	for _, result := range avsOperators {
 		existingAvs, found := om.Get(result.Avs)
 		if !found {
-			existingAvs = orderedmap.New[string, uint64]()
+			existingAvs = orderedmap.New[string, bool]()
 			om.Set(result.Avs, existingAvs)
 
 			prev := om.GetPair(result.Avs).Prev()
@@ -351,7 +351,7 @@ func (a *AvsOperators) merkelizeState(blockNumber uint64, avsOperators []Registe
 				return nil, fmt.Errorf("avs not in order")
 			}
 		}
-		existingAvs.Set(result.Operator, result.BlockNumber)
+		existingAvs.Set(result.Operator, result.Registered)
 
 		prev := existingAvs.GetPair(result.Operator).Prev()
 		if prev != nil && strings.Compare(prev.Key, result.Operator) >= 0 {
@@ -367,8 +367,8 @@ func (a *AvsOperators) merkelizeState(blockNumber uint64, avsOperators []Registe
 		operatorLeafs := make([][]byte, 0)
 		for operator := avs.Value.Oldest(); operator != nil; operator = operator.Next() {
 			operatorAddr := operator.Key
-			block := operator.Value
-			operatorLeafs = append(operatorLeafs, encodeOperatorLeaf(operatorAddr, block))
+			registered := operator.Value
+			operatorLeafs = append(operatorLeafs, encodeOperatorLeaf(operatorAddr, registered))
 		}
 
 		avsTree, err := merkletree.NewTree(
@@ -388,8 +388,8 @@ func (a *AvsOperators) merkelizeState(blockNumber uint64, avsOperators []Registe
 	)
 }
 
-func encodeOperatorLeaf(operator string, blockNumber uint64) []byte {
-	return []byte(fmt.Sprintf("%s:%d", operator, blockNumber))
+func encodeOperatorLeaf(operator string, registered bool) []byte {
+	return []byte(fmt.Sprintf("%s:%t", operator, registered))
 }
 
 func encodeAvsLeaf(avs string, avsOperatorRoot []byte) []byte {
