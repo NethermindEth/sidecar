@@ -7,8 +7,8 @@ import (
 
 type BlockStore interface {
 	InsertBlockAtHeight(blockNumber uint64, hash string, blockTime uint64) (*Block, error)
-	InsertBlockTransaction(sequenceId uint64, blockNumber uint64, txHash string, txIndex uint64, from string, to string, contractAddress string, bytecodeHash string) (*Transaction, error)
-	InsertTransactionLog(txHash string, transactionIndex uint64, blockNumber uint64, blockSequenceId uint64, log *parser.DecodedLog, outputData map[string]interface{}) (*TransactionLog, error)
+	InsertBlockTransaction(blockNumber uint64, txHash string, txIndex uint64, from string, to string, contractAddress string, bytecodeHash string) (*Transaction, error)
+	InsertTransactionLog(txHash string, transactionIndex uint64, blockNumber uint64, log *parser.DecodedLog, outputData map[string]interface{}) (*TransactionLog, error)
 	GetLatestBlock() (int64, error)
 	GetBlockByNumber(blockNumber uint64) (*Block, error)
 	InsertOperatorRestakedStrategies(avsDirectorAddress string, blockNumber uint64, blockTime time.Time, operator string, avs string, strategy string) (*OperatorRestakedStrategies, error)
@@ -30,7 +30,6 @@ type Block struct {
 }
 
 type Transaction struct {
-	BlockSequenceId  uint64
 	BlockNumber      uint64
 	TransactionHash  string
 	TransactionIndex uint64
@@ -47,7 +46,6 @@ type TransactionLog struct {
 	TransactionHash  string
 	TransactionIndex uint64
 	BlockNumber      uint64
-	BlockSequenceId  uint64
 	Address          string
 	Arguments        string
 	EventName        string

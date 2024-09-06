@@ -69,7 +69,6 @@ ALTER SEQUENCE public.avs_operator_changes_id_seq OWNED BY public.avs_operator_c
 --
 
 CREATE TABLE public.blocks (
-    id integer NOT NULL,
     number bigint NOT NULL,
     hash character varying(255) NOT NULL,
     blob_path text NOT NULL,
@@ -78,26 +77,6 @@ CREATE TABLE public.blocks (
     deleted_at timestamp with time zone,
     block_time timestamp with time zone NOT NULL
 );
-
-
---
--- Name: block_sequences_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.block_sequences_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: block_sequences_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.block_sequences_id_seq OWNED BY public.blocks.id;
 
 
 --
@@ -306,7 +285,6 @@ CREATE TABLE public.transaction_logs (
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone,
     block_number bigint NOT NULL,
-    block_sequence_id bigint NOT NULL,
     transaction_index integer NOT NULL,
     output_data jsonb
 );
@@ -325,7 +303,6 @@ CREATE TABLE public.transactions (
     deleted_at timestamp with time zone,
     from_address character varying(255) NOT NULL,
     to_address character varying(255) DEFAULT NULL::character varying,
-    block_sequence_id bigint NOT NULL,
     contract_address character varying(255) DEFAULT NULL::character varying,
     bytecode_hash character varying(64) DEFAULT NULL::character varying,
     gas_used numeric,
@@ -351,13 +328,6 @@ CREATE TABLE public.unverified_contracts (
 --
 
 ALTER TABLE ONLY public.avs_operator_changes ALTER COLUMN id SET DEFAULT nextval('public.avs_operator_changes_id_seq'::regclass);
-
-
---
--- Name: blocks id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.blocks ALTER COLUMN id SET DEFAULT nextval('public.block_sequences_id_seq'::regclass);
 
 
 --
@@ -390,11 +360,11 @@ ALTER TABLE ONLY public.avs_operator_changes
 
 
 --
--- Name: blocks block_sequences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: blocks block_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.blocks
-    ADD CONSTRAINT block_sequences_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT block_pkey PRIMARY KEY (number);
 
 
 --
@@ -470,11 +440,19 @@ ALTER TABLE ONLY public.staker_delegation_changes
 
 
 --
--- Name: transactions transactions_transaction_hash_sequence_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: transactions transactions_transaction_hash_block_number_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.transactions
-    ADD CONSTRAINT transactions_transaction_hash_sequence_id_key UNIQUE (transaction_hash, block_sequence_id);
+    ADD CONSTRAINT transactions_transaction_hash_block_number_key UNIQUE (transaction_hash, block_number);
+
+
+--
+-- Name: blocks unique_blocks; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.blocks
+    ADD CONSTRAINT unique_blocks UNIQUE (number);
 
 
 --
@@ -668,27 +646,27 @@ CREATE INDEX transactions_contract_address ON public.transactions USING btree (c
 
 
 --
--- Name: transaction_logs fk_transaction_hash_sequence_id_key; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: transaction_logs fk_transaction_hash_block_number_key; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.transaction_logs
-    ADD CONSTRAINT fk_transaction_hash_sequence_id_key FOREIGN KEY (transaction_hash, block_sequence_id) REFERENCES public.transactions(transaction_hash, block_sequence_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_transaction_hash_block_number_key FOREIGN KEY (transaction_hash, block_number) REFERENCES public.transactions(transaction_hash, block_number) ON DELETE CASCADE;
 
 
 --
--- Name: transaction_logs transaction_logs_block_sequence_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: transaction_logs transaction_logs_block_number_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.transaction_logs
-    ADD CONSTRAINT transaction_logs_block_sequence_id_fkey FOREIGN KEY (block_sequence_id) REFERENCES public.blocks(id) ON DELETE CASCADE;
+    ADD CONSTRAINT transaction_logs_block_number_fkey FOREIGN KEY (block_number) REFERENCES public.blocks(number) ON DELETE CASCADE;
 
 
 --
--- Name: transactions transactions_block_sequence_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: transactions transactions_block_number_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.transactions
-    ADD CONSTRAINT transactions_block_sequence_id_fkey FOREIGN KEY (block_sequence_id) REFERENCES public.blocks(id) ON DELETE CASCADE;
+    ADD CONSTRAINT transactions_block_number_fkey FOREIGN KEY (block_number) REFERENCES public.blocks(number) ON DELETE CASCADE;
 
 
 --
@@ -750,6 +728,7 @@ INSERT INTO public.migrations VALUES ('202407121407_updateProxyContractIndex', '
 INSERT INTO public.migrations VALUES ('202408200934_eigenlayerStateTables', '2024-09-05 16:16:40.950631-05', NULL);
 INSERT INTO public.migrations VALUES ('202409051720_operatorShareChanges', '2024-09-05 19:14:07.595987-05', NULL);
 INSERT INTO public.migrations VALUES ('202409052151_stakerDelegations', '2024-09-05 22:24:34.016039-05', NULL);
+INSERT INTO public.migrations VALUES ('202409061121_removeSequenceId', '2024-09-06 11:42:21.585605-05', NULL);
 
 
 --

@@ -80,7 +80,6 @@ func (m *PostgresBlockStore) InsertBlockAtHeight(
 }
 
 func (m *PostgresBlockStore) InsertBlockTransaction(
-	sequenceId uint64,
 	blockNumber uint64,
 	txHash string,
 	txIndex uint64,
@@ -94,7 +93,6 @@ func (m *PostgresBlockStore) InsertBlockTransaction(
 	contractAddress = strings.ToLower(contractAddress)
 	return pg.WrapTxAndCommit[*storage.Transaction](func(txn *gorm.DB) (*storage.Transaction, error) {
 		tx := &storage.Transaction{
-			BlockSequenceId:  sequenceId,
 			BlockNumber:      blockNumber,
 			TransactionHash:  txHash,
 			TransactionIndex: txIndex,
@@ -117,7 +115,6 @@ func (m *PostgresBlockStore) InsertTransactionLog(
 	txHash string,
 	transactionIndex uint64,
 	blockNumber uint64,
-	blockSequenceId uint64,
 	log *parser.DecodedLog,
 	outputData map[string]interface{},
 ) (*storage.TransactionLog, error) {
@@ -137,7 +134,6 @@ func (m *PostgresBlockStore) InsertTransactionLog(
 			TransactionHash:  txHash,
 			TransactionIndex: transactionIndex,
 			BlockNumber:      blockNumber,
-			BlockSequenceId:  blockSequenceId,
 			Address:          strings.ToLower(log.Address),
 			Arguments:        string(argsJson),
 			EventName:        log.EventName,
