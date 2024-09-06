@@ -140,6 +140,18 @@ ALTER SEQUENCE public.contracts_id_seq OWNED BY public.contracts.id;
 
 
 --
+-- Name: delegated_stakers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.delegated_stakers (
+    staker character varying,
+    operator character varying,
+    block_number bigint,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
 -- Name: migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -259,6 +271,22 @@ CREATE TABLE public.proxy_contracts (
 CREATE TABLE public.registered_avs_operators (
     operator character varying,
     avs character varying,
+    block_number bigint,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: staker_delegation_changes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.staker_delegation_changes (
+    staker character varying,
+    operator character varying,
+    delegated boolean,
+    transaction_hash character varying,
+    log_index bigint,
+    transaction_index bigint,
     block_number bigint,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
@@ -386,6 +414,14 @@ ALTER TABLE ONLY public.contracts
 
 
 --
+-- Name: delegated_stakers delegated_stakers_staker_operator_block_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.delegated_stakers
+    ADD CONSTRAINT delegated_stakers_staker_operator_block_number_key UNIQUE (staker, operator, block_number);
+
+
+--
 -- Name: migrations migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -426,6 +462,14 @@ ALTER TABLE ONLY public.registered_avs_operators
 
 
 --
+-- Name: staker_delegation_changes staker_delegation_changes_staker_operator_log_index_block_n_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.staker_delegation_changes
+    ADD CONSTRAINT staker_delegation_changes_staker_operator_log_index_block_n_key UNIQUE (staker, operator, log_index, block_number);
+
+
+--
 -- Name: transactions transactions_transaction_hash_sequence_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -460,6 +504,20 @@ CREATE INDEX idx_avs_operator_changes_block ON public.avs_operator_changes USING
 --
 
 CREATE INDEX idx_bytecode_hash ON public.contracts USING btree (bytecode_hash);
+
+
+--
+-- Name: idx_delegated_stakers_block; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_delegated_stakers_block ON public.delegated_stakers USING btree (block_number);
+
+
+--
+-- Name: idx_delegated_stakers_staker_operator; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_delegated_stakers_staker_operator ON public.delegated_stakers USING btree (staker, operator);
 
 
 --
@@ -516,6 +574,20 @@ CREATE INDEX idx_registered_avs_operators_avs_operator ON public.registered_avs_
 --
 
 CREATE INDEX idx_registered_avs_operators_block ON public.registered_avs_operators USING btree (block_number);
+
+
+--
+-- Name: idx_staker_delegation_changes_block; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_staker_delegation_changes_block ON public.staker_delegation_changes USING btree (block_number);
+
+
+--
+-- Name: idx_staker_delegation_changes_staker_operator; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_staker_delegation_changes_staker_operator ON public.staker_delegation_changes USING btree (staker, operator);
 
 
 --
@@ -677,6 +749,7 @@ INSERT INTO public.migrations VALUES ('202407111116_addAvsDirectoryAddress', '20
 INSERT INTO public.migrations VALUES ('202407121407_updateProxyContractIndex', '2024-07-24 09:13:18.240594-05', NULL);
 INSERT INTO public.migrations VALUES ('202408200934_eigenlayerStateTables', '2024-09-05 16:16:40.950631-05', NULL);
 INSERT INTO public.migrations VALUES ('202409051720_operatorShareChanges', '2024-09-05 19:14:07.595987-05', NULL);
+INSERT INTO public.migrations VALUES ('202409052151_stakerDelegations', '2024-09-05 22:24:34.016039-05', NULL);
 
 
 --

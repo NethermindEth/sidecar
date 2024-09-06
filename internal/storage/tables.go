@@ -35,30 +35,6 @@ type StakerShareChanges struct {
 }
 
 /*
-create table if not exists staker_delegation_changes (
-
-	id serial primary key,
-	staker varchar,
-	operator varchar,
-	transaction_hash varchar,
-	log_index bigint,
-	block_number bigint
-	created_at timestamp with time zone
-
-);
-*/
-type StakerDelegationChanges struct {
-	Id              uint64 `gorm:"type:serial"`
-	Staker          string
-	Operator        string
-	Delegated       bool
-	TransactionHash string
-	LogIndex        uint64
-	BlockNumber     uint64
-	CreatedAt       time.Time
-}
-
-/*
 create table if not exists active_reward_submissions (
 
 	id serial primary key,
@@ -156,24 +132,6 @@ type StakerShares struct {
 	Staker      string
 	Straegy     string
 	Shares      big.Int `gorm:"type:numeric"`
-	BlockNumber uint64
-	CreatedAt   time.Time
-}
-
-/*
-create table if not exists delegated_stakers (
-
-	staker varchar,
-	operator varchar,
-	block_number bigint,
-	created_at timestamp with time zone
-	unique idx_uniq_delegated_stakers_block (staker, operator, block_number)
-
-)
-*/
-type DelegatedStakers struct {
-	Staker      string
-	Operator    string
 	BlockNumber uint64
 	CreatedAt   time.Time
 }

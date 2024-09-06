@@ -50,19 +50,6 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			`,
 			`create index if not exists idx_staker_share_changes_staker_strat on staker_share_changes (staker, strategy)`,
 			`create index if not exists idx_staker_share_changes_block on staker_share_changes (block_number)`,
-			`create table if not exists staker_delegation_changes (
-				id serial primary key,
-				staker varchar,
-				operator varchar,
-				delegated boolean,
-				transaction_hash varchar,
-				log_index bigint,
-				block_number bigint,
-				created_at timestamp with time zone default current_timestamp
-			);
-			`,
-			`create index if not exists idx_staker_delegation_changes_staker_operator on staker_delegation_changes (staker, operator)`,
-			`create index if not exists idx_staker_delegation_changes_block on staker_delegation_changes (block_number)`,
 			`create table if not exists active_reward_submissions (
 				id serial primary key,
 				avs varchar,
@@ -114,15 +101,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			`,
 			`create index if not exists idx_staker_shares_staker_strategy on staker_shares (staker, strategy)`,
 			`create index if not exists idx_staker_shares_block on staker_shares (block_number)`,
-			`create table if not exists delegated_stakers (
-				staker varchar,
-				operator varchar,
-				block_number bigint,
-				created_at timestamp with time zone default current_timestamp,
-				unique(staker, operator, block_number)
-			)`,
-			`create index if not exists idx_delegated_stakers_staker_operator on delegated_stakers (staker, operator)`,
-			`create index if not exists idx_delegated_stakers_block on delegated_stakers (block_number)`,
+
 			`create table if not exists active_rewards (
 				avs varchar,
 				reward_hash varchar,
