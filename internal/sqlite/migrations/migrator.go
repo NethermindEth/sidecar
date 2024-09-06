@@ -4,6 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	_202409061249_bootstrapDb "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409061249_bootstrapDb"
+	_202409061250_eigenlayerStateTables "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409061250_eigenlayerStateTables"
+	_202409061720_operatorShareChanges "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409061720_operatorShareChanges"
+	_202409062151_stakerDelegations "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409062151_stakerDelegations"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -35,6 +38,9 @@ func (m *SqliteMigrator) MigrateAll() error {
 
 	migrations := []ISqliteMigration{
 		&_202409061249_bootstrapDb.SqliteMigration{},
+		&_202409061250_eigenlayerStateTables.SqliteMigration{},
+		&_202409061720_operatorShareChanges.SqliteMigration{},
+		&_202409062151_stakerDelegations.SqliteMigration{},
 	}
 
 	for _, migration := range migrations {

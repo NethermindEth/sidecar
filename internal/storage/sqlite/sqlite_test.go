@@ -2,12 +2,11 @@ package sqlite
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/parser"
+	"github.com/Layr-Labs/sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/sidecar/internal/storage"
-	"github.com/Layr-Labs/sidecar/internal/storage/sqlite/migrations"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -82,7 +81,6 @@ func Test_SqliteBlockstore(t *testing.T) {
 			_, err := sqliteStore.InsertBlockAtHeight(block.Number, block.Hash, uint64(block.BlockTime.Unix()))
 			assert.NotNil(t, err)
 			assert.Contains(t, err.Error(), "UNIQUE constraint failed")
-			fmt.Printf("Error: %v\n", err)
 		})
 	})
 	t.Run("Transactions", func(t *testing.T) {
