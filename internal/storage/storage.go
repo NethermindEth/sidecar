@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"github.com/Layr-Labs/sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/internal/parser"
 	"time"
 )
@@ -82,10 +81,6 @@ type OperatorRestakedStrategies struct {
 }
 
 // Not tables
-type BatchInsertTransactionLogs struct {
-	Transaction       *ethereum.EthereumTransaction
-	ParsedTransaction *parser.ParsedTransaction
-}
 
 type ActiveAvsOperator struct {
 	Avs      string
