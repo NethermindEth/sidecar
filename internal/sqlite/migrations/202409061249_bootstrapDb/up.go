@@ -20,7 +20,7 @@ func (m *SqliteMigration) Up(grm *gorm.DB) error {
     	)`,
 		`CREATE TABLE IF NOT EXISTS transactions (
 			block_number INTEGER NOT NULL REFERENCES blocks(number) ON DELETE CASCADE,
-			transaction_hash TEXT NOT NULL,
+			transaction_hash TEXT NOT NULL PRIMARY KEY,
 			transaction_index INTEGER NOT NULL,
 			from_address TEXT NOT NULL,
 			to_address TEXT DEFAULT NULL,

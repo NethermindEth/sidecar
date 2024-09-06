@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"strings"
 	"testing"
 	"time"
 )
@@ -44,10 +45,13 @@ func teardown(db *gorm.DB, l *zap.Logger) {
 }
 
 func Test_SqliteBlockstore(t *testing.T) {
-	t.Run("Blocks", func(t *testing.T) {
-		db, l, cfg := setup()
+	db, l, cfg := setup()
+	sqliteStore := NewSqliteBlockStore(db, l, cfg)
 
-		sqliteStore := NewSqliteBlockStore(db, l, cfg)
+	insertedBlocks := make([]*storage.Block, 0)
+	insertedTransactions := make([]*storage.Transaction, 0)
+
+	t.Run("Blocks", func(t *testing.T) {
 
 		t.Run("InsertBlockAtHeight", func(t *testing.T) {
 			block := &storage.Block{
@@ -63,6 +67,8 @@ func Test_SqliteBlockstore(t *testing.T) {
 			assert.NotNil(t, insertedBlock)
 			assert.Equal(t, block.Number, insertedBlock.Number)
 			assert.Equal(t, block.Hash, insertedBlock.Hash)
+
+			insertedBlocks = append(insertedBlocks, insertedBlock)
 		})
 		t.Run("Fail to insert a duplicate block", func(t *testing.T) {
 			block := &storage.Block{
@@ -76,8 +82,65 @@ func Test_SqliteBlockstore(t *testing.T) {
 			assert.Contains(t, err.Error(), "UNIQUE constraint failed")
 			fmt.Printf("Error: %v\n", err)
 		})
-		t.Run("InsertBlockTransaction", func(t *testing.T) {
+	})
+	t.Run("Transactions", func(t *testing.T) {
+		block := insertedBlocks[0]
 
+		t.Run("InsertBlockTransaction", func(t *testing.T) {
+			tx := storage.Transaction{
+				BlockNumber:      block.Number,
+				TransactionHash:  "txHash",
+				TransactionIndex: 0,
+				FromAddress:      "from",
+				ToAddress:        "to",
+				ContractAddress:  "contractAddress",
+				BytecodeHash:     "bytecodeHash",
+			}
+			insertedTx, err := sqliteStore.InsertBlockTransaction(
+				tx.BlockNumber,
+				tx.TransactionHash,
+				tx.TransactionIndex,
+				tx.FromAddress,
+				tx.ToAddress,
+				tx.ContractAddress,
+				tx.BytecodeHash,
+			)
+			assert.Nil(t, err)
+			assert.NotNil(t, insertedTx)
+			assert.Equal(t, tx.BlockNumber, insertedTx.BlockNumber)
+			assert.Equal(t, tx.TransactionHash, insertedTx.TransactionHash)
+			assert.Equal(t, tx.TransactionIndex, insertedTx.TransactionIndex)
+			assert.Equal(t, tx.FromAddress, insertedTx.FromAddress)
+			assert.Equal(t, tx.ToAddress, insertedTx.ToAddress)
+			assert.Equal(t, strings.ToLower(tx.ContractAddress), insertedTx.ContractAddress)
+			assert.Equal(t, tx.BytecodeHash, insertedTx.BytecodeHash)
+
+			insertedTransactions = append(insertedTransactions, insertedTx)
 		})
+		t.Run("Fail to insert a duplicate transaction", func(t *testing.T) {
+			tx := storage.Transaction{
+				BlockNumber:      block.Number,
+				TransactionHash:  "txHash",
+				TransactionIndex: 0,
+				FromAddress:      "from",
+				ToAddress:        "to",
+				ContractAddress:  "contractAddress",
+				BytecodeHash:     "bytecodeHash",
+			}
+			_, err := sqliteStore.InsertBlockTransaction(
+				tx.BlockNumber,
+				tx.TransactionHash,
+				tx.TransactionIndex,
+				tx.FromAddress,
+				tx.ToAddress,
+				tx.ContractAddress,
+				tx.BytecodeHash,
+			)
+			assert.NotNil(t, err)
+			assert.Contains(t, err.Error(), "UNIQUE constraint failed")
+		})
+	})
+	t.Run("TransactionLogs", func(t *testing.T) {
+
 	})
 }
