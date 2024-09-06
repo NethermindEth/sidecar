@@ -20,7 +20,6 @@ func setup() (
 	*config.Config,
 	*gorm.DB,
 	*zap.Logger,
-	*eigenState.EigenStateManager,
 	error,
 ) {
 	cfg := tests.GetConfig()
@@ -28,9 +27,7 @@ func setup() (
 
 	_, grm, err := tests.GetDatabaseConnection(cfg)
 
-	eigenState := eigenState.NewEigenStateManager(l)
-
-	return cfg, grm, l, eigenState, err
+	return cfg, grm, l, err
 }
 
 func teardown(model *OperatorSharesModel) {
@@ -39,18 +36,20 @@ func teardown(model *OperatorSharesModel) {
 }
 
 func Test_OperatorSharesState(t *testing.T) {
-	cfg, grm, l, esm, err := setup()
+	cfg, grm, l, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Run("Should create a new OperatorSharesState", func(t *testing.T) {
+		esm := eigenState.NewEigenStateManager(l)
 		model, err := NewOperatorSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, model)
 	})
 	t.Run("Should register OperatorSharesState", func(t *testing.T) {
+		esm := eigenState.NewEigenStateManager(l)
 		blockNumber := uint64(200)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
@@ -76,6 +75,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		teardown(model)
 	})
 	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
+		esm := eigenState.NewEigenStateManager(l)
 		blockNumber := uint64(200)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",

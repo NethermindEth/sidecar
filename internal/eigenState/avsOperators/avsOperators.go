@@ -77,8 +77,12 @@ func NewAvsOperators(
 		logger:       logger,
 		globalConfig: globalConfig,
 	}
-	esm.RegisterState(s)
+	esm.RegisterState(s, 0)
 	return s, nil
+}
+
+func (a *AvsOperators) GetModelName() string {
+	return "AvsOperators"
 }
 
 // Get the state transitions for the AvsOperators state model

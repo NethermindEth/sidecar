@@ -72,8 +72,12 @@ func NewOperatorSharesModel(
 		globalConfig:   globalConfig,
 	}
 
-	esm.RegisterState(model)
+	esm.RegisterState(model, 1)
 	return model, nil
+}
+
+func (osm *OperatorSharesModel) GetModelName() string {
+	return "OperatorSharesModel"
 }
 
 func (osm *OperatorSharesModel) GetStateTransitions() (eigenState.StateTransitions[OperatorShareChange], []uint64) {

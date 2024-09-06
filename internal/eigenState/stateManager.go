@@ -6,20 +6,23 @@ import (
 )
 
 type EigenStateManager struct {
-	StateModels []IEigenStateModel
+	StateModels map[int]IEigenStateModel
 	logger      *zap.Logger
 }
 
 func NewEigenStateManager(logger *zap.Logger) *EigenStateManager {
 	return &EigenStateManager{
-		StateModels: make([]IEigenStateModel, 0),
+		StateModels: make(map[int]IEigenStateModel),
 		logger:      logger,
 	}
 }
 
 // Allows a model to register itself with the state manager
-func (e *EigenStateManager) RegisterState(state IEigenStateModel) {
-	e.StateModels = append(e.StateModels, state)
+func (e *EigenStateManager) RegisterState(model IEigenStateModel, index int) {
+	if m, ok := e.StateModels[index]; ok {
+		e.logger.Sugar().Fatalf("Registering model model at index %d which already exists and belongs to %s", index, m.GetModelName())
+	}
+	e.StateModels[index] = model
 }
 
 // Given a log, allow each state model to determine if/how to process it
