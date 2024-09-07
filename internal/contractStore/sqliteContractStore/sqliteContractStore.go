@@ -1,6 +1,7 @@
 package sqliteContractStore
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/contractStore"
@@ -56,7 +57,7 @@ func (s *SqliteContractStore) FindOrCreateContract(
 		}
 
 		// found contract
-		if contract.ContractAddress == address && contract.Id != 0 {
+		if contract.ContractAddress == address {
 			found = true
 			return contract, nil
 		}
@@ -78,7 +79,7 @@ func (s *SqliteContractStore) FindOrCreateContract(
 	return upsertedContract, found, err
 }
 
-func (s *SqliteContractStore) indVerifiedContractWithMatchingBytecodeHash(bytecodeHash string, address string) (*contractStore.Contract, error) {
+func (s *SqliteContractStore) FindVerifiedContractWithMatchingBytecodeHash(bytecodeHash string, address string) (*contractStore.Contract, error) {
 	query := `
 		select
 			*
@@ -88,7 +89,7 @@ func (s *SqliteContractStore) indVerifiedContractWithMatchingBytecodeHash(byteco
 			and verified = true
 			and matching_contract_address = ''
 			and contract_address != ?
-		order by id asc
+		order by rowid asc
 		limit 1`
 
 	var contract *contractStore.Contract
@@ -158,19 +159,19 @@ func (s *SqliteContractStore) GetContractWithProxyContract(address string, atBlo
 		select
 			*
 		from proxy_contracts
-		where contract_address = ? and block_number <= ?
+		where contract_address = @contractAddress and block_number <= @blockNumber
 		order by block_number desc limit 1
 	) as pc on (1=1)
 	left join contracts as pcc on (pcc.contract_address = pc.proxy_contract_address)
 	left join contracts as pcclike on (pcc.matching_contract_address = pcclike.contract_address)
 	left join contracts as clike on (c.matching_contract_address = clike.contract_address)
-	where c.contract_address = ?`
-
+	where
+		c.contract_address = @contractAddress
+	`
 	contractTree := &contractStore.ContractsTree{}
 	result := s.Db.Raw(query,
-		address,
-		atBlockNumber,
-		address,
+		sql.Named("contractAddress", address),
+		sql.Named("blockNumber", atBlockNumber),
 	).Scan(&contractTree)
 
 	if result.Error != nil {
@@ -203,21 +204,6 @@ func (s *SqliteContractStore) SetContractCheckedForProxy(address string) (*contr
 	}
 
 	return contract, nil
-}
-
-func (s *SqliteContractStore) GetProxyContract(address string) (*contractStore.ProxyContract, error) {
-	var proxyContract *contractStore.ProxyContract
-
-	result := s.Db.First(&proxyContract, "contract_address = ?", strings.ToLower(address))
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			s.Logger.Sugar().Debugf("Proxy contract not found in store '%s'", address)
-			return nil, nil
-		}
-		return nil, result.Error
-	}
-
-	return proxyContract, nil
 }
 
 func (s *SqliteContractStore) SetContractAbi(address string, abi string, verified bool) (*contractStore.Contract, error) {

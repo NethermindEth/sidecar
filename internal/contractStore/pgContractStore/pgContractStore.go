@@ -55,7 +55,7 @@ func (p *PgContractStore) FindOrCreateContract(
 		}
 
 		// found contract
-		if contract.ContractAddress == address && contract.Id != 0 {
+		if contract.ContractAddress == address {
 			found = true
 			return contract, nil
 		}
@@ -202,21 +202,6 @@ func (p *PgContractStore) SetContractCheckedForProxy(address string) (*contractS
 	}
 
 	return contract, nil
-}
-
-func (p *PgContractStore) GetProxyContract(address string) (*contractStore.ProxyContract, error) {
-	var proxyContract *contractStore.ProxyContract
-
-	result := p.Db.First(&proxyContract, "contract_address = ?", strings.ToLower(address))
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			p.Logger.Sugar().Debugf("Proxy contract not found in store '%s'", address)
-			return nil, nil
-		}
-		return nil, result.Error
-	}
-
-	return proxyContract, nil
 }
 
 func (p *PgContractStore) SetContractAbi(address string, abi string, verified bool) (*contractStore.Contract, error) {

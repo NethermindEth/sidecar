@@ -13,14 +13,12 @@ type ContractStore interface {
 	FindOrCreateProxyContract(blockNumber uint64, contractAddress string, proxyContractAddress string) (*ProxyContract, bool, error)
 	GetContractWithProxyContract(address string, atBlockNumber uint64) (*ContractsTree, error)
 	SetContractCheckedForProxy(address string) (*Contract, error)
-	GetProxyContract(address string) (*ProxyContract, error)
 	SetContractAbi(address string, abi string, verified bool) (*Contract, error)
 	SetContractMatchingContractAddress(address string, matchingContractAddress string) (*Contract, error)
 }
 
 // Tables
 type Contract struct {
-	Id                      uint64
 	ContractAddress         string
 	ContractAbi             string
 	MatchingContractAddress string
