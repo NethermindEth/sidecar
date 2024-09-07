@@ -1,37 +1,37 @@
-package pgContractStore
+package sqliteContractStore
 
 import (
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/contractStore"
 	pg "github.com/Layr-Labs/sidecar/internal/postgres"
+	"github.com/Layr-Labs/sidecar/internal/sqlite"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"strings"
 )
 
-type PgContractStore struct {
+type SqliteContractStore struct {
 	Db     *gorm.DB
 	Logger *zap.Logger
 }
 
-func NewPgContractStore(db *gorm.DB, l *zap.Logger) (*PgContractStore, error) {
-	cs := &PgContractStore{
+func NewSqliteContractStore(db *gorm.DB, l *zap.Logger) *SqliteContractStore {
+	cs := &SqliteContractStore{
 		Db:     db,
 		Logger: l,
 	}
-
-	return cs, nil
+	return cs
 }
 
-func (p *PgContractStore) GetContractForAddress(address string) (*contractStore.Contract, error) {
+func (s *SqliteContractStore) GetContractForAddress(address string) (*contractStore.Contract, error) {
 	var contract *contractStore.Contract
 
-	result := p.Db.First(&contract, "contract_address = ?", strings.ToLower(address))
+	result := s.Db.First(&contract, "contract_address = ?", address)
 	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			p.Logger.Sugar().Debugf("Contract not found in store '%s'", address)
+		if result.Error == gorm.ErrRecordNotFound {
+			s.Logger.Sugar().Debugf("Contract not found in store '%s'", address)
 			return nil, nil
 		}
 		return nil, result.Error
@@ -39,7 +39,8 @@ func (p *PgContractStore) GetContractForAddress(address string) (*contractStore.
 
 	return contract, nil
 }
-func (p *PgContractStore) FindOrCreateContract(
+
+func (s *SqliteContractStore) FindOrCreateContract(
 	address string,
 	abiJson string,
 	verified bool,
@@ -47,9 +48,9 @@ func (p *PgContractStore) FindOrCreateContract(
 	matchingContractAddress string,
 ) (*contractStore.Contract, bool, error) {
 	found := false
-	upsertedContract, err := pg.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
+	upsertedContract, err := sqlite.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
 		contract := &contractStore.Contract{}
-		result := p.Db.First(&contract, "contract_address = ?", strings.ToLower(address))
+		result := s.Db.First(&contract, "contract_address = ?", strings.ToLower(address))
 		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, result.Error
 		}
@@ -67,17 +68,17 @@ func (p *PgContractStore) FindOrCreateContract(
 			MatchingContractAddress: matchingContractAddress,
 		}
 
-		result = p.Db.Create(contract)
+		result = s.Db.Create(contract)
 		if result.Error != nil {
 			return nil, result.Error
 		}
 
 		return contract, nil
-	}, nil, p.Db)
+	}, nil, s.Db)
 	return upsertedContract, found, err
 }
 
-func (p *PgContractStore) FindVerifiedContractWithMatchingBytecodeHash(bytecodeHash string, address string) (*contractStore.Contract, error) {
+func (s *SqliteContractStore) indVerifiedContractWithMatchingBytecodeHash(bytecodeHash string, address string) (*contractStore.Contract, error) {
 	query := `
 		select
 			*
@@ -91,10 +92,10 @@ func (p *PgContractStore) FindVerifiedContractWithMatchingBytecodeHash(bytecodeH
 		limit 1`
 
 	var contract *contractStore.Contract
-	result := p.Db.Raw(query, bytecodeHash, address).Scan(&contract)
+	result := s.Db.Raw(query, bytecodeHash, address).Scan(&contract)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			p.Logger.Sugar().Debugf("Verified contract not found in store '%s'", bytecodeHash)
+			s.Logger.Sugar().Debugf("Verified contract not found in store '%s'", bytecodeHash)
 			return nil, nil
 		}
 		return nil, result.Error
@@ -102,7 +103,7 @@ func (p *PgContractStore) FindVerifiedContractWithMatchingBytecodeHash(bytecodeH
 	return contract, nil
 }
 
-func (p *PgContractStore) FindOrCreateProxyContract(
+func (s *SqliteContractStore) FindOrCreateProxyContract(
 	blockNumber uint64,
 	contractAddress string,
 	proxyContractAddress string,
@@ -136,11 +137,11 @@ func (p *PgContractStore) FindOrCreateProxyContract(
 		}
 
 		return proxyContract, nil
-	}, nil, p.Db)
+	}, nil, s.Db)
 	return upsertedContract, found, err
 }
 
-func (p *PgContractStore) GetContractWithProxyContract(address string, atBlockNumber uint64) (*contractStore.ContractsTree, error) {
+func (s *SqliteContractStore) GetContractWithProxyContract(address string, atBlockNumber uint64) (*contractStore.ContractsTree, error) {
 	address = strings.ToLower(address)
 
 	query := `select
@@ -166,7 +167,7 @@ func (p *PgContractStore) GetContractWithProxyContract(address string, atBlockNu
 	where c.contract_address = ?`
 
 	contractTree := &contractStore.ContractsTree{}
-	result := p.Db.Raw(query,
+	result := s.Db.Raw(query,
 		address,
 		atBlockNumber,
 		address,
@@ -174,23 +175,23 @@ func (p *PgContractStore) GetContractWithProxyContract(address string, atBlockNu
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			p.Logger.Sugar().Debug(fmt.Sprintf("Contract not found '%s'", address))
+			s.Logger.Sugar().Debug(fmt.Sprintf("Contract not found '%s'", address))
 			return nil, nil
 		}
 		return nil, result.Error
 	}
 	if contractTree.BaseAddress == "" {
-		p.Logger.Sugar().Debug(fmt.Sprintf("Contract not found in store '%s'", address))
+		s.Logger.Sugar().Debug(fmt.Sprintf("Contract not found in store '%s'", address))
 		return nil, nil
 	}
 
 	return contractTree, nil
 }
 
-func (p *PgContractStore) SetContractCheckedForProxy(address string) (*contractStore.Contract, error) {
+func (s *SqliteContractStore) SetContractCheckedForProxy(address string) (*contractStore.Contract, error) {
 	contract := &contractStore.Contract{}
 
-	result := p.Db.Model(contract).
+	result := s.Db.Model(contract).
 		Clauses(clause.Returning{}).
 		Where("contract_address = ?", strings.ToLower(address)).
 		Updates(&contractStore.Contract{
@@ -204,13 +205,13 @@ func (p *PgContractStore) SetContractCheckedForProxy(address string) (*contractS
 	return contract, nil
 }
 
-func (p *PgContractStore) GetProxyContract(address string) (*contractStore.ProxyContract, error) {
+func (s *SqliteContractStore) GetProxyContract(address string) (*contractStore.ProxyContract, error) {
 	var proxyContract *contractStore.ProxyContract
 
-	result := p.Db.First(&proxyContract, "contract_address = ?", strings.ToLower(address))
+	result := s.Db.First(&proxyContract, "contract_address = ?", strings.ToLower(address))
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			p.Logger.Sugar().Debugf("Proxy contract not found in store '%s'", address)
+			s.Logger.Sugar().Debugf("Proxy contract not found in store '%s'", address)
 			return nil, nil
 		}
 		return nil, result.Error
@@ -219,10 +220,10 @@ func (p *PgContractStore) GetProxyContract(address string) (*contractStore.Proxy
 	return proxyContract, nil
 }
 
-func (p *PgContractStore) SetContractAbi(address string, abi string, verified bool) (*contractStore.Contract, error) {
+func (s *SqliteContractStore) SetContractAbi(address string, abi string, verified bool) (*contractStore.Contract, error) {
 	contract := &contractStore.Contract{}
 
-	result := p.Db.Model(contract).
+	result := s.Db.Model(contract).
 		Clauses(clause.Returning{}).
 		Where("contract_address = ?", strings.ToLower(address)).
 		Updates(&contractStore.Contract{
@@ -238,10 +239,10 @@ func (p *PgContractStore) SetContractAbi(address string, abi string, verified bo
 	return contract, nil
 }
 
-func (p *PgContractStore) SetContractMatchingContractAddress(address string, matchingContractAddress string) (*contractStore.Contract, error) {
+func (s *SqliteContractStore) SetContractMatchingContractAddress(address string, matchingContractAddress string) (*contractStore.Contract, error) {
 	contract := &contractStore.Contract{}
 
-	result := p.Db.Model(&contract).
+	result := s.Db.Model(&contract).
 		Clauses(clause.Returning{}).
 		Where("contract_address = ?", strings.ToLower(address)).
 		Updates(&contractStore.Contract{

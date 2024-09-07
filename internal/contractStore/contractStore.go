@@ -9,7 +9,6 @@ import (
 type ContractStore interface {
 	GetContractForAddress(address string) (*Contract, error)
 	FindOrCreateContract(address string, abiJson string, verified bool, bytecodeHash string, matchingContractAddress string) (*Contract, bool, error)
-	GetUnverifiedContractForAddress(address string) (*UnverifiedContract, error)
 	FindVerifiedContractWithMatchingBytecodeHash(bytecodeHash string, address string) (*Contract, error)
 	FindOrCreateProxyContract(blockNumber uint64, contractAddress string, proxyContractAddress string) (*ProxyContract, bool, error)
 	GetContractWithProxyContract(address string, atBlockNumber uint64) (*ContractsTree, error)
