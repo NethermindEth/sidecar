@@ -140,7 +140,7 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 	return parsedTransactions, nil
 }
 
-func (idx *Indexer) ParseAndIndexTransactionLogs(ctx context.Context, fetchedBlock *fetcher.FetchedBlock, blockSequenceId uint64) *IndexError {
+func (idx *Indexer) ParseAndIndexTransactionLogs(ctx context.Context, fetchedBlock *fetcher.FetchedBlock) *IndexError {
 	for i, tx := range fetchedBlock.Block.Transactions {
 		txReceipt, ok := fetchedBlock.TxReceipts[tx.Hash.Value()]
 		if !ok {
@@ -172,7 +172,7 @@ func (idx *Indexer) ParseAndIndexTransactionLogs(ctx context.Context, fetchedBlo
 		}
 
 		for _, log := range parsedTransactionLogs.Logs {
-			_, err := idx.IndexLog(ctx, fetchedBlock.Block.Number.Value(), blockSequenceId, tx.Hash.Value(), tx.Index.Value(), log)
+			_, err := idx.IndexLog(ctx, fetchedBlock.Block.Number.Value(), tx.Hash.Value(), tx.Index.Value(), log)
 			if err != nil {
 				idx.Logger.Sugar().Errorw("failed to index log",
 					zap.Error(err),
@@ -380,7 +380,6 @@ func (idx *Indexer) handleContractCreation(
 func (idx *Indexer) IndexLog(
 	ctx context.Context,
 	blockNumber uint64,
-	blockSequenceId uint64,
 	txHash string,
 	txIndex uint64,
 	log *parser.DecodedLog,

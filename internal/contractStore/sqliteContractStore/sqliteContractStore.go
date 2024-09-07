@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/contractStore"
-	pg "github.com/Layr-Labs/sidecar/internal/postgres"
 	"github.com/Layr-Labs/sidecar/internal/sqlite"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -113,7 +112,7 @@ func (s *SqliteContractStore) FindOrCreateProxyContract(
 	contractAddress = strings.ToLower(contractAddress)
 	proxyContractAddress = strings.ToLower(proxyContractAddress)
 
-	upsertedContract, err := pg.WrapTxAndCommit[*contractStore.ProxyContract](func(tx *gorm.DB) (*contractStore.ProxyContract, error) {
+	upsertedContract, err := sqlite.WrapTxAndCommit[*contractStore.ProxyContract](func(tx *gorm.DB) (*contractStore.ProxyContract, error) {
 		contract := &contractStore.ProxyContract{}
 		// Proxy contracts are unique on block_number && contract
 		result := tx.First(&contract, "contract_address = ? and block_number = ?", contractAddress, blockNumber)
