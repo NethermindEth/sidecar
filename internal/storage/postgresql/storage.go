@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/parser"
-	pg "github.com/Layr-Labs/sidecar/internal/postgres"
+	"github.com/Layr-Labs/sidecar/internal/sqlite"
 	"github.com/Layr-Labs/sidecar/internal/storage"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
@@ -62,7 +62,7 @@ func (m *PostgresBlockStore) InsertBlockAtHeight(
 	hash string,
 	blockTime uint64,
 ) (*storage.Block, error) {
-	return pg.WrapTxAndCommit[*storage.Block](func(txn *gorm.DB) (*storage.Block, error) {
+	return sqlite.WrapTxAndCommit[*storage.Block](func(txn *gorm.DB) (*storage.Block, error) {
 
 		blockSeq := &storage.Block{
 			Number:    blockNumber,
@@ -91,7 +91,7 @@ func (m *PostgresBlockStore) InsertBlockTransaction(
 	to = strings.ToLower(to)
 	from = strings.ToLower(from)
 	contractAddress = strings.ToLower(contractAddress)
-	return pg.WrapTxAndCommit[*storage.Transaction](func(txn *gorm.DB) (*storage.Transaction, error) {
+	return sqlite.WrapTxAndCommit[*storage.Transaction](func(txn *gorm.DB) (*storage.Transaction, error) {
 		tx := &storage.Transaction{
 			BlockNumber:      blockNumber,
 			TransactionHash:  txHash,
@@ -118,7 +118,7 @@ func (m *PostgresBlockStore) InsertTransactionLog(
 	log *parser.DecodedLog,
 	outputData map[string]interface{},
 ) (*storage.TransactionLog, error) {
-	return pg.WrapTxAndCommit[*storage.TransactionLog](func(txn *gorm.DB) (*storage.TransactionLog, error) {
+	return sqlite.WrapTxAndCommit[*storage.TransactionLog](func(txn *gorm.DB) (*storage.TransactionLog, error) {
 		argsJson, err := json.Marshal(log.Arguments)
 		if err != nil {
 			m.Logger.Sugar().Errorw("Failed to marshal arguments", zap.Error(err))
@@ -179,7 +179,7 @@ func (m *PostgresBlockStore) GetBlockByNumber(blockNumber uint64) (*storage.Bloc
 }
 
 func (m *PostgresBlockStore) InsertOperatorRestakedStrategies(avsDirectorAddress string, blockNumber uint64, blockTime time.Time, operator string, avs string, strategy string) (*storage.OperatorRestakedStrategies, error) {
-	return pg.WrapTxAndCommit[*storage.OperatorRestakedStrategies](func(txn *gorm.DB) (*storage.OperatorRestakedStrategies, error) {
+	return sqlite.WrapTxAndCommit[*storage.OperatorRestakedStrategies](func(txn *gorm.DB) (*storage.OperatorRestakedStrategies, error) {
 		ors := &storage.OperatorRestakedStrategies{
 			AvsDirectoryAddress: strings.ToLower(avsDirectorAddress),
 			BlockNumber:         blockNumber,

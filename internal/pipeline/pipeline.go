@@ -82,7 +82,6 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 			_, err := p.Indexer.IndexLog(
 				ctx,
 				indexedBlock.Number,
-				indexedBlock.Id,
 				indexedTransaction.TransactionHash,
 				indexedTransaction.TransactionIndex,
 				log,

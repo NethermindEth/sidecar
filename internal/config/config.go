@@ -118,6 +118,7 @@ type Config struct {
 	QuickNodeEthereumRpcConfig EthereumRpcConfig
 	PostgresConfig             PostgresConfig
 	EtherscanConfig            EtherscanConfig
+	SqliteConfig               SqliteConfig
 }
 
 type EthereumRpcConfig struct {
@@ -135,6 +136,18 @@ type PostgresConfig struct {
 
 type EtherscanConfig struct {
 	ApiKeys []string
+}
+
+type SqliteConfig struct {
+	InMemory   bool
+	DbFilePath string
+}
+
+func (s *SqliteConfig) GetSqlitePath() string {
+	if s.InMemory {
+		return "file::memory:?cache=shared"
+	}
+	return s.DbFilePath
 }
 
 func NewConfig() *Config {
@@ -164,6 +177,11 @@ func NewConfig() *Config {
 
 		EtherscanConfig: EtherscanConfig{
 			ApiKeys: parseListEnvVar(getPrefixedEnvVar("ETHERSCAN_API_KEYS")),
+		},
+
+		SqliteConfig: SqliteConfig{
+			InMemory:   parseBooleanEnvVar(getPrefixedEnvVar("SQLITE_IN_MEMORY")),
+			DbFilePath: getPrefixedEnvVar("SQLITE_DB_FILE_PATH"),
 		},
 	}
 }

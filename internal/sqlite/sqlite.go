@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func NewSqlite(path string) gorm.Dialector {
@@ -13,7 +14,7 @@ func NewSqlite(path string) gorm.Dialector {
 
 func NewGormSqliteFromSqlite(sqlite gorm.Dialector) (*gorm.DB, error) {
 	db, err := gorm.Open(sqlite, &gorm.Config{
-		//Logger: logger.Default.LogMode(logger.Silent),
+		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
 		return nil, err
