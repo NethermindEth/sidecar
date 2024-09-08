@@ -8,18 +8,30 @@ import (
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"slices"
+	"time"
 )
+
+type StateRoot struct {
+	EthBlockNumber uint64
+	EthBlockHash   string
+	StateRoot      string
+	CreatedAt      time.Time
+}
 
 type EigenStateManager struct {
 	StateModels map[int]types.IEigenStateModel
 	logger      *zap.Logger
+	Db          *gorm.DB
 }
 
-func NewEigenStateManager(logger *zap.Logger) *EigenStateManager {
+func NewEigenStateManager(logger *zap.Logger, grm *gorm.DB) *EigenStateManager {
 	return &EigenStateManager{
 		StateModels: make(map[int]types.IEigenStateModel),
 		logger:      logger,
+		Db:          grm,
 	}
 }
 
@@ -93,6 +105,33 @@ func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64) (types.StateRo
 	}
 
 	return types.StateRoot(utils.ConvertBytesToString(tree.Root())), nil
+}
+
+func (e *EigenStateManager) WriteStateRoot(
+	blockNumber uint64,
+	blockHash string,
+	stateroot string,
+) (*StateRoot, error) {
+	root := &StateRoot{
+		EthBlockNumber: blockNumber,
+		EthBlockHash:   blockHash,
+		StateRoot:      stateroot,
+	}
+
+	result := e.Db.Model(&StateRoot{}).Clauses(clause.Returning{}).Create(&root)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return root, nil
+}
+
+func (e *EigenStateManager) GetStateRootForBlock(blockNumber uint64) (*StateRoot, error) {
+	root := &StateRoot{}
+	result := e.Db.Model(&StateRoot{}).Where("eth_block_number = ?", blockNumber).First(&root)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return root, nil
 }
 
 func (e *EigenStateManager) encodeModelLeaf(model types.IEigenStateModel, blockNumber uint64) ([]byte, error) {

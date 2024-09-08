@@ -1,7 +1,6 @@
 package eigenState
 
 import (
-	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/eigenState/avsOperators"
 	"github.com/Layr-Labs/sidecar/internal/eigenState/operatorShares"
@@ -49,11 +48,11 @@ func Test_EigenStateManager(t *testing.T) {
 	}
 
 	t.Run("Should create a new EigenStateManager", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		assert.NotNil(t, esm)
 	})
 	t.Run("Should create a state root with states from models", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		avsOperatorsModel, err := avsOperators.NewAvsOperators(esm, grm, cfg.Network, cfg.Environment, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, avsOperatorsModel)
@@ -73,7 +72,6 @@ func Test_EigenStateManager(t *testing.T) {
 		root, err := esm.GenerateStateRoot(200)
 		assert.Nil(t, err)
 		assert.True(t, len(root) > 0)
-		fmt.Printf("Root: %+v\n", root)
 	})
 	teardown(grm)
 }

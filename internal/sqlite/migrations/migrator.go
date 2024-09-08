@@ -7,6 +7,7 @@ import (
 	_202409061250_eigenlayerStateTables "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409061250_eigenlayerStateTables"
 	_202409061720_operatorShareChanges "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409061720_operatorShareChanges"
 	_202409062151_stakerDelegations "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409062151_stakerDelegations"
+	_202409080918_staterootTable "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409080918_staterootTable"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -41,6 +42,7 @@ func (m *SqliteMigrator) MigrateAll() error {
 		&_202409061250_eigenlayerStateTables.SqliteMigration{},
 		&_202409061720_operatorShareChanges.SqliteMigration{},
 		&_202409062151_stakerDelegations.SqliteMigration{},
+		&_202409080918_staterootTable.SqliteMigration{},
 	}
 
 	for _, migration := range migrations {

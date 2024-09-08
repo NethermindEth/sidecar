@@ -28,7 +28,7 @@ import (
 type SqliteMigration struct {
 }
 
-func (m *SqliteMigration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *SqliteMigration) Up(grm *gorm.DB) error {
 	return nil
 }
 
