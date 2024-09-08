@@ -51,13 +51,13 @@ func Test_OperatorSharesState(t *testing.T) {
 	}
 
 	t.Run("Should create a new OperatorSharesState", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		model, err := NewOperatorSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, model)
 	})
 	t.Run("Should register OperatorSharesState", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		blockNumber := uint64(200)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
@@ -85,7 +85,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		teardown(model)
 	})
 	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		blockNumber := uint64(200)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",

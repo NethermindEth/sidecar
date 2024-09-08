@@ -8,17 +8,20 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/contractManager"
 	"github.com/Layr-Labs/sidecar/internal/contractStore/sqliteContractStore"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/internal/fetcher"
 	"github.com/Layr-Labs/sidecar/internal/indexer"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/pipeline"
+	"github.com/Layr-Labs/sidecar/internal/shutdown"
 	"github.com/Layr-Labs/sidecar/internal/sidecar"
 	"github.com/Layr-Labs/sidecar/internal/sqlite"
 	"github.com/Layr-Labs/sidecar/internal/sqlite/migrations"
 	sqliteBlockStore "github.com/Layr-Labs/sidecar/internal/storage/sqlite"
 	"go.uber.org/zap"
 	"log"
+	"time"
 )
 
 func main() {
@@ -46,7 +49,6 @@ func main() {
 	}
 
 	migrator := migrations.NewSqliteMigrator(grm, l)
-	migrator.MigrateAll()
 	if err = migrator.MigrateAll(); err != nil {
 		log.Fatalf("Failed to migrate: %v", err)
 	}
@@ -63,15 +65,36 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	sm := stateManager.NewEigenStateManager(l, grm)
+
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 
 	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, l, cfg)
 
-	p := pipeline.NewPipeline(fetchr, idxr, mds, l)
+	p := pipeline.NewPipeline(fetchr, idxr, mds, sm, l)
 
+	// Create new sidecar instance
 	sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
 		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
 	}, cfg, mds, p, l, client)
 
-	sidecar.Start(ctx)
+	// RPC channel to notify the RPC server to shutdown gracefully
+	rpcChannel := make(chan bool)
+	err = sidecar.WithRpcServer(ctx, mds, sm, rpcChannel)
+	if err != nil {
+		l.Sugar().Fatalw("Failed to start RPC server", zap.Error(err))
+	}
+
+	// Start the sidecar main process in a goroutine so that we can listen for a shutdown signal
+	go sidecar.Start(ctx)
+
+	l.Sugar().Info("Started Sidecar")
+
+	gracefulShutdown := shutdown.CreateGracefulShutdownChannel()
+
+	done := make(chan bool)
+	shutdown.ListenForShutdown(gracefulShutdown, done, func() {
+		l.Sugar().Info("Shutting down...")
+		rpcChannel <- true
+	}, time.Second*5, l)
 }

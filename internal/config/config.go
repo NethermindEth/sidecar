@@ -119,6 +119,7 @@ type Config struct {
 	PostgresConfig             PostgresConfig
 	EtherscanConfig            EtherscanConfig
 	SqliteConfig               SqliteConfig
+	RpcConfig                  RpcConfig
 }
 
 type EthereumRpcConfig struct {
@@ -141,6 +142,11 @@ type EtherscanConfig struct {
 type SqliteConfig struct {
 	InMemory   bool
 	DbFilePath string
+}
+
+type RpcConfig struct {
+	GrpcPort int
+	HttpPort int
 }
 
 func (s *SqliteConfig) GetSqlitePath() string {
@@ -182,6 +188,11 @@ func NewConfig() *Config {
 		SqliteConfig: SqliteConfig{
 			InMemory:   parseBooleanEnvVar(getPrefixedEnvVar("SQLITE_IN_MEMORY")),
 			DbFilePath: getPrefixedEnvVar("SQLITE_DB_FILE_PATH"),
+		},
+
+		RpcConfig: RpcConfig{
+			GrpcPort: parseIntEnvVar(getPrefixedEnvVar("RPC_GRPC_PORT"), 7100),
+			HttpPort: parseIntEnvVar(getPrefixedEnvVar("RPC_HTTP_PORT"), 7101),
 		},
 	}
 }

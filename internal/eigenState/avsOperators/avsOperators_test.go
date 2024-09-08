@@ -49,13 +49,13 @@ func Test_AvsOperatorState(t *testing.T) {
 	}
 
 	t.Run("Should create a new AvsOperatorState", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		avsOperatorState, err := NewAvsOperators(esm, grm, cfg.Network, cfg.Environment, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, avsOperatorState)
 	})
 	t.Run("Should register AvsOperatorState", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		blockNumber := uint64(200)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
@@ -85,7 +85,7 @@ func Test_AvsOperatorState(t *testing.T) {
 		teardown(avsOperatorState)
 	})
 	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		blockNumber := uint64(200)
 
 		log := storage.TransactionLog{
@@ -135,7 +135,7 @@ func Test_AvsOperatorState(t *testing.T) {
 		teardown(avsOperatorState)
 	})
 	t.Run("Should correctly generate state across multiple blocks", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		blocks := []uint64{
 			300,
 			301,

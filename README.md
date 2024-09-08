@@ -1,9 +1,6 @@
-## Sample backfill requests
+## RPC Routes
 
-*Contracts*
-
+### Get current block height
 ```bash
-grpcurl -plaintext -d '{               
-    "range": {"from": 1477020, "to": 1477020 }
-}' localhost:9999 eigenlayer.blocklake.api.v1.Backfiller/IndexContracts
+grpcurl -plaintext -d '{}'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetBlockHeight
 ```

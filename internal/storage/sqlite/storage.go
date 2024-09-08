@@ -121,20 +121,21 @@ func (s *SqliteBlockStore) InsertTransactionLog(
 	return txLog, nil
 }
 
-type latestBlockNumber struct {
-	BlockNumber uint64
-}
+func (s *SqliteBlockStore) GetLatestBlock() (*storage.Block, error) {
+	block := &storage.Block{}
 
-func (s *SqliteBlockStore) GetLatestBlock() (int64, error) {
-	block := &latestBlockNumber{}
+	query := `
+	select
+	 *
+	from blocks
+	order by number desc
+	limit 1`
 
-	query := `select coalesce(max(number), 0) as block_number from blocks`
-
-	result := s.Db.Raw(query).Scan(&block)
+	result := s.Db.Model(&storage.Block{}).Raw(query).Scan(&block)
 	if result.Error != nil {
-		return 0, xerrors.Errorf("Failed to get latest block: %w", result.Error)
+		return nil, xerrors.Errorf("Failed to get latest block: %w", result.Error)
 	}
-	return int64(block.BlockNumber), nil
+	return block, nil
 }
 
 func (s *SqliteBlockStore) GetBlockByNumber(blockNumber uint64) (*storage.Block, error) {

@@ -49,13 +49,13 @@ func Test_DelegatedStakersState(t *testing.T) {
 	}
 
 	t.Run("Should create a new StakerDelegationsModel", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		model, err := NewStakerDelegationsModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, model)
 	})
 	t.Run("Should register StakerDelegationsModel", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		blockNumber := uint64(200)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
@@ -89,7 +89,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 		teardown(model)
 	})
 	t.Run("Should register StakerDelegationsModel and generate the table for the block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		blockNumber := uint64(200)
 
 		log := storage.TransactionLog{
@@ -143,7 +143,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 		teardown(model)
 	})
 	t.Run("Should correctly generate state across multiple blocks", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l)
+		esm := stateManager.NewEigenStateManager(l, grm)
 		blocks := []uint64{
 			300,
 			301,
