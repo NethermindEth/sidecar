@@ -74,17 +74,19 @@ func main() {
 
 	p := pipeline.NewPipeline(fetchr, idxr, mds, l)
 
+	// Create new sidecar instance
 	sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
 		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
 	}, cfg, mds, p, l, client)
 
+	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)
 	err = sidecar.WithRpcServer(ctx, mds, sm, rpcChannel)
 	if err != nil {
 		l.Sugar().Fatalw("Failed to start RPC server", zap.Error(err))
 	}
-	l.Sugar().Info("Started RPC server")
 
+	// Start the sidecar main process in a goroutine so that we can listen for a shutdown signal
 	go sidecar.Start(ctx)
 
 	l.Sugar().Info("Started Sidecar")
@@ -96,6 +98,4 @@ func main() {
 		l.Sugar().Info("Shutting down...")
 		rpcChannel <- true
 	}, time.Second*5, l)
-
-	l.Sugar().Info("Exiting but for real...")
 }
