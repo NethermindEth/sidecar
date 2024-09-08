@@ -63,11 +63,12 @@ func (m *SqliteMigration) Up(grm *gorm.DB) error {
 		)`,
 		`CREATE TABLE IF NOT EXISTS proxy_contracts (
 			block_number INTEGER NOT NULL,
-			contract_address TEXT NOT NULL PRIMARY KEY REFERENCES contracts(contract_address) ON DELETE CASCADE,
+			contract_address TEXT NOT NULL REFERENCES contracts(contract_address) ON DELETE CASCADE,
 			proxy_contract_address TEXT NOT NULL,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
 			updated_at DATETIME,
-			deleted_at DATETIME
+			deleted_at DATETIME,
+			unique(contract_address, proxy_contract_address, block_number) 
 		)`,
 		`CREATE TABLE IF NOT EXISTS operator_restaked_strategies (
 			block_number INTEGER NOT NULL REFERENCES blocks(number) ON DELETE CASCADE,

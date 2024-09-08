@@ -51,7 +51,7 @@ func main() {
 		log.Fatalf("Failed to migrate: %v", err)
 	}
 
-	contractStore := sqliteContractStore.NewSqliteContractStore(grm, l)
+	contractStore := sqliteContractStore.NewSqliteContractStore(grm, l, cfg)
 
 	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
 
