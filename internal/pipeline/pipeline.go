@@ -63,6 +63,7 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		p.Logger.Sugar().Errorw("Failed to init processing for block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err
 	}
+	p.Logger.Sugar().Infow("Initialized processing for block", zap.Uint64("blockNumber", blockNumber))
 
 	// Parse all transactions and logs for the block.
 	// - If a transaction is not calling to a contract, it is ignored
@@ -142,20 +143,20 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		}
 	}
 
-	// Handle contract creation for transactions
 	interestingTransactions := p.Indexer.FilterInterestingTransactions(indexedBlock, block)
-	if len(interestingTransactions) == 0 {
-		p.Logger.Sugar().Debugw("No interesting transactions found, no need to create any new contracts", zap.Uint64("blockNumber", blockNumber))
-		return nil
+	if len(interestingTransactions) > 0 {
+		// If we have interesting transactions, check for contract creations.
+		// Really though this probably should never get reached since we only care about interesting transactions
+		// which are hard coded and any implementations of proxies would get get processed above as part of the upgrade check
+		p.Indexer.FindAndHandleContractCreationForTransactions(interestingTransactions, block.TxReceipts, block.ContractStorage, blockNumber)
 	}
-	p.Indexer.FindAndHandleContractCreationForTransactions(interestingTransactions, block.TxReceipts, block.ContractStorage, blockNumber)
 
 	if err := p.stateManager.CommitFinalState(blockNumber); err != nil {
 		p.Logger.Sugar().Errorw("Failed to commit final state", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err
 	}
 
-	stateRoot, err := p.stateManager.GenerateStateRoot(blockNumber)
+	stateRoot, err := p.stateManager.GenerateStateRoot(blockNumber, block.Block.Hash.Value())
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to generate state root", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err

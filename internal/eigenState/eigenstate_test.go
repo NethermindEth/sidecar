@@ -69,7 +69,7 @@ func Test_EigenStateManager(t *testing.T) {
 		err = esm.InitProcessingForBlock(200)
 		assert.Nil(t, err)
 
-		root, err := esm.GenerateStateRoot(200)
+		root, err := esm.GenerateStateRoot(200, "0x123")
 		assert.Nil(t, err)
 		assert.True(t, len(root) > 0)
 	})

@@ -45,6 +45,7 @@ func (m *SqliteMigrator) MigrateAll() error {
 		&_202409080918_staterootTable.SqliteMigration{},
 	}
 
+	m.Logger.Sugar().Info("Running migrations")
 	for _, migration := range migrations {
 		err := m.Migrate(migration)
 		if err != nil {

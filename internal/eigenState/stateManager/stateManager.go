@@ -81,10 +81,11 @@ func (e *EigenStateManager) CommitFinalState(blockNumber uint64) error {
 	return nil
 }
 
-func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64, blockHash string) (types.StateRoot, error) {
 	sortedIndexes := e.GetSortedModelIndexes()
 	roots := [][]byte{
 		[]byte(fmt.Sprintf("%d", blockNumber)),
+		[]byte(blockHash),
 	}
 
 	for _, state := range sortedIndexes {

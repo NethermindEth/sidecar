@@ -10,3 +10,4 @@ block-lake/preprod-values.yaml
 /scripts/runLocal
 sidecar.db*
 *.db*
+sqlite

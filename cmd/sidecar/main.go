@@ -49,7 +49,6 @@ func main() {
 	}
 
 	migrator := migrations.NewSqliteMigrator(grm, l)
-	migrator.MigrateAll()
 	if err = migrator.MigrateAll(); err != nil {
 		log.Fatalf("Failed to migrate: %v", err)
 	}
