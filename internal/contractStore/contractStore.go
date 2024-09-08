@@ -1,10 +1,14 @@
 package contractStore
 
 import (
+	"embed"
 	"fmt"
 	"strings"
 	"time"
 )
+
+//go:embed coreContracts
+var CoreContracts embed.FS
 
 type ContractStore interface {
 	GetContractForAddress(address string) (*Contract, error)
@@ -15,6 +19,9 @@ type ContractStore interface {
 	SetContractCheckedForProxy(address string) (*Contract, error)
 	SetContractAbi(address string, abi string, verified bool) (*Contract, error)
 	SetContractMatchingContractAddress(address string, matchingContractAddress string) (*Contract, error)
+	GetProxyContractForAddressAtBlock(address string, blockNumber uint64) (*ProxyContract, error)
+
+	InitializeCoreContracts() error
 }
 
 // Tables
@@ -119,4 +126,21 @@ func (c *ContractsTree) CombineAbis() string {
 
 	combinedAbi := fmt.Sprintf("[%s]", strings.Join(abisToCombine, ","))
 	return combinedAbi
+}
+
+type CoreContract struct {
+	ContractAddress string `json:"contract_address"`
+	ContractAbi     string `json:"contract_abi"`
+	BytecodeHash    string `json:"bytecode_hash"`
+}
+
+type CoreProxyContract struct {
+	ContractAddress      string `json:"contract_address"`
+	ProxyContractAddress string `json:"proxy_contract_address"`
+	BlockNumber          int64  `json:"block_number"`
+}
+
+type CoreContractsData struct {
+	CoreContracts  []CoreContract      `json:"core_contracts"`
+	ProxyContracts []CoreProxyContract `json:"proxy_contracts"`
 }

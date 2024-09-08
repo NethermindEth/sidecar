@@ -16,7 +16,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/sidecar"
 	"github.com/Layr-Labs/sidecar/internal/sqlite"
 	"github.com/Layr-Labs/sidecar/internal/sqlite/migrations"
-	"github.com/Layr-Labs/sidecar/internal/storage/postgresql"
+	sqliteBlockStore "github.com/Layr-Labs/sidecar/internal/storage/sqlite"
 	"go.uber.org/zap"
 	"log"
 )
@@ -51,11 +51,11 @@ func main() {
 		log.Fatalf("Failed to migrate: %v", err)
 	}
 
-	contractStore := sqliteContractStore.NewSqliteContractStore(grm, l)
+	contractStore := sqliteContractStore.NewSqliteContractStore(grm, l, cfg)
 
 	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
 
-	mds, err := postgresql.NewPostgresBlockStore(grm, cfg, l)
+	mds := sqliteBlockStore.NewSqliteBlockStore(grm, l, cfg)
 	if err != nil {
 		log.Fatalln(err)
 	}

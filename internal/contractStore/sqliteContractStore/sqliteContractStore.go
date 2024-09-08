@@ -2,25 +2,30 @@ package sqliteContractStore
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/contractStore"
 	"github.com/Layr-Labs/sidecar/internal/sqlite"
 	"go.uber.org/zap"
+	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"strings"
 )
 
 type SqliteContractStore struct {
-	Db     *gorm.DB
-	Logger *zap.Logger
+	Db           *gorm.DB
+	Logger       *zap.Logger
+	globalConfig *config.Config
 }
 
-func NewSqliteContractStore(db *gorm.DB, l *zap.Logger) *SqliteContractStore {
+func NewSqliteContractStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *SqliteContractStore {
 	cs := &SqliteContractStore{
-		Db:     db,
-		Logger: l,
+		Db:           db,
+		Logger:       l,
+		globalConfig: cfg,
 	}
 	return cs
 }
@@ -38,6 +43,23 @@ func (s *SqliteContractStore) GetContractForAddress(address string) (*contractSt
 	}
 
 	return contract, nil
+}
+
+func (s *SqliteContractStore) GetProxyContractForAddressAtBlock(address string, blockNumber uint64) (*contractStore.ProxyContract, error) {
+	address = strings.ToLower(address)
+
+	var proxyContract *contractStore.ProxyContract
+
+	result := s.Db.First(&proxyContract, "contract_address = ? and block_number = ?", address, blockNumber)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			s.Logger.Sugar().Debugf("Proxy contract not found in store '%s'", address)
+			return nil, nil
+		}
+		return nil, result.Error
+	}
+
+	return proxyContract, nil
 }
 
 func (s *SqliteContractStore) FindOrCreateContract(
@@ -131,7 +153,7 @@ func (s *SqliteContractStore) FindOrCreateProxyContract(
 			ProxyContractAddress: proxyContractAddress,
 		}
 
-		result = tx.Model(&contractStore.ProxyContract{}).Clauses(clause.Returning{}).Create(proxyContract)
+		result = tx.Model(&contractStore.ProxyContract{}).Clauses(clause.Returning{}).Create(&proxyContract)
 		if result.Error != nil {
 			return nil, result.Error
 		}
@@ -239,4 +261,61 @@ func (s *SqliteContractStore) SetContractMatchingContractAddress(address string,
 	}
 
 	return contract, nil
+}
+
+func (s *SqliteContractStore) loadContractData() (*contractStore.CoreContractsData, error) {
+	var filename string
+	switch s.globalConfig.Environment {
+	case config.Environment_Mainnet:
+		filename = "mainnet.json"
+	case config.Environment_Testnet:
+		filename = "testnet.json"
+	case config.Environment_PreProd:
+		filename = "preprod.json"
+	default:
+		return nil, xerrors.Errorf("Unknown environment: %s", s.globalConfig.Environment)
+	}
+	jsonData, err := contractStore.CoreContracts.ReadFile(fmt.Sprintf("coreContracts/%s", filename))
+	if err != nil {
+		return nil, xerrors.Errorf("Failed to open core contracts file: %w", err)
+	}
+
+	// read entire file and marshal it into a CoreContractsData struct
+	data := &contractStore.CoreContractsData{}
+	err = json.Unmarshal(jsonData, &data)
+	if err != nil {
+		return nil, xerrors.Errorf("Failed to decode core contracts data: %w", err)
+	}
+	return data, nil
+}
+
+func (s *SqliteContractStore) InitializeCoreContracts() error {
+	coreContracts, err := s.loadContractData()
+	if err != nil {
+		return xerrors.Errorf("Failed to load core contracts: %w", err)
+	}
+
+	for _, contract := range coreContracts.CoreContracts {
+		_, _, err := s.FindOrCreateContract(
+			contract.ContractAddress,
+			contract.ContractAbi,
+			true,
+			contract.BytecodeHash,
+			"",
+		)
+		if err != nil {
+			return xerrors.Errorf("Failed to create core contract: %w", err)
+		}
+	}
+	for _, proxy := range coreContracts.ProxyContracts {
+		_, _, err := s.FindOrCreateProxyContract(
+			uint64(proxy.BlockNumber),
+			proxy.ContractAddress,
+			proxy.ProxyContractAddress,
+		)
+		if err != nil {
+			return xerrors.Errorf("Failed to create core proxy contract: %w", err)
+		}
+	}
+	return nil
 }
