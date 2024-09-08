@@ -125,13 +125,18 @@ func (idx *Indexer) ParseInterestingTransactionsAndLogs(ctx context.Context, fet
 			return nil, err
 		}
 		if parsedTransactionAndLogs == nil {
-			idx.Logger.Sugar().Debugw("Log line is nil",
+			idx.Logger.Sugar().Debugw("Transaction is nil",
 				zap.String("txHash", tx.Hash.Value()),
 				zap.Uint64("block", tx.BlockNumber.Value()),
 				zap.Int("logIndex", i),
 			)
 			continue
 		}
+		idx.Logger.Sugar().Debugw("Parsed transaction and logs",
+			zap.String("txHash", tx.Hash.Value()),
+			zap.Uint64("block", tx.BlockNumber.Value()),
+			zap.Int("logCount", len(parsedTransactionAndLogs.Logs)),
+		)
 		// If there are interesting logs or if the tx/receipt is interesting, include it
 		if len(parsedTransactionAndLogs.Logs) > 0 || idx.IsInterestingTransaction(tx, txReceipt) {
 			parsedTransactions = append(parsedTransactions, parsedTransactionAndLogs)

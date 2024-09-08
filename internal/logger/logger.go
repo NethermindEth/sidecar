@@ -18,7 +18,7 @@ func NewLogger(cfg *LoggerConfig, options ...zap.Option) (*zap.Logger, error) {
 	c.EncoderConfig = zap.NewProductionEncoderConfig()
 
 	if cfg.Debug {
-		c.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
+		c.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
 	} else {
 		c.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
 	}
