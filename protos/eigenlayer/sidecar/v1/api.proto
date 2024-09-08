@@ -19,7 +19,9 @@ message GetStateRootRequest {
 }
 
 message GetStateRootResponse {
-  bytes stateRoot = 1;
+  uint64 ethBlockNumber = 1;
+  string ethBlockHash = 2;
+  string stateRoot = 3;
 }
 
 message GetRewardsRootRequest {
