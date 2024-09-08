@@ -45,7 +45,7 @@ docker-buildx:
 
 .PHONY: test
 test:
-	./scripts/runTests.sh
+	TESTING=true go test -v -p 1 ./...
 
 .PHONY: ci-test
 ci-test: deps test
