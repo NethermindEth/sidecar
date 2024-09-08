@@ -19,18 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SidecarRpc_GetBlockHeight_FullMethodName            = "/eigenlayer.sidecar.api.v1.SidecarRpc/GetBlockHeight"
-	SidecarRpc_GetStateRoot_FullMethodName              = "/eigenlayer.sidecar.api.v1.SidecarRpc/GetStateRoot"
-	SidecarRpc_GetRewardsRoot_FullMethodName            = "/eigenlayer.sidecar.api.v1.SidecarRpc/GetRewardsRoot"
-	SidecarRpc_GenerateClaimProof_FullMethodName        = "/eigenlayer.sidecar.api.v1.SidecarRpc/GenerateClaimProof"
-	SidecarRpc_GetAvailableRewards_FullMethodName       = "/eigenlayer.sidecar.api.v1.SidecarRpc/GetAvailableRewards"
-	SidecarRpc_GetAvailableRewardsTokens_FullMethodName = "/eigenlayer.sidecar.api.v1.SidecarRpc/GetAvailableRewardsTokens"
+	Rpc_GetBlockHeight_FullMethodName            = "/eigenlayer.sidecar.api.v1.Rpc/GetBlockHeight"
+	Rpc_GetStateRoot_FullMethodName              = "/eigenlayer.sidecar.api.v1.Rpc/GetStateRoot"
+	Rpc_GetRewardsRoot_FullMethodName            = "/eigenlayer.sidecar.api.v1.Rpc/GetRewardsRoot"
+	Rpc_GenerateClaimProof_FullMethodName        = "/eigenlayer.sidecar.api.v1.Rpc/GenerateClaimProof"
+	Rpc_GetAvailableRewards_FullMethodName       = "/eigenlayer.sidecar.api.v1.Rpc/GetAvailableRewards"
+	Rpc_GetAvailableRewardsTokens_FullMethodName = "/eigenlayer.sidecar.api.v1.Rpc/GetAvailableRewardsTokens"
 )
 
-// SidecarRpcClient is the client API for SidecarRpc service.
+// RpcClient is the client API for Rpc service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type SidecarRpcClient interface {
+type RpcClient interface {
 	GetBlockHeight(ctx context.Context, in *GetBlockHeightRequest, opts ...grpc.CallOption) (*GetBlockHeightResponse, error)
 	GetStateRoot(ctx context.Context, in *GetStateRootRequest, opts ...grpc.CallOption) (*GetStateRootResponse, error)
 	GetRewardsRoot(ctx context.Context, in *GetRewardsRootRequest, opts ...grpc.CallOption) (*GetRewardsRootResponse, error)
@@ -39,78 +39,78 @@ type SidecarRpcClient interface {
 	GetAvailableRewardsTokens(ctx context.Context, in *GetAvailableRewardsTokensRequest, opts ...grpc.CallOption) (*GetAvailableRewardsTokensResponse, error)
 }
 
-type sidecarRpcClient struct {
+type rpcClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewSidecarRpcClient(cc grpc.ClientConnInterface) SidecarRpcClient {
-	return &sidecarRpcClient{cc}
+func NewRpcClient(cc grpc.ClientConnInterface) RpcClient {
+	return &rpcClient{cc}
 }
 
-func (c *sidecarRpcClient) GetBlockHeight(ctx context.Context, in *GetBlockHeightRequest, opts ...grpc.CallOption) (*GetBlockHeightResponse, error) {
+func (c *rpcClient) GetBlockHeight(ctx context.Context, in *GetBlockHeightRequest, opts ...grpc.CallOption) (*GetBlockHeightResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetBlockHeightResponse)
-	err := c.cc.Invoke(ctx, SidecarRpc_GetBlockHeight_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Rpc_GetBlockHeight_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *sidecarRpcClient) GetStateRoot(ctx context.Context, in *GetStateRootRequest, opts ...grpc.CallOption) (*GetStateRootResponse, error) {
+func (c *rpcClient) GetStateRoot(ctx context.Context, in *GetStateRootRequest, opts ...grpc.CallOption) (*GetStateRootResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetStateRootResponse)
-	err := c.cc.Invoke(ctx, SidecarRpc_GetStateRoot_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Rpc_GetStateRoot_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *sidecarRpcClient) GetRewardsRoot(ctx context.Context, in *GetRewardsRootRequest, opts ...grpc.CallOption) (*GetRewardsRootResponse, error) {
+func (c *rpcClient) GetRewardsRoot(ctx context.Context, in *GetRewardsRootRequest, opts ...grpc.CallOption) (*GetRewardsRootResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetRewardsRootResponse)
-	err := c.cc.Invoke(ctx, SidecarRpc_GetRewardsRoot_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Rpc_GetRewardsRoot_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *sidecarRpcClient) GenerateClaimProof(ctx context.Context, in *GenerateClaimProofRequest, opts ...grpc.CallOption) (*GenerateClaimProofResponse, error) {
+func (c *rpcClient) GenerateClaimProof(ctx context.Context, in *GenerateClaimProofRequest, opts ...grpc.CallOption) (*GenerateClaimProofResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GenerateClaimProofResponse)
-	err := c.cc.Invoke(ctx, SidecarRpc_GenerateClaimProof_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Rpc_GenerateClaimProof_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *sidecarRpcClient) GetAvailableRewards(ctx context.Context, in *GetAvailableRewardsRequest, opts ...grpc.CallOption) (*GetAvailableRewardsResponse, error) {
+func (c *rpcClient) GetAvailableRewards(ctx context.Context, in *GetAvailableRewardsRequest, opts ...grpc.CallOption) (*GetAvailableRewardsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetAvailableRewardsResponse)
-	err := c.cc.Invoke(ctx, SidecarRpc_GetAvailableRewards_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Rpc_GetAvailableRewards_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *sidecarRpcClient) GetAvailableRewardsTokens(ctx context.Context, in *GetAvailableRewardsTokensRequest, opts ...grpc.CallOption) (*GetAvailableRewardsTokensResponse, error) {
+func (c *rpcClient) GetAvailableRewardsTokens(ctx context.Context, in *GetAvailableRewardsTokensRequest, opts ...grpc.CallOption) (*GetAvailableRewardsTokensResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetAvailableRewardsTokensResponse)
-	err := c.cc.Invoke(ctx, SidecarRpc_GetAvailableRewardsTokens_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Rpc_GetAvailableRewardsTokens_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// SidecarRpcServer is the server API for SidecarRpc service.
-// All implementations should embed UnimplementedSidecarRpcServer
+// RpcServer is the server API for Rpc service.
+// All implementations should embed UnimplementedRpcServer
 // for forward compatibility.
-type SidecarRpcServer interface {
+type RpcServer interface {
 	GetBlockHeight(context.Context, *GetBlockHeightRequest) (*GetBlockHeightResponse, error)
 	GetStateRoot(context.Context, *GetStateRootRequest) (*GetStateRootResponse, error)
 	GetRewardsRoot(context.Context, *GetRewardsRootRequest) (*GetRewardsRootResponse, error)
@@ -119,189 +119,189 @@ type SidecarRpcServer interface {
 	GetAvailableRewardsTokens(context.Context, *GetAvailableRewardsTokensRequest) (*GetAvailableRewardsTokensResponse, error)
 }
 
-// UnimplementedSidecarRpcServer should be embedded to have
+// UnimplementedRpcServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedSidecarRpcServer struct{}
+type UnimplementedRpcServer struct{}
 
-func (UnimplementedSidecarRpcServer) GetBlockHeight(context.Context, *GetBlockHeightRequest) (*GetBlockHeightResponse, error) {
+func (UnimplementedRpcServer) GetBlockHeight(context.Context, *GetBlockHeightRequest) (*GetBlockHeightResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlockHeight not implemented")
 }
-func (UnimplementedSidecarRpcServer) GetStateRoot(context.Context, *GetStateRootRequest) (*GetStateRootResponse, error) {
+func (UnimplementedRpcServer) GetStateRoot(context.Context, *GetStateRootRequest) (*GetStateRootResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStateRoot not implemented")
 }
-func (UnimplementedSidecarRpcServer) GetRewardsRoot(context.Context, *GetRewardsRootRequest) (*GetRewardsRootResponse, error) {
+func (UnimplementedRpcServer) GetRewardsRoot(context.Context, *GetRewardsRootRequest) (*GetRewardsRootResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRewardsRoot not implemented")
 }
-func (UnimplementedSidecarRpcServer) GenerateClaimProof(context.Context, *GenerateClaimProofRequest) (*GenerateClaimProofResponse, error) {
+func (UnimplementedRpcServer) GenerateClaimProof(context.Context, *GenerateClaimProofRequest) (*GenerateClaimProofResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GenerateClaimProof not implemented")
 }
-func (UnimplementedSidecarRpcServer) GetAvailableRewards(context.Context, *GetAvailableRewardsRequest) (*GetAvailableRewardsResponse, error) {
+func (UnimplementedRpcServer) GetAvailableRewards(context.Context, *GetAvailableRewardsRequest) (*GetAvailableRewardsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAvailableRewards not implemented")
 }
-func (UnimplementedSidecarRpcServer) GetAvailableRewardsTokens(context.Context, *GetAvailableRewardsTokensRequest) (*GetAvailableRewardsTokensResponse, error) {
+func (UnimplementedRpcServer) GetAvailableRewardsTokens(context.Context, *GetAvailableRewardsTokensRequest) (*GetAvailableRewardsTokensResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAvailableRewardsTokens not implemented")
 }
-func (UnimplementedSidecarRpcServer) testEmbeddedByValue() {}
+func (UnimplementedRpcServer) testEmbeddedByValue() {}
 
-// UnsafeSidecarRpcServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to SidecarRpcServer will
+// UnsafeRpcServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to RpcServer will
 // result in compilation errors.
-type UnsafeSidecarRpcServer interface {
-	mustEmbedUnimplementedSidecarRpcServer()
+type UnsafeRpcServer interface {
+	mustEmbedUnimplementedRpcServer()
 }
 
-func RegisterSidecarRpcServer(s grpc.ServiceRegistrar, srv SidecarRpcServer) {
-	// If the following call pancis, it indicates UnimplementedSidecarRpcServer was
+func RegisterRpcServer(s grpc.ServiceRegistrar, srv RpcServer) {
+	// If the following call pancis, it indicates UnimplementedRpcServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&SidecarRpc_ServiceDesc, srv)
+	s.RegisterService(&Rpc_ServiceDesc, srv)
 }
 
-func _SidecarRpc_GetBlockHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Rpc_GetBlockHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetBlockHeightRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SidecarRpcServer).GetBlockHeight(ctx, in)
+		return srv.(RpcServer).GetBlockHeight(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SidecarRpc_GetBlockHeight_FullMethodName,
+		FullMethod: Rpc_GetBlockHeight_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SidecarRpcServer).GetBlockHeight(ctx, req.(*GetBlockHeightRequest))
+		return srv.(RpcServer).GetBlockHeight(ctx, req.(*GetBlockHeightRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SidecarRpc_GetStateRoot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Rpc_GetStateRoot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetStateRootRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SidecarRpcServer).GetStateRoot(ctx, in)
+		return srv.(RpcServer).GetStateRoot(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SidecarRpc_GetStateRoot_FullMethodName,
+		FullMethod: Rpc_GetStateRoot_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SidecarRpcServer).GetStateRoot(ctx, req.(*GetStateRootRequest))
+		return srv.(RpcServer).GetStateRoot(ctx, req.(*GetStateRootRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SidecarRpc_GetRewardsRoot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Rpc_GetRewardsRoot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetRewardsRootRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SidecarRpcServer).GetRewardsRoot(ctx, in)
+		return srv.(RpcServer).GetRewardsRoot(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SidecarRpc_GetRewardsRoot_FullMethodName,
+		FullMethod: Rpc_GetRewardsRoot_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SidecarRpcServer).GetRewardsRoot(ctx, req.(*GetRewardsRootRequest))
+		return srv.(RpcServer).GetRewardsRoot(ctx, req.(*GetRewardsRootRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SidecarRpc_GenerateClaimProof_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Rpc_GenerateClaimProof_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GenerateClaimProofRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SidecarRpcServer).GenerateClaimProof(ctx, in)
+		return srv.(RpcServer).GenerateClaimProof(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SidecarRpc_GenerateClaimProof_FullMethodName,
+		FullMethod: Rpc_GenerateClaimProof_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SidecarRpcServer).GenerateClaimProof(ctx, req.(*GenerateClaimProofRequest))
+		return srv.(RpcServer).GenerateClaimProof(ctx, req.(*GenerateClaimProofRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SidecarRpc_GetAvailableRewards_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Rpc_GetAvailableRewards_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetAvailableRewardsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SidecarRpcServer).GetAvailableRewards(ctx, in)
+		return srv.(RpcServer).GetAvailableRewards(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SidecarRpc_GetAvailableRewards_FullMethodName,
+		FullMethod: Rpc_GetAvailableRewards_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SidecarRpcServer).GetAvailableRewards(ctx, req.(*GetAvailableRewardsRequest))
+		return srv.(RpcServer).GetAvailableRewards(ctx, req.(*GetAvailableRewardsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SidecarRpc_GetAvailableRewardsTokens_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Rpc_GetAvailableRewardsTokens_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetAvailableRewardsTokensRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SidecarRpcServer).GetAvailableRewardsTokens(ctx, in)
+		return srv.(RpcServer).GetAvailableRewardsTokens(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SidecarRpc_GetAvailableRewardsTokens_FullMethodName,
+		FullMethod: Rpc_GetAvailableRewardsTokens_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SidecarRpcServer).GetAvailableRewardsTokens(ctx, req.(*GetAvailableRewardsTokensRequest))
+		return srv.(RpcServer).GetAvailableRewardsTokens(ctx, req.(*GetAvailableRewardsTokensRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// SidecarRpc_ServiceDesc is the grpc.ServiceDesc for SidecarRpc service.
+// Rpc_ServiceDesc is the grpc.ServiceDesc for Rpc service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var SidecarRpc_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "eigenlayer.sidecar.api.v1.SidecarRpc",
-	HandlerType: (*SidecarRpcServer)(nil),
+var Rpc_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "eigenlayer.sidecar.api.v1.Rpc",
+	HandlerType: (*RpcServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "GetBlockHeight",
-			Handler:    _SidecarRpc_GetBlockHeight_Handler,
+			Handler:    _Rpc_GetBlockHeight_Handler,
 		},
 		{
 			MethodName: "GetStateRoot",
-			Handler:    _SidecarRpc_GetStateRoot_Handler,
+			Handler:    _Rpc_GetStateRoot_Handler,
 		},
 		{
 			MethodName: "GetRewardsRoot",
-			Handler:    _SidecarRpc_GetRewardsRoot_Handler,
+			Handler:    _Rpc_GetRewardsRoot_Handler,
 		},
 		{
 			MethodName: "GenerateClaimProof",
-			Handler:    _SidecarRpc_GenerateClaimProof_Handler,
+			Handler:    _Rpc_GenerateClaimProof_Handler,
 		},
 		{
 			MethodName: "GetAvailableRewards",
-			Handler:    _SidecarRpc_GetAvailableRewards_Handler,
+			Handler:    _Rpc_GetAvailableRewards_Handler,
 		},
 		{
 			MethodName: "GetAvailableRewardsTokens",
-			Handler:    _SidecarRpc_GetAvailableRewardsTokens_Handler,
+			Handler:    _Rpc_GetAvailableRewardsTokens_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

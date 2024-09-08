@@ -11,7 +11,7 @@ message GetBlockHeightRequest {
 
 message GetBlockHeightResponse {
   uint64 blockNumber = 1;
-  bytes blockHash = 2;
+  string blockHash = 2;
 }
 
 message GetStateRootRequest {
@@ -29,7 +29,7 @@ message GetRewardsRootRequest {
 }
 
 message GetRewardsRootResponse {
-  bytes rewardsRoot = 1;
+  string rewardsRoot = 1;
 }
 
 message GenerateClaimProofRequest {
@@ -83,7 +83,7 @@ message GetAvailableRewardsTokensResponse {
   repeated string tokens = 1;
 }
 
-service SidecarRpc {
+service Rpc {
   rpc GetBlockHeight(GetBlockHeightRequest) returns (GetBlockHeightResponse) {
     option (google.api.http) = {
       post: "/v1/latest-block"
@@ -125,5 +125,4 @@ service SidecarRpc {
       body: "*"
     };
   }
-
 }

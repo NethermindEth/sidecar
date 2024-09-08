@@ -12,7 +12,7 @@ func (s *Sidecar) GetLastIndexedBlock() (int64, error) {
 	if err != nil {
 		s.Logger.Sugar().Errorw("Failed to get last indexed block", zap.Error(err))
 	}
-	return block, nil
+	return int64(block.Number), nil
 }
 
 func (s *Sidecar) StartIndexing(ctx context.Context) {

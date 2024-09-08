@@ -31,7 +31,7 @@ var _ = runtime.String
 var _ = utilities.NewDoubleArray
 var _ = metadata.Join
 
-func request_SidecarRpc_GetBlockHeight_0(ctx context.Context, marshaler runtime.Marshaler, client SidecarRpcClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_Rpc_GetBlockHeight_0(ctx context.Context, marshaler runtime.Marshaler, client RpcClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetBlockHeightRequest
 	var metadata runtime.ServerMetadata
 
@@ -44,7 +44,7 @@ func request_SidecarRpc_GetBlockHeight_0(ctx context.Context, marshaler runtime.
 
 }
 
-func local_request_SidecarRpc_GetBlockHeight_0(ctx context.Context, marshaler runtime.Marshaler, server SidecarRpcServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_Rpc_GetBlockHeight_0(ctx context.Context, marshaler runtime.Marshaler, server RpcServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetBlockHeightRequest
 	var metadata runtime.ServerMetadata
 
@@ -57,7 +57,7 @@ func local_request_SidecarRpc_GetBlockHeight_0(ctx context.Context, marshaler ru
 
 }
 
-func request_SidecarRpc_GetStateRoot_0(ctx context.Context, marshaler runtime.Marshaler, client SidecarRpcClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_Rpc_GetStateRoot_0(ctx context.Context, marshaler runtime.Marshaler, client RpcClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetStateRootRequest
 	var metadata runtime.ServerMetadata
 
@@ -87,7 +87,7 @@ func request_SidecarRpc_GetStateRoot_0(ctx context.Context, marshaler runtime.Ma
 
 }
 
-func local_request_SidecarRpc_GetStateRoot_0(ctx context.Context, marshaler runtime.Marshaler, server SidecarRpcServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_Rpc_GetStateRoot_0(ctx context.Context, marshaler runtime.Marshaler, server RpcServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetStateRootRequest
 	var metadata runtime.ServerMetadata
 
@@ -117,7 +117,7 @@ func local_request_SidecarRpc_GetStateRoot_0(ctx context.Context, marshaler runt
 
 }
 
-func request_SidecarRpc_GetRewardsRoot_0(ctx context.Context, marshaler runtime.Marshaler, client SidecarRpcClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_Rpc_GetRewardsRoot_0(ctx context.Context, marshaler runtime.Marshaler, client RpcClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetRewardsRootRequest
 	var metadata runtime.ServerMetadata
 
@@ -147,7 +147,7 @@ func request_SidecarRpc_GetRewardsRoot_0(ctx context.Context, marshaler runtime.
 
 }
 
-func local_request_SidecarRpc_GetRewardsRoot_0(ctx context.Context, marshaler runtime.Marshaler, server SidecarRpcServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_Rpc_GetRewardsRoot_0(ctx context.Context, marshaler runtime.Marshaler, server RpcServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetRewardsRootRequest
 	var metadata runtime.ServerMetadata
 
@@ -177,7 +177,7 @@ func local_request_SidecarRpc_GetRewardsRoot_0(ctx context.Context, marshaler ru
 
 }
 
-func request_SidecarRpc_GenerateClaimProof_0(ctx context.Context, marshaler runtime.Marshaler, client SidecarRpcClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_Rpc_GenerateClaimProof_0(ctx context.Context, marshaler runtime.Marshaler, client RpcClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GenerateClaimProofRequest
 	var metadata runtime.ServerMetadata
 
@@ -190,7 +190,7 @@ func request_SidecarRpc_GenerateClaimProof_0(ctx context.Context, marshaler runt
 
 }
 
-func local_request_SidecarRpc_GenerateClaimProof_0(ctx context.Context, marshaler runtime.Marshaler, server SidecarRpcServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_Rpc_GenerateClaimProof_0(ctx context.Context, marshaler runtime.Marshaler, server RpcServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GenerateClaimProofRequest
 	var metadata runtime.ServerMetadata
 
@@ -203,7 +203,7 @@ func local_request_SidecarRpc_GenerateClaimProof_0(ctx context.Context, marshale
 
 }
 
-func request_SidecarRpc_GetAvailableRewards_0(ctx context.Context, marshaler runtime.Marshaler, client SidecarRpcClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_Rpc_GetAvailableRewards_0(ctx context.Context, marshaler runtime.Marshaler, client RpcClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetAvailableRewardsRequest
 	var metadata runtime.ServerMetadata
 
@@ -216,7 +216,7 @@ func request_SidecarRpc_GetAvailableRewards_0(ctx context.Context, marshaler run
 
 }
 
-func local_request_SidecarRpc_GetAvailableRewards_0(ctx context.Context, marshaler runtime.Marshaler, server SidecarRpcServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_Rpc_GetAvailableRewards_0(ctx context.Context, marshaler runtime.Marshaler, server RpcServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetAvailableRewardsRequest
 	var metadata runtime.ServerMetadata
 
@@ -229,7 +229,7 @@ func local_request_SidecarRpc_GetAvailableRewards_0(ctx context.Context, marshal
 
 }
 
-func request_SidecarRpc_GetAvailableRewardsTokens_0(ctx context.Context, marshaler runtime.Marshaler, client SidecarRpcClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_Rpc_GetAvailableRewardsTokens_0(ctx context.Context, marshaler runtime.Marshaler, client RpcClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetAvailableRewardsTokensRequest
 	var metadata runtime.ServerMetadata
 
@@ -242,7 +242,7 @@ func request_SidecarRpc_GetAvailableRewardsTokens_0(ctx context.Context, marshal
 
 }
 
-func local_request_SidecarRpc_GetAvailableRewardsTokens_0(ctx context.Context, marshaler runtime.Marshaler, server SidecarRpcServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_Rpc_GetAvailableRewardsTokens_0(ctx context.Context, marshaler runtime.Marshaler, server RpcServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetAvailableRewardsTokensRequest
 	var metadata runtime.ServerMetadata
 
@@ -255,14 +255,14 @@ func local_request_SidecarRpc_GetAvailableRewardsTokens_0(ctx context.Context, m
 
 }
 
-// RegisterSidecarRpcHandlerServer registers the http handlers for service SidecarRpc to "mux".
-// UnaryRPC     :call SidecarRpcServer directly.
+// RegisterRpcHandlerServer registers the http handlers for service Rpc to "mux".
+// UnaryRPC     :call RpcServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
-// Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterSidecarRpcHandlerFromEndpoint instead.
+// Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterRpcHandlerFromEndpoint instead.
 // GRPC interceptors will not work for this type of registration. To use interceptors, you must use the "runtime.WithMiddlewares" option in the "runtime.NewServeMux" call.
-func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux, server SidecarRpcServer) error {
+func RegisterRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux, server RpcServer) error {
 
-	mux.Handle("POST", pattern_SidecarRpc_GetBlockHeight_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Rpc_GetBlockHeight_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -270,12 +270,12 @@ func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.SidecarRpc/GetBlockHeight", runtime.WithHTTPPathPattern("/v1/latest-block"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.Rpc/GetBlockHeight", runtime.WithHTTPPathPattern("/v1/latest-block"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_SidecarRpc_GetBlockHeight_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Rpc_GetBlockHeight_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -283,11 +283,11 @@ func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 			return
 		}
 
-		forward_SidecarRpc_GetBlockHeight_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Rpc_GetBlockHeight_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_SidecarRpc_GetStateRoot_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Rpc_GetStateRoot_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -295,12 +295,12 @@ func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.SidecarRpc/GetStateRoot", runtime.WithHTTPPathPattern("/v1/state-roots/{blockNumber}"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.Rpc/GetStateRoot", runtime.WithHTTPPathPattern("/v1/state-roots/{blockNumber}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_SidecarRpc_GetStateRoot_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Rpc_GetStateRoot_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -308,11 +308,11 @@ func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 			return
 		}
 
-		forward_SidecarRpc_GetStateRoot_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Rpc_GetStateRoot_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_SidecarRpc_GetRewardsRoot_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Rpc_GetRewardsRoot_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -320,12 +320,12 @@ func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.SidecarRpc/GetRewardsRoot", runtime.WithHTTPPathPattern("/v1/rewards-roots/{blockNumber}"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.Rpc/GetRewardsRoot", runtime.WithHTTPPathPattern("/v1/rewards-roots/{blockNumber}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_SidecarRpc_GetRewardsRoot_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Rpc_GetRewardsRoot_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -333,11 +333,11 @@ func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 			return
 		}
 
-		forward_SidecarRpc_GetRewardsRoot_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Rpc_GetRewardsRoot_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_SidecarRpc_GenerateClaimProof_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Rpc_GenerateClaimProof_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -345,12 +345,12 @@ func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.SidecarRpc/GenerateClaimProof", runtime.WithHTTPPathPattern("/v1/claim-proof"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.Rpc/GenerateClaimProof", runtime.WithHTTPPathPattern("/v1/claim-proof"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_SidecarRpc_GenerateClaimProof_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Rpc_GenerateClaimProof_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -358,11 +358,11 @@ func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 			return
 		}
 
-		forward_SidecarRpc_GenerateClaimProof_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Rpc_GenerateClaimProof_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_SidecarRpc_GetAvailableRewards_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Rpc_GetAvailableRewards_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -370,12 +370,12 @@ func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.SidecarRpc/GetAvailableRewards", runtime.WithHTTPPathPattern("/v1/available-rewards"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.Rpc/GetAvailableRewards", runtime.WithHTTPPathPattern("/v1/available-rewards"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_SidecarRpc_GetAvailableRewards_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Rpc_GetAvailableRewards_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -383,11 +383,11 @@ func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 			return
 		}
 
-		forward_SidecarRpc_GetAvailableRewards_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Rpc_GetAvailableRewards_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_SidecarRpc_GetAvailableRewardsTokens_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Rpc_GetAvailableRewardsTokens_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -395,12 +395,12 @@ func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.SidecarRpc/GetAvailableRewardsTokens", runtime.WithHTTPPathPattern("/v1/available-rewards-tokens"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.Rpc/GetAvailableRewardsTokens", runtime.WithHTTPPathPattern("/v1/available-rewards-tokens"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_SidecarRpc_GetAvailableRewardsTokens_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Rpc_GetAvailableRewardsTokens_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -408,16 +408,16 @@ func RegisterSidecarRpcHandlerServer(ctx context.Context, mux *runtime.ServeMux,
 			return
 		}
 
-		forward_SidecarRpc_GetAvailableRewardsTokens_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Rpc_GetAvailableRewardsTokens_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
 	return nil
 }
 
-// RegisterSidecarRpcHandlerFromEndpoint is same as RegisterSidecarRpcHandler but
+// RegisterRpcHandlerFromEndpoint is same as RegisterRpcHandler but
 // automatically dials to "endpoint" and closes the connection when "ctx" gets done.
-func RegisterSidecarRpcHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
+func RegisterRpcHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
 	conn, err := grpc.NewClient(endpoint, opts...)
 	if err != nil {
 		return err
@@ -437,151 +437,151 @@ func RegisterSidecarRpcHandlerFromEndpoint(ctx context.Context, mux *runtime.Ser
 		}()
 	}()
 
-	return RegisterSidecarRpcHandler(ctx, mux, conn)
+	return RegisterRpcHandler(ctx, mux, conn)
 }
 
-// RegisterSidecarRpcHandler registers the http handlers for service SidecarRpc to "mux".
+// RegisterRpcHandler registers the http handlers for service Rpc to "mux".
 // The handlers forward requests to the grpc endpoint over "conn".
-func RegisterSidecarRpcHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
-	return RegisterSidecarRpcHandlerClient(ctx, mux, NewSidecarRpcClient(conn))
+func RegisterRpcHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
+	return RegisterRpcHandlerClient(ctx, mux, NewRpcClient(conn))
 }
 
-// RegisterSidecarRpcHandlerClient registers the http handlers for service SidecarRpc
-// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "SidecarRpcClient".
-// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "SidecarRpcClient"
+// RegisterRpcHandlerClient registers the http handlers for service Rpc
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "RpcClient".
+// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "RpcClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
-// "SidecarRpcClient" to call the correct interceptors. This client ignores the HTTP middlewares.
-func RegisterSidecarRpcHandlerClient(ctx context.Context, mux *runtime.ServeMux, client SidecarRpcClient) error {
+// "RpcClient" to call the correct interceptors. This client ignores the HTTP middlewares.
+func RegisterRpcHandlerClient(ctx context.Context, mux *runtime.ServeMux, client RpcClient) error {
 
-	mux.Handle("POST", pattern_SidecarRpc_GetBlockHeight_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Rpc_GetBlockHeight_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.SidecarRpc/GetBlockHeight", runtime.WithHTTPPathPattern("/v1/latest-block"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.Rpc/GetBlockHeight", runtime.WithHTTPPathPattern("/v1/latest-block"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_SidecarRpc_GetBlockHeight_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Rpc_GetBlockHeight_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_SidecarRpc_GetBlockHeight_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Rpc_GetBlockHeight_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_SidecarRpc_GetStateRoot_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Rpc_GetStateRoot_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.SidecarRpc/GetStateRoot", runtime.WithHTTPPathPattern("/v1/state-roots/{blockNumber}"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.Rpc/GetStateRoot", runtime.WithHTTPPathPattern("/v1/state-roots/{blockNumber}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_SidecarRpc_GetStateRoot_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Rpc_GetStateRoot_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_SidecarRpc_GetStateRoot_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Rpc_GetStateRoot_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_SidecarRpc_GetRewardsRoot_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Rpc_GetRewardsRoot_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.SidecarRpc/GetRewardsRoot", runtime.WithHTTPPathPattern("/v1/rewards-roots/{blockNumber}"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.Rpc/GetRewardsRoot", runtime.WithHTTPPathPattern("/v1/rewards-roots/{blockNumber}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_SidecarRpc_GetRewardsRoot_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Rpc_GetRewardsRoot_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_SidecarRpc_GetRewardsRoot_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Rpc_GetRewardsRoot_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_SidecarRpc_GenerateClaimProof_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Rpc_GenerateClaimProof_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.SidecarRpc/GenerateClaimProof", runtime.WithHTTPPathPattern("/v1/claim-proof"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.Rpc/GenerateClaimProof", runtime.WithHTTPPathPattern("/v1/claim-proof"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_SidecarRpc_GenerateClaimProof_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Rpc_GenerateClaimProof_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_SidecarRpc_GenerateClaimProof_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Rpc_GenerateClaimProof_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_SidecarRpc_GetAvailableRewards_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Rpc_GetAvailableRewards_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.SidecarRpc/GetAvailableRewards", runtime.WithHTTPPathPattern("/v1/available-rewards"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.Rpc/GetAvailableRewards", runtime.WithHTTPPathPattern("/v1/available-rewards"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_SidecarRpc_GetAvailableRewards_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Rpc_GetAvailableRewards_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_SidecarRpc_GetAvailableRewards_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Rpc_GetAvailableRewards_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("POST", pattern_SidecarRpc_GetAvailableRewardsTokens_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_Rpc_GetAvailableRewardsTokens_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.SidecarRpc/GetAvailableRewardsTokens", runtime.WithHTTPPathPattern("/v1/available-rewards-tokens"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/eigenlayer.sidecar.api.v1.Rpc/GetAvailableRewardsTokens", runtime.WithHTTPPathPattern("/v1/available-rewards-tokens"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_SidecarRpc_GetAvailableRewardsTokens_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Rpc_GetAvailableRewardsTokens_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_SidecarRpc_GetAvailableRewardsTokens_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Rpc_GetAvailableRewardsTokens_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -589,29 +589,29 @@ func RegisterSidecarRpcHandlerClient(ctx context.Context, mux *runtime.ServeMux,
 }
 
 var (
-	pattern_SidecarRpc_GetBlockHeight_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "latest-block"}, ""))
+	pattern_Rpc_GetBlockHeight_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "latest-block"}, ""))
 
-	pattern_SidecarRpc_GetStateRoot_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "state-roots", "blockNumber"}, ""))
+	pattern_Rpc_GetStateRoot_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "state-roots", "blockNumber"}, ""))
 
-	pattern_SidecarRpc_GetRewardsRoot_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "rewards-roots", "blockNumber"}, ""))
+	pattern_Rpc_GetRewardsRoot_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "rewards-roots", "blockNumber"}, ""))
 
-	pattern_SidecarRpc_GenerateClaimProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "claim-proof"}, ""))
+	pattern_Rpc_GenerateClaimProof_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "claim-proof"}, ""))
 
-	pattern_SidecarRpc_GetAvailableRewards_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "available-rewards"}, ""))
+	pattern_Rpc_GetAvailableRewards_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "available-rewards"}, ""))
 
-	pattern_SidecarRpc_GetAvailableRewardsTokens_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "available-rewards-tokens"}, ""))
+	pattern_Rpc_GetAvailableRewardsTokens_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "available-rewards-tokens"}, ""))
 )
 
 var (
-	forward_SidecarRpc_GetBlockHeight_0 = runtime.ForwardResponseMessage
+	forward_Rpc_GetBlockHeight_0 = runtime.ForwardResponseMessage
 
-	forward_SidecarRpc_GetStateRoot_0 = runtime.ForwardResponseMessage
+	forward_Rpc_GetStateRoot_0 = runtime.ForwardResponseMessage
 
-	forward_SidecarRpc_GetRewardsRoot_0 = runtime.ForwardResponseMessage
+	forward_Rpc_GetRewardsRoot_0 = runtime.ForwardResponseMessage
 
-	forward_SidecarRpc_GenerateClaimProof_0 = runtime.ForwardResponseMessage
+	forward_Rpc_GenerateClaimProof_0 = runtime.ForwardResponseMessage
 
-	forward_SidecarRpc_GetAvailableRewards_0 = runtime.ForwardResponseMessage
+	forward_Rpc_GetAvailableRewards_0 = runtime.ForwardResponseMessage
 
-	forward_SidecarRpc_GetAvailableRewardsTokens_0 = runtime.ForwardResponseMessage
+	forward_Rpc_GetAvailableRewardsTokens_0 = runtime.ForwardResponseMessage
 )
