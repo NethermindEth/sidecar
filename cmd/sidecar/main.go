@@ -52,6 +52,9 @@ func main() {
 	}
 
 	contractStore := sqliteContractStore.NewSqliteContractStore(grm, l, cfg)
+	if err := contractStore.InitializeCoreContracts(); err != nil {
+		log.Fatalf("Failed to initialize core contracts: %v", err)
+	}
 
 	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
 

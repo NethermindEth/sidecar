@@ -68,6 +68,7 @@ func (s *SqliteContractStore) FindOrCreateContract(
 	verified bool,
 	bytecodeHash string,
 	matchingContractAddress string,
+	checkedForAbi bool,
 ) (*contractStore.Contract, bool, error) {
 	found := false
 	upsertedContract, err := sqlite.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
@@ -88,6 +89,7 @@ func (s *SqliteContractStore) FindOrCreateContract(
 			Verified:                verified,
 			BytecodeHash:            bytecodeHash,
 			MatchingContractAddress: matchingContractAddress,
+			CheckedForAbi:           checkedForAbi,
 		}
 
 		result = s.Db.Create(contract)
@@ -295,6 +297,16 @@ func (s *SqliteContractStore) InitializeCoreContracts() error {
 		return xerrors.Errorf("Failed to load core contracts: %w", err)
 	}
 
+	contracts := make([]*contractStore.Contract, 0)
+	res := s.Db.Find(&contracts)
+	if res.Error != nil {
+		return xerrors.Errorf("Failed to fetch contracts: %w", res.Error)
+	}
+	if len(contracts) > 0 {
+		s.Logger.Sugar().Debugw("Core contracts already initialized")
+		return nil
+	}
+
 	for _, contract := range coreContracts.CoreContracts {
 		_, _, err := s.FindOrCreateContract(
 			contract.ContractAddress,
@@ -302,10 +314,17 @@ func (s *SqliteContractStore) InitializeCoreContracts() error {
 			true,
 			contract.BytecodeHash,
 			"",
+			true,
 		)
 		if err != nil {
 			return xerrors.Errorf("Failed to create core contract: %w", err)
 		}
+
+		_, err = s.SetContractCheckedForProxy(contract.ContractAddress)
+		if err != nil {
+			return xerrors.Errorf("Failed to create core contract: %w", err)
+		}
+
 	}
 	for _, proxy := range coreContracts.ProxyContracts {
 		_, _, err := s.FindOrCreateProxyContract(

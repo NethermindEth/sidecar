@@ -84,7 +84,6 @@ func (cm *ContractManager) CreateContract(
 	bytecodeHash string,
 	reindexContract bool,
 ) (*contractStore.Contract, error) {
-
 	// If the bytecode hash wasnt provided, fetch it
 	if bytecodeHash == "" {
 		cm.Logger.Sugar().Debugw("No bytecode hash provided for contract, fetching",
@@ -112,6 +111,7 @@ func (cm *ContractManager) CreateContract(
 		false,
 		bytecodeHash,
 		"",
+		false,
 	)
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to create new contract",
@@ -122,9 +122,7 @@ func (cm *ContractManager) CreateContract(
 		cm.Logger.Sugar().Debugf(fmt.Sprintf("Created new contract '%s'", contractAddress))
 	}
 
-	if !contract.CheckedForAbi || reindexContract {
-		contract = cm.FindAndSetContractAbi(contractAddress)
-	}
+	contract = cm.FindAndSetContractAbi(contractAddress)
 
 	cm.FindAndSetLookalikeContract(contractAddress, bytecodeHash)
 

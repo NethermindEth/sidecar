@@ -44,30 +44,30 @@ func (m *SqliteMigration) Up(grm *gorm.DB) error {
 			transaction_index INTEGER NOT NULL,
 			output_data TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME,
-			deleted_at DATETIME,
+			updated_at DATETIME DEFAULT NULL,
+			deleted_at DATETIME DEFAULT NULL,
 			UNIQUE(transaction_hash, log_index)
     	)`,
 		`CREATE TABLE IF NOT EXISTS contracts (
 			contract_address TEXT NOT NULL,
 			contract_abi TEXT,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME,
-			deleted_at DATETIME,
 			bytecode_hash TEXT DEFAULT NULL,
 			verified INTEGER DEFAULT false,
+			checked_for_proxy INTEGER DEFAULT 0,
+			checked_for_abi INTEGER DEFAULT 0,
 			matching_contract_address TEXT DEFAULT NULL,
-			checked_for_proxy INTEGER DEFAULT 0 NOT NULL,
-			checked_for_abi INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT NULL,
+			deleted_at DATETIME DEFAULT NULL,
 			UNIQUE(contract_address)
 		)`,
 		`CREATE TABLE IF NOT EXISTS proxy_contracts (
 			block_number INTEGER NOT NULL,
 			contract_address TEXT NOT NULL REFERENCES contracts(contract_address) ON DELETE CASCADE,
 			proxy_contract_address TEXT NOT NULL,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-			updated_at DATETIME,
-			deleted_at DATETIME,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT NULL,
+			deleted_at DATETIME DEFAULT NULL,
 			unique(contract_address, proxy_contract_address, block_number) 
 		)`,
 		`CREATE TABLE IF NOT EXISTS operator_restaked_strategies (
@@ -75,11 +75,11 @@ func (m *SqliteMigration) Up(grm *gorm.DB) error {
 			operator TEXT NOT NULL,
 			avs TEXT NOT NULL,
 			strategy TEXT NOT NULL,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME,
-			deleted_at DATETIME,
 			block_time DATETIME NOT NULL,
-			avs_directory_address TEXT
+			avs_directory_address TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT NULL,
+			deleted_at DATETIME DEFAULT NULL
 		);`,
 	}
 

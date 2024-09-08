@@ -12,7 +12,7 @@ var CoreContracts embed.FS
 
 type ContractStore interface {
 	GetContractForAddress(address string) (*Contract, error)
-	FindOrCreateContract(address string, abiJson string, verified bool, bytecodeHash string, matchingContractAddress string) (*Contract, bool, error)
+	FindOrCreateContract(address string, abiJson string, verified bool, bytecodeHash string, matchingContractAddress string, checkedForAbi bool) (*Contract, bool, error)
 	FindVerifiedContractWithMatchingBytecodeHash(bytecodeHash string, address string) (*Contract, error)
 	FindOrCreateProxyContract(blockNumber uint64, contractAddress string, proxyContractAddress string) (*ProxyContract, bool, error)
 	GetContractWithProxyContract(address string, atBlockNumber uint64) (*ContractsTree, error)

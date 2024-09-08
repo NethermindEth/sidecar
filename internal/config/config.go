@@ -261,7 +261,7 @@ func (c *Config) GetGenesisBlockNumber() uint64 {
 	case Environment_PreProd:
 		return 1140406
 	case Environment_Testnet:
-		return 1140406
+		return 1167044
 	case Environment_Mainnet:
 		return 19492759
 	default:

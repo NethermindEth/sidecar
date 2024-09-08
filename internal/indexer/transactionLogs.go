@@ -47,7 +47,7 @@ func (idx *Indexer) ParseTransactionLogs(
 	transaction *ethereum.EthereumTransaction,
 	receipt *ethereum.EthereumTransactionReceipt,
 ) (*parser.ParsedTransaction, *IndexError) {
-	idx.Logger.Sugar().Debugf("ProcessingTransaction '%s'", transaction.Hash.Value())
+	idx.Logger.Sugar().Debugw("ProcessingTransaction", zap.String("transactionHash", transaction.Hash.Value()))
 	parsedTransaction := &parser.ParsedTransaction{
 		Logs:        make([]*parser.DecodedLog, 0),
 		Transaction: transaction,
@@ -142,7 +142,10 @@ func (idx *Indexer) ParseTransactionLogs(
 
 	logs := make([]*parser.DecodedLog, 0)
 	// Attempt to decode each transaction log
-	idx.Logger.Sugar().Debugw(fmt.Sprintf("Decoding '%d' logs for transaction '%s'", len(receipt.Logs), transaction.Hash.Value()))
+	idx.Logger.Sugar().Debugw(fmt.Sprintf("Decoding '%d' logs for transaction", len(receipt.Logs)),
+		zap.String("transactionHash", transaction.Hash.Value()),
+		zap.Uint64("blockNumber", transaction.BlockNumber.Value()),
+	)
 
 	for i, lg := range receipt.Logs {
 		if !idx.IsInterestingAddress(lg.Address.Value()) {
@@ -169,7 +172,7 @@ func (idx *Indexer) ParseTransactionLogs(
 func (idx *Indexer) FindContractUpgradedLogs(parsedLogs []*parser.DecodedLog) []*parser.DecodedLog {
 	contractUpgradedLogs := make([]*parser.DecodedLog, 0)
 	for _, parsedLog := range parsedLogs {
-		if parsedLog.EventName == "Upgraded" {
+		if parsedLog.EventName == "Upgraded" && idx.IsInterestingAddress(parsedLog.Address) {
 			contractUpgradedLogs = append(contractUpgradedLogs, parsedLog)
 		}
 	}
