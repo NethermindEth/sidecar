@@ -2,6 +2,7 @@ package stateManager
 
 import (
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -58,13 +59,13 @@ func Test_StateManager(t *testing.T) {
 
 		blockNumber := uint64(200)
 		blockHash := "0x123"
-		stateRoot := "0x456"
+		stateRoot := types.StateRoot("0x456")
 
 		root, err := esm.WriteStateRoot(blockNumber, blockHash, stateRoot)
 		assert.Nil(t, err)
 		assert.Equal(t, blockNumber, root.EthBlockNumber)
 		assert.Equal(t, blockHash, root.EthBlockHash)
-		assert.Equal(t, stateRoot, root.StateRoot)
+		assert.Equal(t, string(stateRoot), root.StateRoot)
 		insertedStateRoots = append(insertedStateRoots, root)
 	})
 	t.Run("Should read a state root from the db", func(t *testing.T) {

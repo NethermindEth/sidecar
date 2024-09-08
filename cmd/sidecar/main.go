@@ -72,7 +72,7 @@ func main() {
 
 	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, l, cfg)
 
-	p := pipeline.NewPipeline(fetchr, idxr, mds, l)
+	p := pipeline.NewPipeline(fetchr, idxr, mds, sm, l)
 
 	// Create new sidecar instance
 	sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{

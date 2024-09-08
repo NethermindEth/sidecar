@@ -2,26 +2,34 @@ package pipeline
 
 import (
 	"context"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/internal/fetcher"
 	"github.com/Layr-Labs/sidecar/internal/indexer"
 	"github.com/Layr-Labs/sidecar/internal/storage"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 type Pipeline struct {
-	Fetcher    *fetcher.Fetcher
-	Indexer    *indexer.Indexer
-	BlockStore storage.BlockStore
-	Logger     *zap.Logger
+	Fetcher      *fetcher.Fetcher
+	Indexer      *indexer.Indexer
+	BlockStore   storage.BlockStore
+	Logger       *zap.Logger
+	stateManager *stateManager.EigenStateManager
 }
 
-func NewPipeline(f *fetcher.Fetcher, i *indexer.Indexer, bs storage.BlockStore, l *zap.Logger) *Pipeline {
+func NewPipeline(
+	f *fetcher.Fetcher,
+	i *indexer.Indexer,
+	bs storage.BlockStore,
+	sm *stateManager.EigenStateManager,
+	l *zap.Logger,
+) *Pipeline {
 	return &Pipeline{
-		Fetcher:    f,
-		Indexer:    i,
-		Logger:     l,
-		BlockStore: bs,
+		Fetcher:      f,
+		Indexer:      i,
+		Logger:       l,
+		stateManager: sm,
+		BlockStore:   bs,
 	}
 }
 
@@ -49,6 +57,11 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 	}
 	if found {
 		p.Logger.Sugar().Infow("Block already indexed", zap.Uint64("blockNumber", blockNumber))
+	}
+
+	if err := p.stateManager.InitProcessingForBlock(blockNumber); err != nil {
+		p.Logger.Sugar().Errorw("Failed to init processing for block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		return err
 	}
 
 	// Parse all transactions and logs for the block.
@@ -79,7 +92,7 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		p.Logger.Debug("Indexed transaction", zap.Uint64("blockNumber", blockNumber), zap.String("transactionHash", indexedTransaction.TransactionHash))
 
 		for _, log := range pt.Logs {
-			_, err := p.Indexer.IndexLog(
+			indexedLog, err := p.Indexer.IndexLog(
 				ctx,
 				indexedBlock.Number,
 				indexedTransaction.TransactionHash,
@@ -100,6 +113,21 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 				zap.String("transactionHash", indexedTransaction.TransactionHash),
 				zap.Uint64("logIndex", log.LogIndex),
 			)
+
+			p.Logger.Sugar().Debugw("Handling log state change",
+				zap.Uint64("blockNumber", blockNumber),
+				zap.String("transactionHash", pt.Transaction.Hash.Value()),
+				zap.Uint64("logIndex", log.LogIndex),
+			)
+			if err := p.stateManager.HandleLogStateChange(indexedLog); err != nil {
+				p.Logger.Sugar().Errorw("Failed to handle log state change",
+					zap.Uint64("blockNumber", blockNumber),
+					zap.String("transactionHash", pt.Transaction.Hash.Value()),
+					zap.Uint64("logIndex", log.LogIndex),
+					zap.Error(err),
+				)
+				return err
+			}
 		}
 		// Check the logs for any contract upgrades.
 		upgradedLogs := p.Indexer.FindContractUpgradedLogs(pt.Logs)
@@ -122,23 +150,23 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 	}
 	p.Indexer.FindAndHandleContractCreationForTransactions(interestingTransactions, block.TxReceipts, block.ContractStorage, blockNumber)
 
-	// if err := p.CloneAggregatedStateTablesFromPreviousBlock(blockNumber); err != nil {
-	// 	p.Logger.Sugar().Errorw("Failed to clone aggregated state tables", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
-	// 	return err
-	// }
-	// if err := p.GenerateStateTransactionsFromLogs(blockNumber, nil, nil); err != nil {
-	// 	p.Logger.Sugar().Errorw("Failed to generate state transactions from logs", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
-	// 	return err
-	// }
+	if err := p.stateManager.CommitFinalState(blockNumber); err != nil {
+		p.Logger.Sugar().Errorw("Failed to commit final state", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		return err
+	}
 
-	return nil
-}
+	stateRoot, err := p.stateManager.GenerateStateRoot(blockNumber)
+	if err != nil {
+		p.Logger.Sugar().Errorw("Failed to generate state root", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		return err
+	}
 
-func (p *Pipeline) CloneAggregatedStateTablesFromPreviousBlock(currentBlock uint64) error {
-	return nil
-}
-
-func (p *Pipeline) GenerateStateTransactionsFromLogs(currentBlock uint64, db *gorm.DB, tx *gorm.DB) error {
+	if sr, err := p.stateManager.WriteStateRoot(blockNumber, block.Block.Hash.Value(), stateRoot); err != nil {
+		p.Logger.Sugar().Errorw("Failed to write state root", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		return err
+	} else {
+		p.Logger.Sugar().Infow("Wrote state root", zap.Uint64("blockNumber", blockNumber), zap.Any("stateRoot", sr))
+	}
 
 	return nil
 }

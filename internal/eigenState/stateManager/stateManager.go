@@ -110,12 +110,12 @@ func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64) (types.StateRo
 func (e *EigenStateManager) WriteStateRoot(
 	blockNumber uint64,
 	blockHash string,
-	stateroot string,
+	stateroot types.StateRoot,
 ) (*StateRoot, error) {
 	root := &StateRoot{
 		EthBlockNumber: blockNumber,
 		EthBlockHash:   blockHash,
-		StateRoot:      stateroot,
+		StateRoot:      string(stateroot),
 	}
 
 	result := e.Db.Model(&StateRoot{}).Clauses(clause.Returning{}).Create(&root)
