@@ -34,10 +34,6 @@ func setup() (
 	return cfg, db, l, err
 }
 
-func teardown() {
-
-}
-
 func Test_SqliteContractStore(t *testing.T) {
 	os.Setenv("SIDECAR_ENVIRONMENT", "testnet")
 	cfg := config.NewConfig()
