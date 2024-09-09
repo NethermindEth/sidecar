@@ -2,6 +2,7 @@ package operatorShares
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/eigenState/base"
@@ -97,6 +98,20 @@ func (osm *OperatorSharesModel) GetModelName() string {
 	return "OperatorSharesModel"
 }
 
+type operatorSharesOutput struct {
+	Strategy string      `json:"strategy"`
+	Shares   json.Number `json:"shares"`
+}
+
+func parseLogOutputForOperatorShares(outputDataStr string) (*operatorSharesOutput, error) {
+	outputData := &operatorSharesOutput{}
+	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
+	decoder.UseNumber()
+
+	err := decoder.Decode(&outputData)
+	return outputData, err
+}
+
 func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChange], []uint64) {
 	stateChanges := make(types.StateTransitions[AccumulatedStateChange])
 
@@ -105,7 +120,7 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 		if err != nil {
 			return nil, err
 		}
-		outputData, err := osm.ParseLogOutput(log)
+		outputData, err := parseLogOutputForOperatorShares(log.OutputData)
 		if err != nil {
 			return nil, err
 		}
@@ -114,11 +129,9 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 		if _, ok := osm.stateAccumulator[log.BlockNumber]; !ok {
 			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
 		}
-
 		operator := arguments[0].Value.(string)
-		strategy := outputData["strategy"].(string)
-		sharesStr := outputData["shares"].(string)
 
+		sharesStr := outputData.Shares.String()
 		shares, err := uint256.FromDecimal(sharesStr)
 		if err != nil {
 			osm.logger.Sugar().Errorw("Failed to convert shares to uint256",
@@ -136,12 +149,12 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 			shares = shares.Neg(shares)
 		}
 
-		slotId := NewSlotId(operator, strategy)
+		slotId := NewSlotId(operator, outputData.Strategy)
 		record, ok := osm.stateAccumulator[log.BlockNumber][slotId]
 		if !ok {
 			record = &AccumulatedStateChange{
 				Operator:    operator,
-				Strategy:    strategy,
+				Strategy:    outputData.Strategy,
 				Shares:      shares,
 				BlockNumber: log.BlockNumber,
 			}
