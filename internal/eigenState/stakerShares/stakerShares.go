@@ -37,6 +37,7 @@ type AccumulatedStateChange struct {
 	Strategy    string
 	Shares      *uint256.Int
 	BlockNumber uint64
+	IsNegative  bool
 }
 
 type StakerSharesDiff struct {
@@ -109,6 +110,11 @@ func parseLogOutputForDepositEvent(outputDataStr string) (*depositOutputData, er
 	decoder.UseNumber()
 
 	err := decoder.Decode(&outputData)
+	if err != nil {
+		return nil, err
+	}
+	outputData.Staker = strings.ToLower(outputData.Staker)
+	outputData.Strategy = strings.ToLower(outputData.Strategy)
 	return outputData, err
 }
 
@@ -143,22 +149,35 @@ func (ss *StakerSharesModel) handleStakerDepositEvent(log *storage.TransactionLo
 	}, nil
 }
 
+type podSharesUpdatedOutputData struct {
+	SharesDelta json.Number `json:"sharesDelta"`
+}
+
+func parseLogOutputForPodSharesUpdatedEvent(outputDataStr string) (*podSharesUpdatedOutputData, error) {
+	outputData := &podSharesUpdatedOutputData{}
+	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
+	decoder.UseNumber()
+
+	err := decoder.Decode(&outputData)
+	if err != nil {
+		return nil, err
+	}
+	return outputData, err
+}
+
 func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
 	arguments, err := ss.ParseLogArguments(log)
 	if err != nil {
 		return nil, err
 	}
-	outputData, err := ss.ParseLogOutput(log)
+	outputData, err := parseLogOutputForPodSharesUpdatedEvent(log.OutputData)
 	if err != nil {
 		return nil, err
 	}
 
-	staker := arguments[0].Value.(string)
+	staker := strings.ToLower(arguments[0].Value.(string))
 
-	sharesDeltaStr, ok := outputData["sharesDelta"].(string)
-	if !ok {
-		return nil, xerrors.Errorf("sharesDelta not found in event")
-	}
+	sharesDeltaStr := outputData.SharesDelta.String()
 
 	sharesDelta, err := uint256.FromDecimal(sharesDeltaStr)
 	if err != nil {
@@ -199,12 +218,14 @@ func (ss *StakerSharesModel) handleM1StakerWithdrawals(log *storage.TransactionL
 	return &AccumulatedStateChange{
 		Staker:      stakerAddress,
 		Strategy:    outputData.Strategy,
-		Shares:      shares.Neg(shares),
+		Shares:      shares,
 		BlockNumber: log.BlockNumber,
+		IsNegative:  true,
 	}, nil
 }
 
 func (ss *StakerSharesModel) handleM2StakerWithdrawals(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+	// TODO(seanmcgary): come back to this...
 	return nil, nil
 }
 
@@ -251,7 +272,12 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 			record = parsedRecord
 			ss.stateAccumulator[log.BlockNumber][slotId] = record
 		} else {
-			record.Shares = record.Shares.Add(record.Shares, parsedRecord.Shares)
+			if record.IsNegative {
+				record.Shares = record.Shares.Sub(record.Shares, parsedRecord.Shares)
+			} else {
+				record.Shares = record.Shares.Add(record.Shares, parsedRecord.Shares)
+			}
+
 		}
 
 		return record, nil

@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 )
@@ -84,13 +85,82 @@ func Test_StakerSharesState(t *testing.T) {
 
 		expectedShares, _ := uint256.FromDecimal("159925690037480381")
 		assert.Equal(t, expectedShares, typedChange.Shares)
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", typedChange.Staker)
+		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", typedChange.Strategy)
 
 		teardown(model)
 	})
 	t.Run("Should capture a staker share M1 Withdrawal", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+		blockNumber := uint64(200)
+		log := storage.TransactionLog{
+			TransactionHash:  "some hash",
+			TransactionIndex: big.NewInt(200).Uint64(),
+			BlockNumber:      blockNumber,
+			Address:          cfg.GetContractsMapForEnvAndNetwork().StrategyManager,
+			Arguments:        `[{"Name": "depositor", "Type": "address", "Value": null, "Indexed": false}, {"Name": "nonce", "Type": "uint96", "Value": null, "Indexed": false}, {"Name": "strategy", "Type": "address", "Value": null, "Indexed": false}, {"Name": "shares", "Type": "uint256", "Value": null, "Indexed": false}]`,
+			EventName:        "ShareWithdrawalQueued",
+			LogIndex:         big.NewInt(500).Uint64(),
+			OutputData:       `{"nonce": 0, "shares": 246393621132195985, "strategy": "0x298afb19a105d59e74658c4c334ff360bade6dd2", "depositor": "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78"}`,
+			CreatedAt:        time.Time{},
+			UpdatedAt:        time.Time{},
+			DeletedAt:        time.Time{},
+		}
 
+		model, err := NewStakerSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+
+		err = model.InitBlockProcessing(blockNumber)
+		assert.Nil(t, err)
+
+		change, err := model.HandleStateChange(&log)
+		assert.Nil(t, err)
+		assert.NotNil(t, change)
+
+		typedChange := change.(*AccumulatedStateChange)
+
+		expectedShares, _ := uint256.FromDecimal("246393621132195985")
+		assert.Equal(t, expectedShares, typedChange.Shares)
+		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", typedChange.Staker)
+		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", typedChange.Strategy)
+
+		teardown(model)
 	})
 	t.Run("Should capture staker EigenPod shares", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+		blockNumber := uint64(200)
+		log := storage.TransactionLog{
+			TransactionHash:  "some hash",
+			TransactionIndex: big.NewInt(300).Uint64(),
+			BlockNumber:      blockNumber,
+			Address:          cfg.GetContractsMapForEnvAndNetwork().EigenpodManager,
+			Arguments:        `[{"Name": "podOwner", "Type": "address", "Value": "0x0808D4689B347D499a96f139A5fC5B5101258406"}, {"Name": "sharesDelta", "Type": "int256", "Value": ""}]`,
+			EventName:        "PodSharesUpdated",
+			LogIndex:         big.NewInt(600).Uint64(),
+			OutputData:       `{"sharesDelta": 32000000000000000000}`,
+			CreatedAt:        time.Time{},
+			UpdatedAt:        time.Time{},
+			DeletedAt:        time.Time{},
+		}
 
+		model, err := NewStakerSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+
+		err = model.InitBlockProcessing(blockNumber)
+		assert.Nil(t, err)
+
+		change, err := model.HandleStateChange(&log)
+		assert.Nil(t, err)
+		assert.NotNil(t, change)
+
+		typedChange := change.(*AccumulatedStateChange)
+
+		expectedShares, _ := uint256.FromDecimal("32000000000000000000")
+		assert.Equal(t, expectedShares, typedChange.Shares)
+		assert.Equal(t, strings.ToLower("0x0808D4689B347D499a96f139A5fC5B5101258406"), typedChange.Staker)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", typedChange.Strategy)
+
+		teardown(model)
+	})
+	t.Run("Should capture M2 migrated withdrawals", func(t *testing.T) {
+		t.Skip("M2 migration is not yet implemented")
 	})
 }
