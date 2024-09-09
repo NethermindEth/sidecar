@@ -384,6 +384,10 @@ func (a *AvsOperatorsModel) merkelizeState(blockNumber uint64, avsOperators []Re
 	)
 }
 
+func (a *AvsOperatorsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
+	return a.BaseEigenState.DeleteState("registered_avs_operators", startBlockNumber, endBlockNumber, a.Db)
+}
+
 func encodeOperatorLeaf(operator string, registered bool) []byte {
 	return []byte(fmt.Sprintf("%s:%t", operator, registered))
 }

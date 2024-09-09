@@ -15,6 +15,12 @@ type BlockStore interface {
 
 	// Less generic functions
 	GetLatestActiveAvsOperators(blockNumber uint64, avsDirectoryAddress string) ([]*ActiveAvsOperator, error)
+
+	// DeleteCorruptedState deletes all the corrupted state from the database
+	//
+	// @param startBlockNumber: The block number from which to start (inclusive)
+	// @param endBlockNumber: The block number at which to end (inclusive). If 0, it will delete all the corrupted state from the startBlock
+	DeleteCorruptedState(startBlockNumber uint64, endBlockNumber uint64) error
 }
 
 // Tables

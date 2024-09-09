@@ -1,11 +1,13 @@
 package base
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/parser"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 	"slices"
 	"strings"
 )
@@ -60,4 +62,32 @@ func (b *BaseEigenState) IsInterestingLog(contractsEvents map[string][]string, l
 		}
 	}
 	return false
+}
+
+func (b *BaseEigenState) DeleteState(tableName string, startBlockNumber uint64, endBlockNumber uint64, db *gorm.DB) error {
+	if endBlockNumber != 0 && endBlockNumber < startBlockNumber {
+		b.Logger.Sugar().Errorw("Invalid block range",
+			zap.Uint64("startBlockNumber", startBlockNumber),
+			zap.Uint64("endBlockNumber", endBlockNumber),
+		)
+		return fmt.Errorf("Invalid block range; endBlockNumber must be greater than or equal to startBlockNumber")
+	}
+
+	// tokenizing the table name apparently doesnt work, so we need to use Sprintf to include it.
+	query := fmt.Sprintf(`
+		delete from %s
+		where block_number >= @startBlockNumber
+	`, tableName)
+	if endBlockNumber > 0 {
+		query += " and block_number <= @endBlockNumber"
+	}
+	res := db.Exec(query,
+		sql.Named("tableName", tableName),
+		sql.Named("startBlockNumber", startBlockNumber),
+		sql.Named("endBlockNumber", endBlockNumber))
+	if res.Error != nil {
+		b.Logger.Sugar().Errorw("Failed to delete state", zap.Error(res.Error))
+		return res.Error
+	}
+	return nil
 }

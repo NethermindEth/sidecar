@@ -35,6 +35,7 @@ type Sidecar struct {
 	Storage        storage.BlockStore
 	Pipeline       *pipeline.Pipeline
 	EthereumClient *ethereum.Client
+	StateManager   *stateManager.EigenStateManager
 	ShutdownChan   chan bool
 }
 
@@ -43,6 +44,7 @@ func NewSidecar(
 	gCfg *config.Config,
 	s storage.BlockStore,
 	p *pipeline.Pipeline,
+	em *stateManager.EigenStateManager,
 	l *zap.Logger,
 	ethClient *ethereum.Client,
 ) *Sidecar {
@@ -53,6 +55,7 @@ func NewSidecar(
 		Storage:        s,
 		Pipeline:       p,
 		EthereumClient: ethClient,
+		StateManager:   em,
 		ShutdownChan:   make(chan bool),
 	}
 }

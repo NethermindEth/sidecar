@@ -93,7 +93,7 @@ func main() {
 	// Create new sidecar instance
 	sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
 		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
-	}, cfg, mds, p, l, client)
+	}, cfg, mds, p, sm, l, client)
 
 	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)

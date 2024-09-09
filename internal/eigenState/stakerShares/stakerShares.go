@@ -576,3 +576,7 @@ func encodeStratTree(strategy string, stakerTreeRoot []byte) []byte {
 	strategyBytes := []byte(strategy)
 	return append(strategyBytes, stakerTreeRoot[:]...)
 }
+
+func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
+	return ss.BaseEigenState.DeleteState("staker_shares", startBlockNumber, endBlockNumber, ss.Db)
+}

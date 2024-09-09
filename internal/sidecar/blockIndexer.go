@@ -42,15 +42,46 @@ func (ct *currentTip) Set(tip uint64) {
 }
 
 func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
+
 	latestBlock, err := s.GetLastIndexedBlock()
 	if err != nil {
 		return err
 	}
+
+	latestStateRoot, err := s.StateManager.GetLatestStateRoot()
+	if err != nil {
+		s.Logger.Sugar().Errorw("Failed to get latest state root", zap.Error(err))
+		return err
+	}
+
+	s.Logger.Sugar().Infow("Comparing latest block and latest state root",
+		zap.Int64("latestBlock", latestBlock),
+		zap.Uint64("latestStateRootBlock", latestStateRoot.EthBlockNumber),
+	)
+
 	if latestBlock == 0 {
 		s.Logger.Sugar().Infow("No blocks indexed, starting from genesis block", zap.Uint64("genesisBlock", s.Config.GenesisBlockNumber))
 		latestBlock = int64(s.Config.GenesisBlockNumber)
 	} else {
-		latestBlock += 1
+		// if the latest state root is behind the latest block, delete the corrupted state and set the
+		// latest block to the latest state root + 1
+		if latestStateRoot != nil && latestStateRoot.EthBlockNumber < uint64(latestBlock) {
+			s.Logger.Sugar().Infow("Latest state root is behind latest block, deleting corrupted state",
+				zap.Uint64("latestStateRoot", latestStateRoot.EthBlockNumber),
+				zap.Int64("latestBlock", latestBlock),
+			)
+			if err := s.StateManager.DeleteCorruptedState(latestStateRoot.EthBlockNumber+1, uint64(latestBlock)); err != nil {
+				s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
+				return err
+			}
+			if err := s.Storage.DeleteCorruptedState(uint64(latestStateRoot.EthBlockNumber+1), uint64(latestBlock)); err != nil {
+				s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
+				return err
+			}
+		} else {
+			// otherwise, start from the latest block + 1
+			latestBlock += 1
+		}
 	}
 
 	blockNumber, err := s.EthereumClient.GetBlockNumberUint64(ctx)

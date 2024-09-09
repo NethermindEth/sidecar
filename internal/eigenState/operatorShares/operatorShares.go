@@ -456,3 +456,7 @@ func encodeStratTree(strategy string, operatorTreeRoot []byte) []byte {
 	strategyBytes := []byte(strategy)
 	return append(strategyBytes, operatorTreeRoot[:]...)
 }
+
+func (osm *OperatorSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
+	return osm.BaseEigenState.DeleteState("operator_shares", startBlockNumber, endBlockNumber, osm.Db)
+}
