@@ -3,8 +3,8 @@ package base
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/parser"
-	"github.com/Layr-Labs/sidecar/internal/storage"
+	"github.com/Layr-Labs/go-sidecar/internal/parser"
+	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"go.uber.org/zap"
 	"slices"
 	"strings"

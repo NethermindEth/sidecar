@@ -2,12 +2,12 @@ package sqlite
 
 import (
 	"encoding/json"
-	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/parser"
-	"github.com/Layr-Labs/sidecar/internal/sqlite/migrations"
-	"github.com/Layr-Labs/sidecar/internal/storage"
-	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/logger"
+	"github.com/Layr-Labs/go-sidecar/internal/parser"
+	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/storage"
+	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

@@ -1,11 +1,11 @@
 package sqliteContractStore
 
 import (
-	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/contractStore"
-	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/sqlite/migrations"
-	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/contractStore"
+	"github.com/Layr-Labs/go-sidecar/internal/logger"
+	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

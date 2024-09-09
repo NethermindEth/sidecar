@@ -3,7 +3,7 @@ package etherscan
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"go.uber.org/zap"
 	"io"
 	"math/rand/v2"

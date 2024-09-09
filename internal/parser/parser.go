@@ -1,6 +1,6 @@
 package parser
 
-import "github.com/Layr-Labs/sidecar/internal/clients/ethereum"
+import "github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 
 type ParsedTransaction struct {
 	MethodName  string

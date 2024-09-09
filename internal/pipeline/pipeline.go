@@ -2,10 +2,10 @@ package pipeline
 
 import (
 	"context"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
-	"github.com/Layr-Labs/sidecar/internal/fetcher"
-	"github.com/Layr-Labs/sidecar/internal/indexer"
-	"github.com/Layr-Labs/sidecar/internal/storage"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
+	"github.com/Layr-Labs/go-sidecar/internal/fetcher"
+	"github.com/Layr-Labs/go-sidecar/internal/indexer"
+	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"go.uber.org/zap"
 )
 

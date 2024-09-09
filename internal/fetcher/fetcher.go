@@ -2,8 +2,8 @@ package fetcher
 
 import (
 	"context"
-	"github.com/Layr-Labs/sidecar/internal/clients/ethereum"
-	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
+	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
 	"slices"

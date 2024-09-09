@@ -2,9 +2,9 @@ package stateManager
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/types"
-	"github.com/Layr-Labs/sidecar/internal/storage"
-	"github.com/Layr-Labs/sidecar/internal/utils"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
+	"github.com/Layr-Labs/go-sidecar/internal/storage"
+	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
 	"go.uber.org/zap"

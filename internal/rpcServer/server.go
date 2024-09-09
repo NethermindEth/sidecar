@@ -2,9 +2,9 @@ package rpcServer
 
 import (
 	"context"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
-	"github.com/Layr-Labs/sidecar/internal/storage"
-	v1 "github.com/Layr-Labs/sidecar/protos/eigenlayer/sidecar/v1"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
+	"github.com/Layr-Labs/go-sidecar/internal/storage"
+	v1 "github.com/Layr-Labs/go-sidecar/protos/eigenlayer/sidecar/v1"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"

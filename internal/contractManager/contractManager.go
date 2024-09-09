@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/DataDog/datadog-go/v5/statsd"
-	"github.com/Layr-Labs/sidecar/internal/clients/ethereum"
-	"github.com/Layr-Labs/sidecar/internal/clients/etherscan"
-	"github.com/Layr-Labs/sidecar/internal/contractStore"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
-	"github.com/Layr-Labs/sidecar/internal/utils"
+	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
+	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
+	"github.com/Layr-Labs/go-sidecar/internal/contractStore"
+	"github.com/Layr-Labs/go-sidecar/internal/metrics"
+	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"go.uber.org/zap"
 )
 
