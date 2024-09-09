@@ -3,25 +3,26 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/clients/ethereum"
-	"github.com/Layr-Labs/sidecar/internal/clients/etherscan"
-	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/contractManager"
-	"github.com/Layr-Labs/sidecar/internal/contractStore/sqliteContractStore"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/avsOperators"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/operatorShares"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/stakerDelegations"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
-	"github.com/Layr-Labs/sidecar/internal/fetcher"
-	"github.com/Layr-Labs/sidecar/internal/indexer"
-	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/metrics"
-	"github.com/Layr-Labs/sidecar/internal/pipeline"
-	"github.com/Layr-Labs/sidecar/internal/shutdown"
-	"github.com/Layr-Labs/sidecar/internal/sidecar"
-	"github.com/Layr-Labs/sidecar/internal/sqlite"
-	"github.com/Layr-Labs/sidecar/internal/sqlite/migrations"
-	sqliteBlockStore "github.com/Layr-Labs/sidecar/internal/storage/sqlite"
+	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
+	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
+	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/contractManager"
+	"github.com/Layr-Labs/go-sidecar/internal/contractStore/sqliteContractStore"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/avsOperators"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/operatorShares"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stakerDelegations"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stakerShares"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
+	"github.com/Layr-Labs/go-sidecar/internal/fetcher"
+	"github.com/Layr-Labs/go-sidecar/internal/indexer"
+	"github.com/Layr-Labs/go-sidecar/internal/logger"
+	"github.com/Layr-Labs/go-sidecar/internal/metrics"
+	"github.com/Layr-Labs/go-sidecar/internal/pipeline"
+	"github.com/Layr-Labs/go-sidecar/internal/shutdown"
+	"github.com/Layr-Labs/go-sidecar/internal/sidecar"
+	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
+	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	sqliteBlockStore "github.com/Layr-Labs/go-sidecar/internal/storage/sqlite"
 	"go.uber.org/zap"
 	"log"
 	"time"
@@ -78,6 +79,9 @@ func main() {
 	}
 	if _, err := stakerDelegations.NewStakerDelegationsModel(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to create StakerDelegationsModel", zap.Error(err))
+	}
+	if _, err := stakerShares.NewStakerSharesModel(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
+		l.Sugar().Fatalw("Failed to create StakerSharesModel", zap.Error(err))
 	}
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)

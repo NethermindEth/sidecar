@@ -3,11 +3,12 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
-	_202409061249_bootstrapDb "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409061249_bootstrapDb"
-	_202409061250_eigenlayerStateTables "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409061250_eigenlayerStateTables"
-	_202409061720_operatorShareChanges "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409061720_operatorShareChanges"
-	_202409062151_stakerDelegations "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409062151_stakerDelegations"
-	_202409080918_staterootTable "github.com/Layr-Labs/sidecar/internal/sqlite/migrations/202409080918_staterootTable"
+	_202409061249_bootstrapDb "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409061249_bootstrapDb"
+	_202409061250_eigenlayerStateTables "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409061250_eigenlayerStateTables"
+	_202409061720_operatorShareChanges "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409061720_operatorShareChanges"
+	_202409062151_stakerDelegations "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409062151_stakerDelegations"
+	_202409080918_staterootTable "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409080918_staterootTable"
+	_202409082234_stakerShare "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409082234_stakerShare"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -43,6 +44,7 @@ func (m *SqliteMigrator) MigrateAll() error {
 		&_202409061720_operatorShareChanges.SqliteMigration{},
 		&_202409062151_stakerDelegations.SqliteMigration{},
 		&_202409080918_staterootTable.SqliteMigration{},
+		&_202409082234_stakerShare.SqliteMigration{},
 	}
 
 	m.Logger.Sugar().Info("Running migrations")

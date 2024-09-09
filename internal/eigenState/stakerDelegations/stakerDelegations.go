@@ -3,12 +3,12 @@ package stakerDelegations
 import (
 	"database/sql"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/base"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/types"
-	"github.com/Layr-Labs/sidecar/internal/storage"
-	"github.com/Layr-Labs/sidecar/internal/utils"
+	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
+	"github.com/Layr-Labs/go-sidecar/internal/storage"
+	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
@@ -107,8 +107,8 @@ func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[A
 			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
 		}
 
-		staker := arguments[0].Value.(string)
-		operator := arguments[1].Value.(string)
+		staker := strings.ToLower(arguments[0].Value.(string))
+		operator := strings.ToLower(arguments[1].Value.(string))
 
 		slotId := NewSlotId(staker, operator)
 		record, ok := s.stateAccumulator[log.BlockNumber][slotId]

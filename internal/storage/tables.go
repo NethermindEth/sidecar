@@ -115,27 +115,6 @@ type RewardForAllSubmissions struct {
 // ----------------------------------------------------------------------------
 // Block-based "summary" tables
 // ----------------------------------------------------------------------------
-
-/*
-create table if not exists staker_shares (
-
-	staker varchar,
-	strategy varchar,
-	shares numeric,
-	block_number bigint,
-	created_at timestamp with time zone
-	unique idx_uniq_staker_shares_block (staker, strategy, block_number)
-
-)
-*/
-type StakerShares struct {
-	Staker      string
-	Straegy     string
-	Shares      big.Int `gorm:"type:numeric"`
-	BlockNumber uint64
-	CreatedAt   time.Time
-}
-
 /*
 create table if not exists active_rewards (
 

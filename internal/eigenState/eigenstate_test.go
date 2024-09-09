@@ -1,13 +1,13 @@
 package eigenState
 
 import (
-	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/avsOperators"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/operatorShares"
-	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
-	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/internal/sqlite/migrations"
-	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/avsOperators"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/operatorShares"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
+	"github.com/Layr-Labs/go-sidecar/internal/logger"
+	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

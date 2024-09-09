@@ -1,4 +1,4 @@
-module github.com/Layr-Labs/sidecar
+module github.com/Layr-Labs/go-sidecar
 
 go 1.22.2
 

@@ -3,7 +3,7 @@ package contractCaller
 import (
 	"context"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/clients/ethereum"
+	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"

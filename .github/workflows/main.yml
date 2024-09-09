@@ -13,7 +13,7 @@ jobs:
         with:
           go-version: 1.22
       - name: Run tests
-        run: make test
+        run: make ci-test
   build:
     # needs: test
     runs-on: ubuntu-latest
@@ -40,7 +40,7 @@ jobs:
           REGISTRY: "public.ecr.aws/z6g0f8n7"
           REPOSITORY: ${{ github.event.repository.name }}
           IMAGE_TAG: ${{ github.sha }}
-          PLATFORMS: "linux/amd64,linux/arm64"
+          PLATFORMS: "linux/amd64"
         run: |
           if [[ $GITHUB_REF == refs/heads/master ]]; then
             docker buildx build --platform $PLATFORMS -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest --push .
