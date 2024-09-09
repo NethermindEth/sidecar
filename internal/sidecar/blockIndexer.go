@@ -109,8 +109,8 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			return nil
 		}
 		tip := ct.Get()
-		pctComplete := float64(i) / float64(tip) * 100
 		blocksRemaining := tip - uint64(i)
+		pctComplete := (float64(blocksProcessed) / float64(blocksRemaining)) * 100
 		estTimeRemainingMs := runningAvg * int(blocksRemaining)
 		estTimeRemainingHours := float64(estTimeRemainingMs) / 1000 / 60 / 60
 
