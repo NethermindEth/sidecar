@@ -62,7 +62,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 			TransactionIndex: 100,
 			BlockNumber:      blockNumber,
 			Address:          cfg.GetContractsMapForEnvAndNetwork().DelegationManager,
-			Arguments:        `[{"Value": "0x5fc1b61816ddeb33b65a02a42b29059ecd3a20e9" }, { "Value": "0x5accc90436492f24e6af278569691e2c942a676d" }]`,
+			Arguments:        `[{"Name":"staker","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true},{"Name":"operator","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true}]`,
 			EventName:        "StakerDelegated",
 			LogIndex:         400,
 			OutputData:       `{}`,
@@ -83,8 +83,8 @@ func Test_DelegatedStakersState(t *testing.T) {
 		assert.NotNil(t, res)
 
 		typedChange := res.(*AccumulatedStateChange)
-		assert.Equal(t, "0x5fc1b61816ddeb33b65a02a42b29059ecd3a20e9", typedChange.Staker)
-		assert.Equal(t, "0x5accc90436492f24e6af278569691e2c942a676d", typedChange.Operator)
+		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Staker)
+		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Operator)
 
 		teardown(model)
 	})
@@ -97,7 +97,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 			TransactionIndex: 100,
 			BlockNumber:      blockNumber,
 			Address:          cfg.GetContractsMapForEnvAndNetwork().DelegationManager,
-			Arguments:        `[{"Value": "0x5fc1b61816ddeb33b65a02a42b29059ecd3a20e9" }, { "Value": "0x5accc90436492f24e6af278569691e2c942a676d" }]`,
+			Arguments:        `[{"Name":"staker","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true},{"Name":"operator","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true}]`,
 			EventName:        "StakerDelegated",
 			LogIndex:         400,
 			OutputData:       `{}`,
@@ -119,8 +119,8 @@ func Test_DelegatedStakersState(t *testing.T) {
 		assert.NotNil(t, stateChange)
 
 		typedChange := stateChange.(*AccumulatedStateChange)
-		assert.Equal(t, "0x5fc1b61816ddeb33b65a02a42b29059ecd3a20e9", typedChange.Staker)
-		assert.Equal(t, "0x5accc90436492f24e6af278569691e2c942a676d", typedChange.Operator)
+		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Staker)
+		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Operator)
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -155,7 +155,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 				TransactionIndex: 100,
 				BlockNumber:      blocks[0],
 				Address:          cfg.GetContractsMapForEnvAndNetwork().DelegationManager,
-				Arguments:        `[{"Value": "0x5fc1b61816ddeb33b65a02a42b29059ecd3a20e9" }, { "Value": "0x5accc90436492f24e6af278569691e2c942a676d" }]`,
+				Arguments:        `[{"Name":"staker","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true},{"Name":"operator","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true}]`,
 				EventName:        "StakerDelegated",
 				LogIndex:         400,
 				OutputData:       `{}`,
@@ -168,7 +168,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 				TransactionIndex: 100,
 				BlockNumber:      blocks[1],
 				Address:          cfg.GetContractsMapForEnvAndNetwork().DelegationManager,
-				Arguments:        `[{"Value": "0x5fc1b61816ddeb33b65a02a42b29059ecd3a20e9" }, { "Value": "0x5accc90436492f24e6af278569691e2c942a676d" }]`,
+				Arguments:        `[{"Name":"staker","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true},{"Name":"operator","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true}]`,
 				EventName:        "StakerUndelegated",
 				LogIndex:         400,
 				OutputData:       `{}`,

@@ -1,6 +1,12 @@
 ## Running
 
 ### Directly using Go
+
+*Dependencies*
+
+* Go 1.22
+* gRPCurl (for testing)
+
 ```bash
 SIDECAR_DEBUG=false \
 SIDECAR_ETHEREUM_RPC_BASE_URL="http://54.198.82.217:8545" \
@@ -27,7 +33,7 @@ docker run -it --rm \
   -e SIDECAR_SQLITE_DB_FILE_PATH="/sqlite/sidecar.db" \
   -v "$(pwd)/sqlite:/sqlite" \
   --tty -i \
-  public.ecr.aws/z6g0f8n7/go-sidecar:latest /build/bin/sidecar
+  public.ecr.aws/z6g0f8n7/go-sidecar:latest /build/bin/cmd/sidecar
 ```
 
 ### Build and run a container locally

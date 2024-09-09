@@ -115,11 +115,6 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 				zap.Uint64("logIndex", log.LogIndex),
 			)
 
-			p.Logger.Sugar().Debugw("Handling log state change",
-				zap.Uint64("blockNumber", blockNumber),
-				zap.String("transactionHash", pt.Transaction.Hash.Value()),
-				zap.Uint64("logIndex", log.LogIndex),
-			)
 			if err := p.stateManager.HandleLogStateChange(indexedLog); err != nil {
 				p.Logger.Sugar().Errorw("Failed to handle log state change",
 					zap.Uint64("blockNumber", blockNumber),

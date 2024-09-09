@@ -45,9 +45,16 @@ func (e *EigenStateManager) RegisterState(model types.IEigenStateModel, index in
 
 // Given a log, allow each state model to determine if/how to process it
 func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog) error {
+	e.logger.Sugar().Debugw("Handling log state change", zap.String("transactionHash", log.TransactionHash), zap.Uint64("logIndex", log.LogIndex))
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
 		if state.IsInterestingLog(log) {
+			e.logger.Sugar().Debugw("Handling log for model",
+				zap.String("model", state.GetModelName()),
+				zap.String("transactionHash", log.TransactionHash),
+				zap.Uint64("logIndex", log.LogIndex),
+				zap.String("eventName", log.EventName),
+			)
 			_, err := state.HandleStateChange(log)
 			if err != nil {
 				return err
