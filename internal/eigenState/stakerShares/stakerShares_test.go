@@ -87,4 +87,10 @@ func Test_StakerSharesState(t *testing.T) {
 
 		teardown(model)
 	})
+	t.Run("Should capture a staker share M1 Withdrawal", func(t *testing.T) {
+
+	})
+	t.Run("Should capture staker EigenPod shares", func(t *testing.T) {
+
+	})
 }
