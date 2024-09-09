@@ -40,8 +40,11 @@ build/cmd/sidecar:
 .PHONY: build
 build: build/cmd/sidecar
 
+docker-buildx-self:
+	docker buildx build -t go-sidecar:latest -t go-sidecar:latest .
+
 docker-buildx:
-	docker-buildx build --platform linux/amd64 --push -t 767397703211.dkr.ecr.us-east-1.amazonaws.com/blocklake:$(shell date +%s) -t 767397703211.dkr.ecr.us-east-1.amazonaws.com/blocklake:latest .
+	docker-buildx build --platform linux/amd64 --push -t 767397703211.dkr.ecr.us-east-1.amazonaws.com/go-sidecar:$(shell date +%s) -t 767397703211.dkr.ecr.us-east-1.amazonaws.com/go-sidecar:latest .
 
 .PHONY: test
 test:
