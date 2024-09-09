@@ -1,11 +1,11 @@
-package main
+package pipeline
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/internal/clients/etherscan"
-	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/contractManager"
 	"github.com/Layr-Labs/sidecar/internal/contractStore/sqliteContractStore"
 	"github.com/Layr-Labs/sidecar/internal/eigenState/avsOperators"
@@ -16,23 +16,53 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/indexer"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
-	"github.com/Layr-Labs/sidecar/internal/pipeline"
-	"github.com/Layr-Labs/sidecar/internal/shutdown"
-	"github.com/Layr-Labs/sidecar/internal/sidecar"
-	"github.com/Layr-Labs/sidecar/internal/sqlite"
 	"github.com/Layr-Labs/sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/sidecar/internal/storage"
 	sqliteBlockStore "github.com/Layr-Labs/sidecar/internal/storage/sqlite"
+	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 	"log"
-	"time"
+	"os"
+	"testing"
 )
 
-func main() {
-	ctx := context.Background()
-	cfg := config.NewConfig()
+var (
+	previousEnv = make(map[string]string)
+)
 
-	fmt.Printf("Config: %+v\n", cfg)
+func replaceEnv() {
+	newEnvValues := map[string]string{
+		"SIDECAR_ENVIRONMENT":           "testnet",
+		"SIDECAR_NETWORK":               "holesky",
+		"SIDECAR_ETHEREUM_RPC_BASE_URL": "http://54.198.82.217:8545",
+		"SIDECAR_ETHERSCAN_API_KEYS":    "QIPXW3YCXPR5NQ9GXTRQ3TSXB9EKMGDE34",
+		"SIDECAR_STATSD_URL":            "localhost:8125",
+		"SIDECAR_DEBUG":                 "true",
+	}
 
+	for k, v := range newEnvValues {
+		previousEnv[k] = os.Getenv(k)
+		os.Setenv(k, v)
+	}
+}
+
+func restoreEnv() {
+	for k, v := range previousEnv {
+		os.Setenv(k, v)
+	}
+}
+
+func setup() (
+	*fetcher.Fetcher,
+	*indexer.Indexer,
+	storage.BlockStore,
+	*stateManager.EigenStateManager,
+	*zap.Logger,
+	*gorm.DB,
+) {
+	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
 	sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
@@ -43,17 +73,14 @@ func main() {
 	etherscanClient := etherscan.NewEtherscanClient(cfg, l)
 	client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
 
-	db := sqlite.NewSqlite(cfg.SqliteConfig.GetSqlitePath())
-
-	grm, err := sqlite.NewGormSqliteFromSqlite(db)
+	// database
+	grm, err := tests.GetSqliteDatabaseConnection()
 	if err != nil {
-		l.Error("Failed to create gorm instance", zap.Error(err))
 		panic(err)
 	}
-
-	migrator := migrations.NewSqliteMigrator(grm, l)
-	if err = migrator.MigrateAll(); err != nil {
-		log.Fatalf("Failed to migrate: %v", err)
+	sqliteMigrator := migrations.NewSqliteMigrator(grm, l)
+	if err := sqliteMigrator.MigrateAll(); err != nil {
+		l.Sugar().Fatalw("Failed to migrate", "error", err)
 	}
 
 	contractStore := sqliteContractStore.NewSqliteContractStore(grm, l, cfg)
@@ -84,31 +111,39 @@ func main() {
 
 	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, l, cfg)
 
-	p := pipeline.NewPipeline(fetchr, idxr, mds, sm, l)
+	return fetchr, idxr, mds, sm, l, grm
+}
 
-	// Create new sidecar instance
-	sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
-		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
-	}, cfg, mds, p, l, client)
+func Test_Pipeline_Integration(t *testing.T) {
+	replaceEnv()
 
-	// RPC channel to notify the RPC server to shutdown gracefully
-	rpcChannel := make(chan bool)
-	err = sidecar.WithRpcServer(ctx, mds, sm, rpcChannel)
-	if err != nil {
-		l.Sugar().Fatalw("Failed to start RPC server", zap.Error(err))
-	}
+	fetchr, idxr, mds, sm, l, grm := setup()
+	t.Run("Should create a new Pipeline", func(t *testing.T) {
+		p := NewPipeline(fetchr, idxr, mds, sm, l)
+		assert.NotNil(t, p)
+	})
 
-	// Start the sidecar main process in a goroutine so that we can listen for a shutdown signal
-	go sidecar.Start(ctx)
+	t.Run("Should index a block, transaction with logs", func(t *testing.T) {
+		blockNumber := uint64(1175560)
+		transactionHash := "0x78cc56f0700e7ba5055f124243e6591fc1199cf3c75a17d50f8ea438254c9a76"
+		logIndex := uint64(14)
 
-	l.Sugar().Info("Started Sidecar")
+		fmt.Printf("transactionHash: %s %d\n", transactionHash, logIndex)
 
-	gracefulShutdown := shutdown.CreateGracefulShutdownChannel()
+		p := NewPipeline(fetchr, idxr, mds, sm, l)
 
-	done := make(chan bool)
-	shutdown.ListenForShutdown(gracefulShutdown, done, func() {
-		l.Sugar().Info("Shutting down...")
-		rpcChannel <- true
-		sidecar.ShutdownChan <- true
-	}, time.Second*5, l)
+		err := p.RunForBlock(context.Background(), blockNumber)
+		assert.Nil(t, err)
+
+		query := `select * from delegated_stakers where block_number = @blockNumber`
+		delegatedStakers := make([]stakerDelegations.DelegatedStakers, 0)
+		res := grm.Raw(query, sql.Named("blockNumber", blockNumber)).Scan(&delegatedStakers)
+		assert.Nil(t, res.Error)
+
+		assert.Equal(t, 1, len(delegatedStakers))
+	})
+
+	t.Cleanup(func() {
+		restoreEnv()
+	})
 }

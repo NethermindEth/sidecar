@@ -102,6 +102,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	blocksProcessed := 0
 	runningAvg := 0
 	totalDurationMs := 0
+	lastBlockParsed := latestBlock
 	for i := latestBlock; i <= int64(ct.Get()); i++ {
 		if shouldShutdown {
 			s.Logger.Sugar().Infow("Shutting down block processor")
@@ -119,6 +120,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 				zap.Uint64("blocksRemaining", blocksRemaining),
 				zap.Float64("estimatedTimeRemaining (hrs)", estTimeRemainingHours),
 				zap.Float64("avgBlockProcessTime (ms)", float64(runningAvg)),
+				zap.Uint64("lastBlockParsed", uint64(lastBlockParsed)),
 			)
 		}
 
@@ -130,6 +132,8 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			)
 			return err
 		}
+
+		lastBlockParsed = i
 		delta := time.Since(startTime).Milliseconds()
 		blocksProcessed++
 
