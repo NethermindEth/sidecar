@@ -18,7 +18,6 @@ go run cmd/sidecar/main.go
 mkdir ./sqlite || true
 
 docker run -it --rm \
-  -v $(pwd)/sqlite:/sqlite \ 
   -e SIDECAR_DEBUG=false \
   -e SIDECAR_ETHEREUM_RPC_BASE_URL="http://54.198.82.217:8545" \
   -e SIDECAR_ENVIRONMENT="testnet" \
@@ -26,8 +25,9 @@ docker run -it --rm \
   -e SIDECAR_ETHERSCAN_API_KEYS="" \
   -e SIDECAR_STATSD_URL="localhost:8125" \
   -e SIDECAR_SQLITE_DB_FILE_PATH="/sqlite/sidecar.db" \
-  public.ecr.aws/z6g0f8n7/go-sidecar:latest \
-  /build/bin/sidecar
+  -v "$(pwd)/sqlite:/sqlite" \
+  --tty -i \
+  public.ecr.aws/z6g0f8n7/go-sidecar:latest /build/bin/sidecar
 ```
 
 ### Build and run a container locally
@@ -45,8 +45,8 @@ docker run \
   -e "SIDECAR_ETHERSCAN_API_KEYS=''" \
   -e "SIDECAR_STATSD_URL=localhost:8125" \
   -e "SIDECAR_SQLITE_DB_FILE_PATH=/sqlite/sidecar.db" \
-  --interactive --tty \
-  -v "$(pwd)/sqlite:/sqlite" \ 
+  -v "$(pwd)/sqlite:/sqlite" \
+  --tty -i \
   go-sidecar:latest /build/bin/cmd/sidecar
 ```
 
