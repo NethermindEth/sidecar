@@ -2,12 +2,8 @@
 *.sw*
 *.terraform
 *.terraform*
-scripts/runLocal/runBackfillBlockIndexerWorker.sh
-scripts/runBackfillTransactionLogIndexerWorker.sh
-block-lake/preprod-values.yaml
 /bin
-./block-lake/preprod-values.yaml
 /scripts/runLocal
 sidecar.db*
 *.db*
-sqlite
+/sqlite
