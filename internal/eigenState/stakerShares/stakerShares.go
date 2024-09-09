@@ -217,6 +217,8 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 
 		contractAddresses := ss.globalConfig.GetContractsMapForEnvAndNetwork()
 
+		// Staker shares is a bit more complex and has 4 possible contract/event combinations
+		// that we need to handle
 		if log.Address == contractAddresses.StrategyManager && log.EventName == "Deposit" {
 			parsedRecord, err = ss.handleStakerDepositEvent(log)
 		} else if log.Address == contractAddresses.EigenpodManager && log.EventName == "PodSharesUpdated" {
