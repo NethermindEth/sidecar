@@ -11,6 +11,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/eigenState/avsOperators"
 	"github.com/Layr-Labs/sidecar/internal/eigenState/operatorShares"
 	"github.com/Layr-Labs/sidecar/internal/eigenState/stakerDelegations"
+	"github.com/Layr-Labs/sidecar/internal/eigenState/stakerShares"
 	"github.com/Layr-Labs/sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/internal/fetcher"
 	"github.com/Layr-Labs/sidecar/internal/indexer"
@@ -105,6 +106,9 @@ func setup() (
 	}
 	if _, err := stakerDelegations.NewStakerDelegationsModel(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to create StakerDelegationsModel", zap.Error(err))
+	}
+	if _, err := stakerShares.NewStakerSharesModel(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
+		l.Sugar().Fatalw("Failed to create StakerSharesModel", zap.Error(err))
 	}
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
