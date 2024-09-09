@@ -114,6 +114,7 @@ func parseLogOutputForDepositEvent(outputDataStr string) (*depositOutputData, er
 		return nil, err
 	}
 	outputData.Staker = strings.ToLower(outputData.Staker)
+	outputData.Depositor = strings.ToLower(outputData.Depositor)
 	outputData.Strategy = strings.ToLower(outputData.Strategy)
 	return outputData, err
 }

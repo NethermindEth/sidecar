@@ -107,8 +107,8 @@ func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[A
 			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
 		}
 
-		staker := arguments[0].Value.(string)
-		operator := arguments[1].Value.(string)
+		staker := strings.ToLower(arguments[0].Value.(string))
+		operator := strings.ToLower(arguments[1].Value.(string))
 
 		slotId := NewSlotId(staker, operator)
 		record, ok := s.stateAccumulator[log.BlockNumber][slotId]

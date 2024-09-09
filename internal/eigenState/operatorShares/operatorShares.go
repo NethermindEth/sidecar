@@ -109,6 +109,10 @@ func parseLogOutputForOperatorShares(outputDataStr string) (*operatorSharesOutpu
 	decoder.UseNumber()
 
 	err := decoder.Decode(&outputData)
+	if err != nil {
+		return nil, err
+	}
+	outputData.Strategy = strings.ToLower(outputData.Strategy)
 	return outputData, err
 }
 
@@ -129,7 +133,7 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 		if _, ok := osm.stateAccumulator[log.BlockNumber]; !ok {
 			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
 		}
-		operator := arguments[0].Value.(string)
+		operator := strings.ToLower(arguments[0].Value.(string))
 
 		sharesStr := outputData.Shares.String()
 		shares, err := uint256.FromDecimal(sharesStr)
