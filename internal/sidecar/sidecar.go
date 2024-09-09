@@ -35,6 +35,7 @@ type Sidecar struct {
 	Storage        storage.BlockStore
 	Pipeline       *pipeline.Pipeline
 	EthereumClient *ethereum.Client
+	ShutdownChan   chan bool
 }
 
 func NewSidecar(
@@ -52,6 +53,7 @@ func NewSidecar(
 		Storage:        s,
 		Pipeline:       p,
 		EthereumClient: ethClient,
+		ShutdownChan:   make(chan bool),
 	}
 }
 

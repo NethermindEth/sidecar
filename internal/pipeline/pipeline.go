@@ -34,7 +34,7 @@ func NewPipeline(
 }
 
 func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
-	p.Logger.Sugar().Infow("Running pipeline for block", zap.Uint64("blockNumber", blockNumber))
+	p.Logger.Sugar().Debugw("Running pipeline for block", zap.Uint64("blockNumber", blockNumber))
 
 	/*
 		- Fetch block
@@ -63,7 +63,7 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		p.Logger.Sugar().Errorw("Failed to init processing for block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err
 	}
-	p.Logger.Sugar().Infow("Initialized processing for block", zap.Uint64("blockNumber", blockNumber))
+	p.Logger.Sugar().Debugw("Initialized processing for block", zap.Uint64("blockNumber", blockNumber))
 
 	// Parse all transactions and logs for the block.
 	// - If a transaction is not calling to a contract, it is ignored
@@ -77,7 +77,7 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		)
 		return err
 	}
-	p.Logger.Sugar().Infow("Parsed transactions", zap.Uint64("blockNumber", blockNumber), zap.Int("count", len(parsedTransactions)))
+	p.Logger.Sugar().Debugw("Parsed transactions", zap.Uint64("blockNumber", blockNumber), zap.Int("count", len(parsedTransactions)))
 
 	// With only interesting transactions/logs parsed, insert them into the database
 	for _, pt := range parsedTransactions {
@@ -90,7 +90,7 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 			)
 			return err
 		}
-		p.Logger.Debug("Indexed transaction", zap.Uint64("blockNumber", blockNumber), zap.String("transactionHash", indexedTransaction.TransactionHash))
+		p.Logger.Sugar().Debugw("Indexed transaction", zap.Uint64("blockNumber", blockNumber), zap.String("transactionHash", indexedTransaction.TransactionHash))
 
 		for _, log := range pt.Logs {
 			indexedLog, err := p.Indexer.IndexLog(
@@ -162,12 +162,14 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		return err
 	}
 
-	if sr, err := p.stateManager.WriteStateRoot(blockNumber, block.Block.Hash.Value(), stateRoot); err != nil {
+	sr, err := p.stateManager.WriteStateRoot(blockNumber, block.Block.Hash.Value(), stateRoot)
+	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to write state root", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
-		return err
 	} else {
-		p.Logger.Sugar().Infow("Wrote state root", zap.Uint64("blockNumber", blockNumber), zap.Any("stateRoot", sr))
+		p.Logger.Sugar().Debugw("Wrote state root", zap.Uint64("blockNumber", blockNumber), zap.Any("stateRoot", sr))
 	}
 
-	return nil
+	_ = p.stateManager.CleanupBlock(blockNumber)
+
+	return err
 }

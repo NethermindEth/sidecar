@@ -20,9 +20,12 @@ func NewGormSqliteFromSqlite(sqlite gorm.Dialector) (*gorm.DB, error) {
 		return nil, err
 	}
 
+	// https://phiresky.github.io/blog/2020/sqlite-performance-tuning/
 	pragmas := []string{
 		`PRAGMA foreign_keys = ON;`,
 		`PRAGMA journal_mode = WAL;`,
+		`PRAGMA synchronous = normal;`,
+		`pragma mmap_size = 30000000000;`,
 	}
 
 	for _, pragma := range pragmas {

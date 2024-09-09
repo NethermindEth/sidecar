@@ -96,5 +96,6 @@ func main() {
 	shutdown.ListenForShutdown(gracefulShutdown, done, func() {
 		l.Sugar().Info("Shutting down...")
 		rpcChannel <- true
+		sidecar.ShutdownChan <- true
 	}, time.Second*5, l)
 }

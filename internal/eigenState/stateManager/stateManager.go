@@ -81,6 +81,17 @@ func (e *EigenStateManager) CommitFinalState(blockNumber uint64) error {
 	return nil
 }
 
+func (e *EigenStateManager) CleanupBlock(blockNumber uint64) error {
+	for _, index := range e.GetSortedModelIndexes() {
+		state := e.StateModels[index]
+		err := state.ClearAccumulatedState(blockNumber)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64, blockHash string) (types.StateRoot, error) {
 	sortedIndexes := e.GetSortedModelIndexes()
 	roots := [][]byte{
