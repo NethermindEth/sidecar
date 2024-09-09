@@ -9,8 +9,8 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
+	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
-	"github.com/holiman/uint256"
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
@@ -18,6 +18,7 @@ import (
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"math/big"
 	"slices"
 	"sort"
 	"strings"
@@ -37,14 +38,15 @@ type OperatorShares struct {
 type AccumulatedStateChange struct {
 	Operator    string
 	Strategy    string
-	Shares      *uint256.Int
+	Shares      *big.Int
 	BlockNumber uint64
+	IsNegative  bool
 }
 
 type OperatorSharesDiff struct {
 	Operator    string
 	Strategy    string
-	Shares      *uint256.Int
+	Shares      *big.Int
 	BlockNumber uint64
 	IsNew       bool
 }
@@ -136,21 +138,21 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 		operator := strings.ToLower(arguments[0].Value.(string))
 
 		sharesStr := outputData.Shares.String()
-		shares, err := uint256.FromDecimal(sharesStr)
-		if err != nil {
-			osm.logger.Sugar().Errorw("Failed to convert shares to uint256",
-				zap.Error(err),
+		shares, success := numbers.NewBig257().SetString(sharesStr, 10)
+		if !success {
+			osm.logger.Sugar().Errorw("Failed to convert shares to big.Int",
 				zap.String("shares", sharesStr),
 				zap.String("transactionHash", log.TransactionHash),
 				zap.Uint64("transactionIndex", log.TransactionIndex),
 				zap.Uint64("blockNumber", log.BlockNumber),
 			)
-			return nil, xerrors.Errorf("Failed to convert shares to uint256: %s", sharesStr)
+			return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", sharesStr)
 		}
 
+		isNegative := false
 		// All shares are emitted as ABS(shares), so we need to negate the shares if the event is a decrease
 		if log.EventName == "OperatorSharesDecreased" {
-			shares = shares.Neg(shares)
+			isNegative = true
 		}
 
 		slotId := NewSlotId(operator, outputData.Strategy)
@@ -161,10 +163,15 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 				Strategy:    outputData.Strategy,
 				Shares:      shares,
 				BlockNumber: log.BlockNumber,
+				IsNegative:  isNegative,
 			}
 			osm.stateAccumulator[log.BlockNumber][slotId] = record
 		} else {
-			record.Shares = record.Shares.Add(record.Shares, shares)
+			if isNegative {
+				record.Shares = record.Shares.Sub(record.Shares, shares)
+			} else {
+				record.Shares = record.Shares.Add(record.Shares, shares)
+			}
 		}
 
 		return record, nil
@@ -305,9 +312,9 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 		}
 
 		if existingRecord, ok := mappedRecords[slotId]; ok {
-			existingShares, err := uint256.FromDecimal(existingRecord.Shares)
-			if err != nil {
-				osm.logger.Sugar().Errorw("Failed to convert existing shares to uint256", zap.Error(err))
+			existingShares, success := numbers.NewBig257().SetString(existingRecord.Shares, 10)
+			if !success {
+				osm.logger.Sugar().Errorw("Failed to convert existing shares to big.Int")
 				continue
 			}
 			prepared.Shares = existingShares.Add(existingShares, newState.Shares)

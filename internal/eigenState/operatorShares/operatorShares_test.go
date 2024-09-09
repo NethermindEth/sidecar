@@ -2,7 +2,6 @@ package operatorShares
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
@@ -13,6 +12,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 )
@@ -129,7 +129,43 @@ func Test_OperatorSharesState(t *testing.T) {
 
 		stateRoot, err := model.GenerateStateRoot(blockNumber)
 		assert.Nil(t, err)
-		fmt.Printf("StateRoot: %s\n", stateRoot)
+		assert.True(t, len(stateRoot) > 0)
+
+		teardown(model)
+	})
+	t.Run("Should handle state transition for operator shares decreased", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+		blockNumber := uint64(200)
+		log := storage.TransactionLog{
+			TransactionHash:  "some hash",
+			TransactionIndex: big.NewInt(100).Uint64(),
+			BlockNumber:      blockNumber,
+			Address:          cfg.GetContractsMapForEnvAndNetwork().DelegationManager,
+			Arguments:        `[{"Name": "operator", "Type": "address", "Value": "0x32f766cf7BC7dEE7F65573587BECd7AdB2a5CC7f"}, {"Name": "staker", "Type": "address", "Value": ""}, {"Name": "strategy", "Type": "address", "Value": ""}, {"Name": "shares", "Type": "uint256", "Value": ""}]`,
+			EventName:        "OperatorSharesDecreased",
+			LogIndex:         big.NewInt(400).Uint64(),
+			OutputData:       `{"shares": 1670000000000000000000, "staker": "0x32f766cf7bc7dee7f65573587becd7adb2a5cc7f", "strategy": "0x80528d6e9a2babfc766965e0e26d5ab08d9cfaf9"}`,
+			CreatedAt:        time.Time{},
+			UpdatedAt:        time.Time{},
+			DeletedAt:        time.Time{},
+		}
+
+		model, err := NewOperatorSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		assert.Nil(t, err)
+
+		err = model.InitBlockProcessing(blockNumber)
+		assert.Nil(t, err)
+
+		stateChange, err := model.HandleStateChange(&log)
+		assert.Nil(t, err)
+		assert.NotNil(t, stateChange)
+
+		stateChangeTyped := stateChange.(*AccumulatedStateChange)
+
+		assert.Equal(t, "1670000000000000000000", stateChangeTyped.Shares.String())
+		assert.Equal(t, true, stateChangeTyped.IsNegative)
+		assert.Equal(t, strings.ToLower("0x32f766cf7BC7dEE7F65573587BECd7AdB2a5CC7f"), stateChangeTyped.Operator)
+		assert.Equal(t, "0x80528d6e9a2babfc766965e0e26d5ab08d9cfaf9", stateChangeTyped.Strategy)
 
 		teardown(model)
 	})

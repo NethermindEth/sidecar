@@ -7,7 +7,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/holiman/uint256"
+	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -83,7 +83,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		typedChange := change.(*AccumulatedStateChange)
 
-		expectedShares, _ := uint256.FromDecimal("159925690037480381")
+		expectedShares, _ := numbers.NewBig257().SetString("159925690037480381", 10)
 		assert.Equal(t, expectedShares, typedChange.Shares)
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", typedChange.Staker)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", typedChange.Strategy)
@@ -118,7 +118,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		typedChange := change.(*AccumulatedStateChange)
 
-		expectedShares, _ := uint256.FromDecimal("246393621132195985")
+		expectedShares, _ := numbers.NewBig257().SetString("246393621132195985", 10)
 		assert.Equal(t, expectedShares, typedChange.Shares)
 		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", typedChange.Staker)
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", typedChange.Strategy)
@@ -153,7 +153,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		typedChange := change.(*AccumulatedStateChange)
 
-		expectedShares, _ := uint256.FromDecimal("32000000000000000000")
+		expectedShares, _ := numbers.NewBig257().SetString("32000000000000000000", 10)
 		assert.Equal(t, expectedShares, typedChange.Shares)
 		assert.Equal(t, strings.ToLower("0x0808D4689B347D499a96f139A5fC5B5101258406"), typedChange.Staker)
 		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", typedChange.Strategy)

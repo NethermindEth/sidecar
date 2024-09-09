@@ -9,8 +9,8 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
+	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
-	"github.com/holiman/uint256"
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
@@ -18,6 +18,7 @@ import (
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"math/big"
 	"slices"
 	"sort"
 	"strings"
@@ -35,7 +36,7 @@ type StakerShares struct {
 type AccumulatedStateChange struct {
 	Staker      string
 	Strategy    string
-	Shares      *uint256.Int
+	Shares      *big.Int
 	BlockNumber uint64
 	IsNegative  bool
 }
@@ -43,7 +44,7 @@ type AccumulatedStateChange struct {
 type StakerSharesDiff struct {
 	Staker      string
 	Strategy    string
-	Shares      *uint256.Int
+	Shares      *big.Int
 	BlockNumber uint64
 	IsNew       bool
 }
@@ -137,9 +138,9 @@ func (ss *StakerSharesModel) handleStakerDepositEvent(log *storage.TransactionLo
 		return nil, xerrors.Errorf("No staker address found in event")
 	}
 
-	shares, err := uint256.FromDecimal(outputData.Shares.String())
-	if err != nil {
-		return nil, xerrors.Errorf("Failed to convert shares to uint256: %s", outputData.Shares)
+	shares, success := numbers.NewBig257().SetString(outputData.Shares.String(), 10)
+	if !success {
+		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Shares)
 	}
 
 	return &AccumulatedStateChange{
@@ -180,9 +181,9 @@ func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.Transactio
 
 	sharesDeltaStr := outputData.SharesDelta.String()
 
-	sharesDelta, err := uint256.FromDecimal(sharesDeltaStr)
-	if err != nil {
-		return nil, xerrors.Errorf("Failed to convert shares to uint256: %s", sharesDelta)
+	sharesDelta, success := numbers.NewBig257().SetString(sharesDeltaStr, 10)
+	if !success {
+		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", sharesDelta)
 	}
 
 	return &AccumulatedStateChange{
@@ -211,9 +212,9 @@ func (ss *StakerSharesModel) handleM1StakerWithdrawals(log *storage.TransactionL
 		return nil, xerrors.Errorf("No staker address found in event")
 	}
 
-	shares, err := uint256.FromDecimal(outputData.Shares.String())
-	if err != nil {
-		return nil, xerrors.Errorf("Failed to convert shares to uint256: %s", outputData.Shares)
+	shares, success := numbers.NewBig257().SetString(outputData.Shares.String(), 10)
+	if !success {
+		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Shares)
 	}
 
 	return &AccumulatedStateChange{
@@ -425,9 +426,9 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 		}
 
 		if existingRecord, ok := mappedRecords[slotId]; ok {
-			existingShares, err := uint256.FromDecimal(existingRecord.Shares)
-			if err != nil {
-				ss.logger.Sugar().Errorw("Failed to convert existing shares to uint256", zap.Error(err))
+			existingShares, success := numbers.NewBig257().SetString(existingRecord.Shares, 10)
+			if !success {
+				ss.logger.Sugar().Errorw("Failed to convert existing shares to big.Int")
 				continue
 			}
 			prepared.Shares = existingShares.Add(existingShares, newState.Shares)
