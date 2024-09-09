@@ -1,6 +1,7 @@
 package stateManager
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
@@ -168,4 +169,31 @@ func (e *EigenStateManager) GetSortedModelIndexes() []int {
 	}
 	slices.Sort(indexes)
 	return indexes
+}
+
+func (e *EigenStateManager) GetLatestStateRoot() (*StateRoot, error) {
+	root := &StateRoot{}
+	result := e.Db.Model(&StateRoot{}).Order("eth_block_number desc").First(&root)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, result.Error
+	}
+	return root, nil
+}
+
+// DeleteCorruptedState deletes state stored that may be incomplete or corrupted
+//
+// @param startBlock the block number to start deleting state from (inclusive)
+// @param endBlock the block number to end deleting state from (inclusive). If 0, delete all state from startBlock
+func (e *EigenStateManager) DeleteCorruptedState(startBlock uint64, endBlock uint64) error {
+	for _, index := range e.GetSortedModelIndexes() {
+		state := e.StateModels[index]
+		err := state.DeleteState(startBlock, endBlock)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

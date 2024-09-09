@@ -36,6 +36,13 @@ type IEigenStateModel interface {
 	// ClearAccumulatedState
 	// Clear the accumulated state for the model to free up memory
 	ClearAccumulatedState(blockNumber uint64) error
+
+	// DeleteState used to delete state stored that may be incomplete or corrupted
+	// to allow for reprocessing of the state
+	//
+	// @param startBlockNumber the block number to start deleting state from (inclusive)
+	// @param endBlockNumber the block number to end deleting state from (inclusive). If 0, delete all state from startBlockNumber
+	DeleteState(startBlockNumber uint64, endBlockNumber uint64) error
 }
 
 // StateTransitions

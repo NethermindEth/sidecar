@@ -380,3 +380,7 @@ func encodeStakerLeaf(staker string, delegated bool) []byte {
 func encodeOperatorLeaf(operator string, operatorStakersRoot []byte) []byte {
 	return append([]byte(operator), operatorStakersRoot[:]...)
 }
+
+func (s *StakerDelegationsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
+	return s.BaseEigenState.DeleteState("delegated_stakers", startBlockNumber, endBlockNumber, s.Db)
+}

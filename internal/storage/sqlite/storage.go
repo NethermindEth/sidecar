@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -202,4 +203,51 @@ func (s *SqliteBlockStore) GetLatestActiveAvsOperators(blockNumber uint64, avsDi
 		return nil, xerrors.Errorf("Failed to get latest active AVS operators: %w", result.Error)
 	}
 	return rows, nil
+}
+
+func (s *SqliteBlockStore) DeleteCorruptedState(startBlockNumber uint64, endBlockNumber uint64) error {
+	if endBlockNumber != 0 && endBlockNumber < startBlockNumber {
+		s.Logger.Sugar().Errorw("Invalid block range",
+			zap.Uint64("startBlockNumber", startBlockNumber),
+			zap.Uint64("endBlockNumber", endBlockNumber),
+		)
+		return fmt.Errorf("Invalid block range; endBlockNumber must be greater than or equal to startBlockNumber")
+	}
+
+	tablesWithBlockNumber := []string{
+		"transaction_logs",
+		"transactions",
+	}
+
+	for _, tableName := range tablesWithBlockNumber {
+		query := fmt.Sprintf(`
+			delete from %s
+			where block_number >= @startBlockNumber
+		`, tableName)
+		if endBlockNumber > 0 {
+			query += " and block_number <= @endBlockNumber"
+		}
+		res := s.Db.Exec(query,
+			sql.Named("startBlockNumber", startBlockNumber),
+			sql.Named("endBlockNumber", endBlockNumber),
+		)
+		if res.Error != nil {
+			return xerrors.Errorf("Failed to delete corrupted state from table '%s': %w", tableName, res.Error)
+		}
+	}
+	blocksQuery := `
+		delete from blocks
+		where number >= @startBlockNumber
+	`
+	if endBlockNumber > 0 {
+		blocksQuery += " and number <= @endBlockNumber"
+	}
+	res := s.Db.Exec(blocksQuery,
+		sql.Named("startBlockNumber", startBlockNumber),
+		sql.Named("endBlockNumber", endBlockNumber),
+	)
+	if res.Error != nil {
+		return xerrors.Errorf("Failed to delete corrupted state from table 'blocks': %w", res.Error)
+	}
+	return nil
 }
