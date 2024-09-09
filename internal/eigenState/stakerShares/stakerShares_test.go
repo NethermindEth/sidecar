@@ -81,12 +81,14 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		typedChange := change.(*AccumulatedStateChange)
+		typedChange := change.(*AccumulatedStateChanges)
+
+		assert.Equal(t, 1, len(typedChange.Changes))
 
 		expectedShares, _ := numbers.NewBig257().SetString("159925690037480381", 10)
-		assert.Equal(t, expectedShares, typedChange.Shares)
-		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", typedChange.Staker)
-		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", typedChange.Strategy)
+		assert.Equal(t, expectedShares, typedChange.Changes[0].Shares)
+		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", typedChange.Changes[0].Staker)
+		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", typedChange.Changes[0].Strategy)
 
 		teardown(model)
 	})
@@ -116,12 +118,13 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		typedChange := change.(*AccumulatedStateChange)
+		typedChange := change.(*AccumulatedStateChanges)
+		assert.Equal(t, 1, len(typedChange.Changes))
 
 		expectedShares, _ := numbers.NewBig257().SetString("246393621132195985", 10)
-		assert.Equal(t, expectedShares, typedChange.Shares)
-		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", typedChange.Staker)
-		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", typedChange.Strategy)
+		assert.Equal(t, expectedShares, typedChange.Changes[0].Shares)
+		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", typedChange.Changes[0].Staker)
+		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", typedChange.Changes[0].Strategy)
 
 		teardown(model)
 	})
@@ -151,16 +154,50 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		typedChange := change.(*AccumulatedStateChange)
+		typedChange := change.(*AccumulatedStateChanges)
+		assert.Equal(t, 1, len(typedChange.Changes))
 
 		expectedShares, _ := numbers.NewBig257().SetString("32000000000000000000", 10)
-		assert.Equal(t, expectedShares, typedChange.Shares)
-		assert.Equal(t, strings.ToLower("0x0808D4689B347D499a96f139A5fC5B5101258406"), typedChange.Staker)
-		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", typedChange.Strategy)
+		assert.Equal(t, expectedShares, typedChange.Changes[0].Shares)
+		assert.Equal(t, strings.ToLower("0x0808D4689B347D499a96f139A5fC5B5101258406"), typedChange.Changes[0].Staker)
+		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", typedChange.Changes[0].Strategy)
 
 		teardown(model)
 	})
-	t.Run("Should capture M2 migrated withdrawals", func(t *testing.T) {
-		t.Skip("M2 migration is not yet implemented")
+	t.Run("Should capture M2 withdrawals", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+		blockNumber := uint64(200)
+		log := storage.TransactionLog{
+			TransactionHash:  "some hash",
+			TransactionIndex: big.NewInt(300).Uint64(),
+			BlockNumber:      blockNumber,
+			Address:          cfg.GetContractsMapForEnvAndNetwork().DelegationManager,
+			Arguments:        `[{"Name": "withdrawalRoot", "Type": "bytes32", "Value": ""}, {"Name": "withdrawal", "Type": "(address,address,address,uint256,uint32,address[],uint256[])", "Value": ""}]`,
+			EventName:        "WithdrawalQueued",
+			LogIndex:         big.NewInt(600).Uint64(),
+			OutputData:       `{"withdrawal": {"nonce": 0, "shares": [1000000000000000000], "staker": "0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c", "startBlock": 1215690, "strategies": ["0xd523267698c81a372191136e477fdebfa33d9fb4"], "withdrawer": "0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c", "delegatedTo": "0x2177dee1f66d6dbfbf517d9c4f316024c6a21aeb"}, "withdrawalRoot": [24, 23, 49, 137, 14, 63, 119, 12, 234, 225, 63, 35, 109, 249, 112, 24, 241, 118, 212, 52, 22, 107, 202, 56, 105, 37, 68, 47, 169, 23, 142, 135]}`,
+			CreatedAt:        time.Time{},
+			UpdatedAt:        time.Time{},
+			DeletedAt:        time.Time{},
+		}
+
+		model, err := NewStakerSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+
+		err = model.InitBlockProcessing(blockNumber)
+		assert.Nil(t, err)
+
+		change, err := model.HandleStateChange(&log)
+		assert.Nil(t, err)
+		assert.NotNil(t, change)
+
+		typedChange := change.(*AccumulatedStateChanges)
+		assert.Equal(t, 1, len(typedChange.Changes))
+
+		expectedShares, _ := numbers.NewBig257().SetString("1000000000000000000", 10)
+		assert.Equal(t, expectedShares, typedChange.Changes[0].Shares)
+		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), typedChange.Changes[0].Staker)
+		assert.Equal(t, "0xd523267698c81a372191136e477fdebfa33d9fb4", typedChange.Changes[0].Strategy)
+
+		teardown(model)
 	})
 }
