@@ -53,6 +53,12 @@ docker run \
 ## RPC Routes
 
 ### Get current block height
+
 ```bash
 grpcurl -plaintext -d '{}'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetBlockHeight
 ```
+
+### Get the stateroot at a block height
+
+```bash
+grpcurl -plaintext -d '{ "blockNumber": 1140438 }'  localhost:7100 eigenlayer.sidecar.api.v1.Rpc/GetStateRoot
