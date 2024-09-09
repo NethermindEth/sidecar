@@ -51,4 +51,4 @@ test:
 	TESTING=true go test -v -p 1 ./...
 
 .PHONY: ci-test
-ci-test: deps test
+ci-test: deps-linux test
