@@ -1,15 +1,35 @@
 package sqlite
 
 import (
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	goSqlite "github.com/mattn/go-sqlite3"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
+func bytesToHex(jsonByteArray string) (string, error) {
+	jsonBytes := make([]byte, 0)
+	err := json.Unmarshal([]byte(jsonByteArray), &jsonBytes)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(jsonBytes), nil
+}
+
 func NewSqlite(path string) gorm.Dialector {
-	db := sqlite.Open(path)
-	return db
+	sql.Register("sqlite3_with_extensions", &goSqlite.SQLiteDriver{
+		ConnectHook: func(conn *goSqlite.SQLiteConn) error {
+			return conn.RegisterFunc("bytes_to_hex", bytesToHex, true)
+		},
+	})
+	return &sqlite.Dialector{
+		DriverName: "sqlite3_with_extensions",
+		DSN:        path,
+	}
 }
 
 func NewGormSqliteFromSqlite(sqlite gorm.Dialector) (*gorm.DB, error) {
@@ -34,6 +54,7 @@ func NewGormSqliteFromSqlite(sqlite gorm.Dialector) (*gorm.DB, error) {
 			return nil, res.Error
 		}
 	}
+
 	return db, nil
 }
 
