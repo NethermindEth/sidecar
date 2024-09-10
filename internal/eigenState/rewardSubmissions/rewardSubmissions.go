@@ -20,6 +20,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 )
 
 type RewardSubmission struct {
@@ -29,9 +30,9 @@ type RewardSubmission struct {
 	Amount         string
 	Strategy       string
 	StrategyIndex  uint64
-	Multiplier     string `gorm:"type:numeric"`
-	StartTimestamp uint64 `gorm:"type:DATETIME"`
-	EndTimestamp   uint64 `gorm:"type:DATETIME"`
+	Multiplier     string     `gorm:"type:numeric"`
+	StartTimestamp *time.Time `gorm:"type:DATETIME"`
+	EndTimestamp   *time.Time `gorm:"type:DATETIME"`
 	Duration       uint64
 	BlockNumber    uint64
 	IsForAll       bool
@@ -143,15 +144,19 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 	rewardSubmissions := make([]*RewardSubmission, 0)
 
 	for _, strategyAndMultiplier := range actualOuputData.StrategiesAndMultipliers {
+
+		startTimestamp := time.Unix(int64(actualOuputData.StartTimestamp), 0)
+		endTimestamp := startTimestamp.Add(time.Duration(actualOuputData.Duration) * time.Second)
+
 		rewardSubmission := &RewardSubmission{
-			Avs:            arguments[0].Value.(string),
-			RewardHash:     arguments[2].Value.(string),
-			Token:          actualOuputData.Token,
+			Avs:            strings.ToLower(arguments[0].Value.(string)),
+			RewardHash:     strings.ToLower(arguments[2].Value.(string)),
+			Token:          strings.ToLower(actualOuputData.Token),
 			Amount:         actualOuputData.Amount.String(),
 			Strategy:       strategyAndMultiplier.Strategy,
 			Multiplier:     strategyAndMultiplier.Multiplier.String(),
-			StartTimestamp: actualOuputData.StartTimestamp,
-			EndTimestamp:   actualOuputData.StartTimestamp + actualOuputData.Duration,
+			StartTimestamp: &startTimestamp,
+			EndTimestamp:   &endTimestamp,
 			Duration:       actualOuputData.Duration,
 			BlockNumber:    log.BlockNumber,
 			IsForAll:       log.EventName == "RewardsSubmissionForAllCreated" || log.EventName == "RangePaymentForAllCreated",
@@ -174,14 +179,14 @@ func (rs *RewardSubmissionsModel) GetStateTransitions() (types.StateTransitions[
 		for _, rewardSubmission := range rewardSubmissions.Submissions {
 			slotId := NewSlotId(rewardSubmission.RewardHash, rewardSubmission.Strategy)
 
-			record, ok := rs.stateAccumulator[log.BlockNumber][slotId]
+			_, ok := rs.stateAccumulator[log.BlockNumber][slotId]
 			if ok {
 				err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
 				rs.logger.Sugar().Errorw("Duplicate distribution root submitted", zap.Error(err))
 				return nil, err
 			}
 
-			rs.stateAccumulator[log.BlockNumber][slotId] = record
+			rs.stateAccumulator[log.BlockNumber][slotId] = rewardSubmission
 		}
 
 		return rewardSubmissions, nil
@@ -257,7 +262,7 @@ func (rs *RewardSubmissionsModel) clonePreviousBlocksToNewBlock(blockNumber uint
 				end_timestamp,
 				duration,
 				is_for_all,
-				@currentBlock as block_number,
+				@currentBlock as block_number
 			from reward_submissions
 			where block_number = @previousBlock
 	`
@@ -281,6 +286,7 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 		rs.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, nil, err
 	}
+	fmt.Printf("Accumulated state: %v\n", accumulatedState)
 
 	currentBlock := &storage.Block{}
 	err := rs.Db.Where("number = ?", blockNumber).First(currentBlock).Error
@@ -346,6 +352,9 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 		return err
 	}
 
+	fmt.Printf("Records to insert: %v\n", recordsToInsert)
+	fmt.Printf("Records to delete: %v\n", recordsToDelete)
+
 	for _, record := range recordsToDelete {
 		res := rs.Db.Delete(&RewardSubmission{}, "reward_hash = ? and strategy = ? and block_number = ?", record.RewardSubmission.RewardHash, record.RewardSubmission.Strategy, blockNumber)
 		if res.Error != nil {
@@ -402,6 +411,13 @@ func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.S
 func (rs *RewardSubmissionsModel) merkelizeState(blockNumber uint64, rewardSubmissions []*RewardSubmissionDiff) (*merkletree.MerkleTree, error) {
 	// Avs -> slot_id -> string (added/removed)
 	om := orderedmap.New[string, *orderedmap.OrderedMap[SlotId, string]]()
+
+	sort.Slice(rewardSubmissions, func(i, j int) bool {
+		if rewardSubmissions[i].RewardSubmission.Avs != rewardSubmissions[j].RewardSubmission.Avs {
+			return strings.Compare(rewardSubmissions[i].RewardSubmission.Avs, rewardSubmissions[j].RewardSubmission.Avs) < 0
+		}
+		return strings.Compare(rewardSubmissions[i].RewardSubmission.Strategy, rewardSubmissions[j].RewardSubmission.Strategy) < 0
+	})
 
 	for _, result := range rewardSubmissions {
 		existingAvs, found := om.Get(result.RewardSubmission.Avs)
