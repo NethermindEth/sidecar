@@ -236,7 +236,7 @@ func (idx *Indexer) DecodeLogWithAbi(
 	// If the address of the log is not the same as the contract address, we need to load the ABI for the log
 	//
 	// The typical case is when a contract interacts with another contract that emits an event
-	if utils.AreAddressesEqual(logAddress.String(), txReceipt.GetTargetAddress().Value()) {
+	if utils.AreAddressesEqual(logAddress.String(), txReceipt.GetTargetAddress().Value()) && a != nil {
 		return idx.DecodeLog(a, lg)
 	} else {
 		idx.Logger.Sugar().Debugw("Log address does not match contract address", zap.String("logAddress", logAddress.String()), zap.String("contractAddress", txReceipt.GetTargetAddress().Value()))
