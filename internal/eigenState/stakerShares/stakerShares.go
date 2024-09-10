@@ -2,6 +2,7 @@ package stakerShares
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
@@ -9,8 +10,8 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
+	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
-	"github.com/holiman/uint256"
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
@@ -18,6 +19,7 @@ import (
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"math/big"
 	"slices"
 	"sort"
 	"strings"
@@ -35,15 +37,14 @@ type StakerShares struct {
 type AccumulatedStateChange struct {
 	Staker      string
 	Strategy    string
-	Shares      *uint256.Int
+	Shares      *big.Int
 	BlockNumber uint64
-	IsNegative  bool
 }
 
 type StakerSharesDiff struct {
 	Staker      string
 	Strategy    string
-	Shares      *uint256.Int
+	Shares      *big.Int
 	BlockNumber uint64
 	IsNew       bool
 }
@@ -137,9 +138,9 @@ func (ss *StakerSharesModel) handleStakerDepositEvent(log *storage.TransactionLo
 		return nil, xerrors.Errorf("No staker address found in event")
 	}
 
-	shares, err := uint256.FromDecimal(outputData.Shares.String())
-	if err != nil {
-		return nil, xerrors.Errorf("Failed to convert shares to uint256: %s", outputData.Shares)
+	shares, success := numbers.NewBig257().SetString(outputData.Shares.String(), 10)
+	if !success {
+		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Shares)
 	}
 
 	return &AccumulatedStateChange{
@@ -180,9 +181,9 @@ func (ss *StakerSharesModel) handlePodSharesUpdatedEvent(log *storage.Transactio
 
 	sharesDeltaStr := outputData.SharesDelta.String()
 
-	sharesDelta, err := uint256.FromDecimal(sharesDeltaStr)
-	if err != nil {
-		return nil, xerrors.Errorf("Failed to convert shares to uint256: %s", sharesDelta)
+	sharesDelta, success := numbers.NewBig257().SetString(sharesDeltaStr, 10)
+	if !success {
+		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", sharesDelta)
 	}
 
 	return &AccumulatedStateChange{
@@ -211,30 +212,162 @@ func (ss *StakerSharesModel) handleM1StakerWithdrawals(log *storage.TransactionL
 		return nil, xerrors.Errorf("No staker address found in event")
 	}
 
-	shares, err := uint256.FromDecimal(outputData.Shares.String())
-	if err != nil {
-		return nil, xerrors.Errorf("Failed to convert shares to uint256: %s", outputData.Shares)
+	shares, success := numbers.NewBig257().SetString(outputData.Shares.String(), 10)
+	if !success {
+		return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Shares)
 	}
 
 	return &AccumulatedStateChange{
 		Staker:      stakerAddress,
 		Strategy:    outputData.Strategy,
-		Shares:      shares,
+		Shares:      shares.Mul(shares, big.NewInt(-1)),
 		BlockNumber: log.BlockNumber,
-		IsNegative:  true,
 	}, nil
 }
 
-func (ss *StakerSharesModel) handleM2StakerWithdrawals(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
-	// TODO(seanmcgary): come back to this...
-	return nil, nil
+type m2MigrationOutputData struct {
+	OldWithdrawalRoot       []byte `json:"oldWithdrawalRoot"`
+	OldWithdrawalRootString string
 }
 
-func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChange], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChange])
+func parseLogOutputForM2MigrationEvent(outputDataStr string) (*m2MigrationOutputData, error) {
+	outputData := &m2MigrationOutputData{}
+	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
+	decoder.UseNumber()
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
-		var parsedRecord *AccumulatedStateChange
+	err := decoder.Decode(&outputData)
+	if err != nil {
+		return nil, err
+	}
+	outputData.OldWithdrawalRootString = hex.EncodeToString(outputData.OldWithdrawalRoot)
+	return outputData, err
+}
+
+// handleMigratedM2StakerWithdrawals handles the WithdrawalMigrated event from the DelegationManager contract
+//
+// Since we have already counted M1 withdrawals due to processing events block-by-block, we need to handle not double subtracting.
+// Assuming that M2 WithdrawalQueued events always result in a subtraction, if we encounter a migration event, we need
+// to add the amount back to the shares to get the correct final state.
+func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.TransactionLog) ([]*AccumulatedStateChange, error) {
+	outputData, err := parseLogOutputForM2MigrationEvent(log.OutputData)
+	if err != nil {
+		return nil, err
+	}
+	query := `
+		with migration as (
+			select
+				json_extract(tl.output_data, '$.nonce') as nonce,
+				coalesce(json_extract(tl.output_data, '$.depositor'), json_extract(tl.output_data, '$.staker')) as staker
+			from transaction_logs tl
+			where
+				tl.address = @strategyManagerAddress
+				and tl.block_number <= @logBlockNumber
+				and tl.event_name = 'WithdrawalQueued'
+				and bytes_to_hex(json_extract(tl.output_data, '$.withdrawalRoot')) = @oldWithdrawalRoot
+		),
+		share_withdrawal_queued as (
+			select
+				tl.*,
+				json_extract(tl.output_data, '$.nonce') as nonce,
+				coalesce(json_extract(tl.output_data, '$.depositor'), json_extract(tl.output_data, '$.staker')) as staker
+			from transaction_logs as tl
+			where
+				tl.address = @strategyManagerAddress
+				and tl.event_name = 'ShareWithdrawalQueued'
+		)
+		select
+			*
+		from share_withdrawal_queued
+		where
+			nonce = (select nonce from migration)
+			and staker = (select staker from migration)
+	`
+	logs := make([]storage.TransactionLog, 0)
+	res := ss.Db.
+		Raw(query,
+			sql.Named("strategyManagerAddress", ss.globalConfig.GetContractsMapForEnvAndNetwork().StrategyManager),
+			sql.Named("logBlockNumber", log.BlockNumber),
+			sql.Named("oldWithdrawalRoot", outputData.OldWithdrawalRootString),
+		).
+		Scan(&logs)
+
+	if res.Error != nil {
+		ss.logger.Sugar().Errorw("Failed to fetch share withdrawal queued logs", zap.Error(res.Error))
+		return nil, res.Error
+	}
+
+	changes := make([]*AccumulatedStateChange, 0)
+	for _, l := range logs {
+		c, err := ss.handleStakerDepositEvent(&l)
+		if err != nil {
+			return nil, err
+		}
+		changes = append(changes, c)
+	}
+
+	return changes, nil
+}
+
+type m2WithdrawalOutputData struct {
+	Withdrawal struct {
+		Nonce      int           `json:"nonce"`
+		Shares     []json.Number `json:"shares"`
+		Staker     string        `json:"staker"`
+		StartBlock uint64        `json:"startBlock"`
+		Strategies []string      `json:"strategies"`
+	} `json:"withdrawal"`
+	WithdrawalRoot       []byte `json:"withdrawalRoot"`
+	WithdrawalRootString string
+}
+
+func parseLogOutputForM2WithdrawalEvent(outputDataStr string) (*m2WithdrawalOutputData, error) {
+	outputData := &m2WithdrawalOutputData{}
+	decoder := json.NewDecoder(strings.NewReader(outputDataStr))
+	decoder.UseNumber()
+
+	err := decoder.Decode(&outputData)
+	if err != nil {
+		return nil, err
+	}
+	outputData.Withdrawal.Staker = strings.ToLower(outputData.Withdrawal.Staker)
+	outputData.WithdrawalRootString = hex.EncodeToString(outputData.WithdrawalRoot)
+	return outputData, err
+}
+
+// handleM2QueuedWithdrawal handles the WithdrawalQueued event from the DelegationManager contract for M2
+func (ss *StakerSharesModel) handleM2QueuedWithdrawal(log *storage.TransactionLog) ([]*AccumulatedStateChange, error) {
+	outputData, err := parseLogOutputForM2WithdrawalEvent(log.OutputData)
+	if err != nil {
+		return nil, err
+	}
+
+	records := make([]*AccumulatedStateChange, 0)
+
+	for i, strategy := range outputData.Withdrawal.Strategies {
+		shares, success := numbers.NewBig257().SetString(outputData.Withdrawal.Shares[i].String(), 10)
+		if !success {
+			return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Withdrawal.Shares[i])
+		}
+		r := &AccumulatedStateChange{
+			Staker:      outputData.Withdrawal.Staker,
+			Strategy:    strategy,
+			Shares:      shares.Mul(shares, big.NewInt(-1)),
+			BlockNumber: log.BlockNumber,
+		}
+		records = append(records, r)
+	}
+	return records, nil
+}
+
+type AccumulatedStateChanges struct {
+	Changes []*AccumulatedStateChange
+}
+
+func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChanges], []uint64) {
+	stateChanges := make(types.StateTransitions[AccumulatedStateChanges])
+
+	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChanges, error) {
+		var parsedRecords []*AccumulatedStateChange
 		var err error
 
 		contractAddresses := ss.globalConfig.GetContractsMapForEnvAndNetwork()
@@ -242,13 +375,30 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 		// Staker shares is a bit more complex and has 4 possible contract/event combinations
 		// that we need to handle
 		if log.Address == contractAddresses.StrategyManager && log.EventName == "Deposit" {
-			parsedRecord, err = ss.handleStakerDepositEvent(log)
+			record, err := ss.handleStakerDepositEvent(log)
+			if err == nil {
+				parsedRecords = append(parsedRecords, record)
+			}
 		} else if log.Address == contractAddresses.EigenpodManager && log.EventName == "PodSharesUpdated" {
-			parsedRecord, err = ss.handlePodSharesUpdatedEvent(log)
+			record, err := ss.handlePodSharesUpdatedEvent(log)
+			if err == nil {
+				parsedRecords = append(parsedRecords, record)
+			}
 		} else if log.Address == contractAddresses.StrategyManager && log.EventName == "ShareWithdrawalQueued" && log.TransactionHash != "0x62eb0d0865b2636c74ed146e2d161e39e42b09bac7f86b8905fc7a830935dc1e" {
-			parsedRecord, err = ss.handleM1StakerWithdrawals(log)
+			record, err := ss.handleM1StakerWithdrawals(log)
+			if err == nil {
+				parsedRecords = append(parsedRecords, record)
+			}
+		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "WithdrawalQueued" {
+			records, err := ss.handleM2QueuedWithdrawal(log)
+			if err == nil && records != nil {
+				parsedRecords = append(parsedRecords, records...)
+			}
 		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "WithdrawalMigrated" {
-			parsedRecord, err = ss.handleM2StakerWithdrawals(log)
+			records, err := ss.handleMigratedM2StakerWithdrawals(log)
+			if err == nil {
+				parsedRecords = append(parsedRecords, records...)
+			}
 		} else {
 			ss.logger.Sugar().Debugw("Got stakerShares event that we don't handle",
 				zap.String("eventName", log.EventName),
@@ -258,7 +408,7 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 		if err != nil {
 			return nil, err
 		}
-		if parsedRecord == nil {
+		if parsedRecords == nil {
 			return nil, nil
 		}
 
@@ -267,21 +417,21 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
 		}
 
-		slotId := NewSlotId(parsedRecord.Staker, parsedRecord.Strategy)
-		record, ok := ss.stateAccumulator[log.BlockNumber][slotId]
-		if !ok {
-			record = parsedRecord
-			ss.stateAccumulator[log.BlockNumber][slotId] = record
-		} else {
-			if record.IsNegative {
-				record.Shares = record.Shares.Sub(record.Shares, parsedRecord.Shares)
+		for _, parsedRecord := range parsedRecords {
+			if parsedRecord == nil {
+				continue
+			}
+			slotId := NewSlotId(parsedRecord.Staker, parsedRecord.Strategy)
+			record, ok := ss.stateAccumulator[log.BlockNumber][slotId]
+			if !ok {
+				record = parsedRecord
+				ss.stateAccumulator[log.BlockNumber][slotId] = record
 			} else {
 				record.Shares = record.Shares.Add(record.Shares, parsedRecord.Shares)
 			}
-
 		}
 
-		return record, nil
+		return &AccumulatedStateChanges{Changes: parsedRecords}, nil
 	}
 
 	// Create an ordered list of block numbers
@@ -302,6 +452,7 @@ func (ss *StakerSharesModel) getContractAddressesForEnvironment() map[string][]s
 	return map[string][]string{
 		contracts.DelegationManager: []string{
 			"WithdrawalMigrated",
+			"WithdrawalQueued",
 		},
 		contracts.StrategyManager: []string{
 			"Deposit",
@@ -335,7 +486,7 @@ func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (int
 				return nil, err
 			}
 			if change == nil {
-				return nil, xerrors.Errorf("No state change found for block %d", blockNumber)
+				return nil, nil
 			}
 			return change, nil
 		}
@@ -425,9 +576,9 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 		}
 
 		if existingRecord, ok := mappedRecords[slotId]; ok {
-			existingShares, err := uint256.FromDecimal(existingRecord.Shares)
-			if err != nil {
-				ss.logger.Sugar().Errorw("Failed to convert existing shares to uint256", zap.Error(err))
+			existingShares, success := numbers.NewBig257().SetString(existingRecord.Shares, 10)
+			if !success {
+				ss.logger.Sugar().Errorw("Failed to convert existing shares to big.Int")
 				continue
 			}
 			prepared.Shares = existingShares.Add(existingShares, newState.Shares)
