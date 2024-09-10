@@ -8,15 +8,6 @@ import (
 )
 
 func Test_Sqlite(t *testing.T) {
-	// t.Run("Should create a new GormSqlite", func(t *testing.T) {
-	// 	s := NewSqlite("file::memory:?cache=shared")
-	// 	grm, err := NewGormSqliteFromSqlite(s)
-	// 	assert.Nil(t, err)
-	// 	assert.NotNil(t, grm)
-	//
-	// 	db, err := grm.DB()
-	// 	defer db.Close()
-	// })
 	t.Run("Should use the bytesToHex function", func(t *testing.T) {
 		query := `
 			with json_values as (

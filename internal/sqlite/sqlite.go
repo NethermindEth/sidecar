@@ -11,6 +11,10 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// bytesToHex is a custom SQLite function that converts a JSON byte array to a hex string.
+//
+// @param jsonByteArray: a JSON byte array, e.g. [1, 2, 3, ...]
+// @return: a hex string without a leading 0x, e.g. 78cc56f0700e7ba5055f12...
 func bytesToHex(jsonByteArray string) (string, error) {
 	jsonBytes := make([]byte, 0)
 	err := json.Unmarshal([]byte(jsonByteArray), &jsonBytes)
