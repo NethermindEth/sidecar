@@ -18,3 +18,13 @@ func AreAddressesEqual(a, b string) bool {
 func ConvertBytesToString(b []byte) string {
 	return "0x" + hex.EncodeToString(b[:])
 }
+
+func StripLeading0x(s string) string {
+	if len(s) < 2 {
+		return s
+	}
+	if s[0:2] == "0x" {
+		s = s[2:]
+	}
+	return s
+}
