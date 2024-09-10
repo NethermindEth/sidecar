@@ -13,6 +13,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stakerDelegations"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stakerShares"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/submittedDistributionRoots"
 	"github.com/Layr-Labs/go-sidecar/internal/fetcher"
 	"github.com/Layr-Labs/go-sidecar/internal/indexer"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
@@ -82,6 +83,9 @@ func main() {
 	}
 	if _, err := stakerShares.NewStakerSharesModel(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to create StakerSharesModel", zap.Error(err))
+	}
+	if _, err := submittedDistributionRoots.NewSubmittedDistributionRootsModel(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
+		l.Sugar().Fatalw("Failed to create SubmittedDistributionRootsModel", zap.Error(err))
 	}
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
