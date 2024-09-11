@@ -54,10 +54,15 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		return err
 	}
 
-	s.Logger.Sugar().Infow("Comparing latest block and latest state root",
-		zap.Int64("latestBlock", latestBlock),
-		zap.Uint64("latestStateRootBlock", latestStateRoot.EthBlockNumber),
-	)
+	if latestStateRoot != nil {
+		s.Logger.Sugar().Infow("Comparing latest block and latest state root",
+			zap.Int64("latestBlock", latestBlock),
+			zap.Uint64("latestStateRootBlock", latestStateRoot.EthBlockNumber),
+		)
+	} else {
+		s.Logger.Sugar().Infow("No state roots found, starting from EL genesis")
+		latestBlock = 0
+	}
 
 	if latestBlock == 0 {
 		s.Logger.Sugar().Infow("No blocks indexed, starting from genesis block", zap.Uint64("genesisBlock", s.Config.GenesisBlockNumber))
