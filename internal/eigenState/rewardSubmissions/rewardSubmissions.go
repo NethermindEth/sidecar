@@ -107,8 +107,8 @@ type genericRewardPaymentData struct {
 }
 
 type rewardSubmissionOutputData struct {
-	RewardSubmission *genericRewardPaymentData `json:"rewardSubmission"`
-	RangePayment     *genericRewardPaymentData `json:"rangePayment"`
+	RewardsSubmission *genericRewardPaymentData `json:"rewardsSubmission"`
+	RangePayment      *genericRewardPaymentData `json:"rangePayment"`
 }
 
 func parseRewardSubmissionOutputData(outputDataStr string) (*rewardSubmissionOutputData, error) {
@@ -138,7 +138,7 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 	if log.EventName == "RangePaymentCreated" || log.EventName == "RangePaymentForAllCreated" {
 		actualOuputData = outputData.RangePayment
 	} else {
-		actualOuputData = outputData.RewardSubmission
+		actualOuputData = outputData.RewardsSubmission
 	}
 
 	rewardSubmissions := make([]*RewardSubmission, 0)

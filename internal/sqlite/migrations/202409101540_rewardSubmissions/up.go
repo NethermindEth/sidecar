@@ -22,7 +22,7 @@ func (m *SqliteMigration) Up(grm *gorm.DB) error {
 			duration INTEGER NOT NULL,
 			is_for_all INTEGER DEFAULT 0,
 			block_number INTEGER NOT NULL,
-			unique(reward_hash, strategy)
+			unique(reward_hash, strategy, block_number)
 		);
 	`
 	if err := grm.Exec(query).Error; err != nil {
