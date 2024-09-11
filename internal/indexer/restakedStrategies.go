@@ -40,7 +40,69 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlock(ctx context.Context, block
 	return nil
 }
 
-func (idx *Indexer) GetRestakedStrategiesWorker(
+func (idx *Indexer) getRestakedStrategiesForAvsOperator(
+	ctx context.Context,
+	avsDirectoryAddress string,
+	avsOperator *storage.ActiveAvsOperator,
+	block *storage.Block,
+) error {
+	blockNumber := block.Number
+	operator := avsOperator.Operator
+	avs := avsOperator.Avs
+
+	idx.Logger.Sugar().Infow("Fetching restaked strategies for operator",
+		zap.String("operator", operator),
+		zap.String("avs", avs),
+		zap.String("avsDirectoryAddress", avsDirectoryAddress),
+		zap.Uint64("blockNumber", blockNumber),
+	)
+	restakedStrategies, err := idx.ContractCaller.GetOperatorRestakedStrategies(ctx, avs, operator, blockNumber)
+
+	if err != nil {
+		idx.Logger.Sugar().Errorw("Failed to get operator restaked strategies",
+			zap.Error(err),
+			zap.String("operator", operator),
+			zap.String("avs", avs),
+			zap.String("avsDirectoryAddress", avsDirectoryAddress),
+			zap.Uint64("blockNumber", blockNumber),
+		)
+		return err
+	}
+	idx.Logger.Sugar().Infow("Fetched restaked strategies for operator",
+		zap.Error(err),
+		zap.String("operator", operator),
+		zap.String("avs", avs),
+		zap.String("avsDirectoryAddress", avsDirectoryAddress),
+		zap.Uint64("blockNumber", blockNumber),
+	)
+
+	for _, restakedStrategy := range restakedStrategies {
+		_, err := idx.MetadataStore.InsertOperatorRestakedStrategies(avsDirectoryAddress, blockNumber, block.BlockTime, operator, avs, restakedStrategy.String())
+
+		if err != nil && !sqlite.IsDuplicateKeyError(err) {
+			idx.Logger.Sugar().Errorw("Failed to save restaked strategy",
+				zap.Error(err),
+				zap.String("restakedStrategy", restakedStrategy.String()),
+				zap.String("operator", operator),
+				zap.String("avs", avs),
+				zap.String("avsDirectoryAddress", avsDirectoryAddress),
+				zap.Uint64("blockNumber", blockNumber),
+			)
+			return err
+		} else if err == nil {
+			idx.Logger.Sugar().Infow("Inserted restaked strategy",
+				zap.String("restakedStrategy", restakedStrategy.String()),
+				zap.String("operator", operator),
+				zap.String("avs", avs),
+				zap.String("avsDirectoryAddress", avsDirectoryAddress),
+				zap.Uint64("blockNumber", blockNumber),
+			)
+		}
+	}
+	return nil
+}
+
+func (idx *Indexer) getRestakedStrategiesWorker(
 	ctx context.Context,
 	jobs <-chan *storage.ActiveAvsOperator,
 	avsDirectoryAddress string,
@@ -48,61 +110,9 @@ func (idx *Indexer) GetRestakedStrategiesWorker(
 	wg *sync.WaitGroup,
 ) {
 	defer wg.Done()
-	blockNumber := block.Number
 
 	for avsOperator := range jobs {
-		operator := avsOperator.Operator
-		avs := avsOperator.Avs
-
-		idx.Logger.Sugar().Infow("Fetching restaked strategies for operator",
-			zap.String("operator", operator),
-			zap.String("avs", avs),
-			zap.String("avsDirectoryAddress", avsDirectoryAddress),
-			zap.Uint64("blockNumber", blockNumber),
-		)
-		restakedStrategies, err := idx.ContractCaller.GetOperatorRestakedStrategies(ctx, avs, operator, blockNumber)
-
-		if err != nil {
-			idx.Logger.Sugar().Errorw("Failed to get operator restaked strategies",
-				zap.Error(err),
-				zap.String("operator", operator),
-				zap.String("avs", avs),
-				zap.String("avsDirectoryAddress", avsDirectoryAddress),
-				zap.Uint64("blockNumber", blockNumber),
-			)
-			return
-		}
-		idx.Logger.Sugar().Infow("Fetched restaked strategies for operator",
-			zap.Error(err),
-			zap.String("operator", operator),
-			zap.String("avs", avs),
-			zap.String("avsDirectoryAddress", avsDirectoryAddress),
-			zap.Uint64("blockNumber", blockNumber),
-		)
-
-		for _, restakedStrategy := range restakedStrategies {
-			_, err := idx.MetadataStore.InsertOperatorRestakedStrategies(avsDirectoryAddress, blockNumber, block.BlockTime, operator, avs, restakedStrategy.String())
-
-			if err != nil && !sqlite.IsDuplicateKeyError(err) {
-				idx.Logger.Sugar().Errorw("Failed to save restaked strategy",
-					zap.Error(err),
-					zap.String("restakedStrategy", restakedStrategy.String()),
-					zap.String("operator", operator),
-					zap.String("avs", avs),
-					zap.String("avsDirectoryAddress", avsDirectoryAddress),
-					zap.Uint64("blockNumber", blockNumber),
-				)
-				continue
-			} else if err == nil {
-				idx.Logger.Sugar().Infow("Inserted restaked strategy",
-					zap.String("restakedStrategy", restakedStrategy.String()),
-					zap.String("operator", operator),
-					zap.String("avs", avs),
-					zap.String("avsDirectoryAddress", avsDirectoryAddress),
-					zap.Uint64("blockNumber", blockNumber),
-				)
-			}
-		}
+		idx.getRestakedStrategiesForAvsOperator(ctx, avsDirectoryAddress, avsOperator, block)
 	}
 }
 
@@ -124,7 +134,7 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlockAndAvsDirectory(ctx context
 	numWorkers := 20
 	for w := 1; w <= numWorkers; w++ {
 		wg.Add(1)
-		go idx.GetRestakedStrategiesWorker(ctx, jobs, avsDirectoryAddress, block, &wg)
+		go idx.getRestakedStrategiesWorker(ctx, jobs, avsDirectoryAddress, block, &wg)
 	}
 
 	for _, avsOperator := range avsOperators {

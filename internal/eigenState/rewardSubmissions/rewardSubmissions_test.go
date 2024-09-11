@@ -208,8 +208,6 @@ func Test_RewardSubmissions(t *testing.T) {
 
 				assert.Equal(t, strings.ToLower(strategiesAndMultipliers[i].Strategy), strings.ToLower(submission.Strategy))
 				assert.Equal(t, strategiesAndMultipliers[i].Multiplier, submission.Multiplier)
-
-				fmt.Printf("Submission: %+v\n", submission)
 			}
 
 			err = model.CommitFinalState(blockNumber)

@@ -88,7 +88,7 @@ func NewRewardSubmissionsModel(
 		stateAccumulator: make(map[uint64]map[SlotId]*RewardSubmission),
 	}
 
-	esm.RegisterState(model, 4)
+	esm.RegisterState(model, 5)
 	return model, nil
 }
 

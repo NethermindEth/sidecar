@@ -11,6 +11,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/contractStore/sqliteContractStore"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/avsOperators"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/operatorShares"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/rewardSubmissions"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stakerDelegations"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stakerShares"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
@@ -94,9 +95,6 @@ func setup() (
 	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
 
 	mds := sqliteBlockStore.NewSqliteBlockStore(grm, l, cfg)
-	if err != nil {
-		log.Fatalln(err)
-	}
 
 	sm := stateManager.NewEigenStateManager(l, grm)
 
@@ -114,6 +112,9 @@ func setup() (
 	}
 	if _, err := submittedDistributionRoots.NewSubmittedDistributionRootsModel(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to create SubmittedDistributionRootsModel", zap.Error(err))
+	}
+	if _, err := rewardSubmissions.NewRewardSubmissionsModel(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
+		l.Sugar().Fatalw("Failed to create RewardSubmissionsModel", zap.Error(err))
 	}
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
