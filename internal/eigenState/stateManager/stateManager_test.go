@@ -38,7 +38,7 @@ func setup() (
 }
 
 func teardown(model *EigenStateManager) {
-	model.Db.Exec("truncate table state_roots cascade")
+	model.Db.Exec("delete from state_roots")
 }
 
 func Test_StateManager(t *testing.T) {

@@ -37,8 +37,8 @@ func setup() (
 }
 
 func teardown(model *AvsOperatorsModel) {
-	model.Db.Exec("truncate table avs_operator_changes cascade")
-	model.Db.Exec("truncate table registered_avs_operators cascade")
+	model.Db.Exec("delete from avs_operator_changes")
+	model.Db.Exec("delete from registered_avs_operators")
 }
 
 func Test_AvsOperatorState(t *testing.T) {

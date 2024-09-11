@@ -36,8 +36,8 @@ func setup() (
 }
 
 func teardown(grm *gorm.DB) {
-	grm.Exec("truncate table avs_operator_changes cascade")
-	grm.Exec("truncate table registered_avs_operators cascade")
+	grm.Exec("delete from avs_operator_changes")
+	grm.Exec("delete from registered_avs_operators")
 }
 
 func Test_EigenStateManager(t *testing.T) {

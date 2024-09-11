@@ -48,7 +48,7 @@ docker-buildx:
 
 .PHONY: test
 test:
-	TESTING=true go test -v -p 1 ./...
+	TESTING=true go test -v -p 1 -parallel 1 ./...
 
 .PHONY: ci-test
 ci-test: test
