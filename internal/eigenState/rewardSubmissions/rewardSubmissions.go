@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
+	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
@@ -56,7 +57,7 @@ func NewSlotId(rewardHash string, strategy string) SlotId {
 
 type RewardSubmissionsModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[RewardSubmissions]
+	StateTransitions types.StateTransitions[RewardSubmission]
 	Db               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
@@ -120,6 +121,7 @@ func parseRewardSubmissionOutputData(outputDataStr string) (*rewardSubmissionOut
 	if err != nil {
 		return nil, err
 	}
+
 	return outputData, err
 }
 
@@ -148,13 +150,23 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 		startTimestamp := time.Unix(int64(actualOuputData.StartTimestamp), 0)
 		endTimestamp := startTimestamp.Add(time.Duration(actualOuputData.Duration) * time.Second)
 
+		amountBig, success := numbers.NewBig257().SetString(actualOuputData.Amount.String(), 10)
+		if !success {
+			return nil, xerrors.Errorf("Failed to parse amount to Big257: %s", actualOuputData.Amount.String())
+		}
+
+		multiplierBig, success := numbers.NewBig257().SetString(strategyAndMultiplier.Multiplier.String(), 10)
+		if !success {
+			return nil, xerrors.Errorf("Failed to parse multiplier to Big257: %s", actualOuputData.Amount.String())
+		}
+
 		rewardSubmission := &RewardSubmission{
 			Avs:            strings.ToLower(arguments[0].Value.(string)),
 			RewardHash:     strings.ToLower(arguments[2].Value.(string)),
 			Token:          strings.ToLower(actualOuputData.Token),
-			Amount:         actualOuputData.Amount.String(),
+			Amount:         amountBig.String(),
 			Strategy:       strategyAndMultiplier.Strategy,
-			Multiplier:     strategyAndMultiplier.Multiplier.String(),
+			Multiplier:     multiplierBig.String(),
 			StartTimestamp: &startTimestamp,
 			EndTimestamp:   &endTimestamp,
 			Duration:       actualOuputData.Duration,
