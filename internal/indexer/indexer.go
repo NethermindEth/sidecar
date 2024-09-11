@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/internal/contractManager"
 	"github.com/Layr-Labs/go-sidecar/internal/contractStore"
 	"github.com/Layr-Labs/go-sidecar/internal/fetcher"
@@ -25,6 +26,7 @@ type Indexer struct {
 	Fetcher         *fetcher.Fetcher
 	EthereumClient  *ethereum.Client
 	Config          *config.Config
+	ContractCaller  contractCaller.IContractCaller
 }
 
 type IndexErrorType int
@@ -86,6 +88,7 @@ func NewIndexer(
 	cm *contractManager.ContractManager,
 	e *ethereum.Client,
 	f *fetcher.Fetcher,
+	cc contractCaller.IContractCaller,
 	l *zap.Logger,
 	cfg *config.Config,
 ) *Indexer {
@@ -97,6 +100,7 @@ func NewIndexer(
 		ContractManager: cm,
 		Fetcher:         f,
 		EthereumClient:  e,
+		ContractCaller:  cc,
 		Config:          cfg,
 	}
 }

@@ -290,3 +290,14 @@ func (c *Config) GetEigenLayerGenesisBlockHeight() (uint64, error) {
 		return 0, fmt.Errorf("unsupported environment %d", c.Environment)
 	}
 }
+
+func (c *Config) GetOperatorRestakedStrategiesStartBlock() int64 {
+	switch c.Environment {
+	case Environment_PreProd:
+	case Environment_Testnet:
+		return 1162800
+	case Environment_Mainnet:
+		return 19616400
+	}
+	return 0
+}

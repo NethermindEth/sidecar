@@ -146,6 +146,14 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		p.Indexer.FindAndHandleContractCreationForTransactions(interestingTransactions, block.TxReceipts, block.ContractStorage, blockNumber)
 	}
 
+	if block.Block.Number.Value()%3600 == 0 {
+		p.Logger.Sugar().Infow("Indexing OperatorRestakedStrategies", zap.Uint64("blockNumber", block.Block.Number.Value()))
+		if err := p.Indexer.ProcessRestakedStrategiesForBlock(ctx, block.Block.Number.Value()); err != nil {
+			p.Logger.Sugar().Errorw("Failed to process restaked strategies", zap.Uint64("blockNumber", block.Block.Number.Value()), zap.Error(err))
+			return err
+		}
+	}
+
 	if err := p.stateManager.CommitFinalState(blockNumber); err != nil {
 		p.Logger.Sugar().Errorw("Failed to commit final state", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err

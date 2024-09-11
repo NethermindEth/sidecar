@@ -135,6 +135,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			}
 		}
 	}()
+	// Keep some metrics during the indexing process
 	blocksProcessed := 0
 	runningAvg := 0
 	totalDurationMs := 0

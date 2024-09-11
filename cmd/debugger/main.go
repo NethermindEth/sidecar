@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/internal/contractManager"
 	"github.com/Layr-Labs/go-sidecar/internal/contractStore/sqliteContractStore"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/avsOperators"
@@ -84,7 +85,9 @@ func main() {
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 
-	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, l, cfg)
+	cc := contractCaller.NewContractCaller(client, l)
+
+	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, cc, l, cfg)
 
 	p := pipeline.NewPipeline(fetchr, idxr, mds, sm, l)
 
