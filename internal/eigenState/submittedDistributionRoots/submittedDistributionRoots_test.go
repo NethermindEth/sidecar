@@ -38,7 +38,7 @@ func setup() (
 
 func teardown(model *SubmittedDistributionRootsModel) {
 	queries := []string{
-		`truncate table submitted_distribution_roots cascade`,
+		`delete from submitted_distribution_roots`,
 	}
 	for _, query := range queries {
 		model.Db.Raw(query)

@@ -32,10 +32,10 @@ func setup() (*gorm.DB, *zap.Logger, *config.Config) {
 
 func teardown(db *gorm.DB, l *zap.Logger) {
 	queries := []string{
-		`truncate table blocks cascade`,
-		`truncate table transactions cascade`,
-		`truncate table transaction_logs cascade`,
-		`truncate table transaction_logs cascade`,
+		`delete from blocks`,
+		`delete from transactions`,
+		`delete from transaction_logs`,
+		`delete from transaction_logs`,
 	}
 	for _, query := range queries {
 		res := db.Exec(query)

@@ -40,10 +40,10 @@ func setup() (
 
 func teardown(model *StakerSharesModel) {
 	queries := []string{
-		`truncate table staker_shares cascade`,
-		`truncate table blocks cascade`,
-		`truncate table transactions cascade`,
-		`truncate table transaction_logs cascade`,
+		`delete from staker_shares`,
+		`delete from blocks`,
+		`delete from transactions`,
+		`delete from transaction_logs`,
 	}
 	for _, query := range queries {
 

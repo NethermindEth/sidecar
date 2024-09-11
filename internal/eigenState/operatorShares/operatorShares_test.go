@@ -39,8 +39,8 @@ func setup() (
 }
 
 func teardown(model *OperatorSharesModel) {
-	model.Db.Exec("truncate table operator_share_changes cascade")
-	model.Db.Exec("truncate table operator_shares cascade")
+	model.Db.Exec("delete from operator_share_changes")
+	model.Db.Exec("delete from operator_shares")
 }
 
 func Test_OperatorSharesState(t *testing.T) {

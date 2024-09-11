@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
+	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
@@ -56,7 +57,7 @@ func NewSlotId(rewardHash string, strategy string) SlotId {
 
 type RewardSubmissionsModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[RewardSubmissions]
+	StateTransitions types.StateTransitions[RewardSubmission]
 	Db               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
@@ -120,6 +121,7 @@ func parseRewardSubmissionOutputData(outputDataStr string) (*rewardSubmissionOut
 	if err != nil {
 		return nil, err
 	}
+
 	return outputData, err
 }
 
@@ -148,13 +150,23 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 		startTimestamp := time.Unix(int64(actualOuputData.StartTimestamp), 0)
 		endTimestamp := startTimestamp.Add(time.Duration(actualOuputData.Duration) * time.Second)
 
+		amountBig, success := numbers.NewBig257().SetString(actualOuputData.Amount.String(), 10)
+		if !success {
+			return nil, xerrors.Errorf("Failed to parse amount to Big257: %s", actualOuputData.Amount.String())
+		}
+
+		multiplierBig, success := numbers.NewBig257().SetString(strategyAndMultiplier.Multiplier.String(), 10)
+		if !success {
+			return nil, xerrors.Errorf("Failed to parse multiplier to Big257: %s", actualOuputData.Amount.String())
+		}
+
 		rewardSubmission := &RewardSubmission{
 			Avs:            strings.ToLower(arguments[0].Value.(string)),
 			RewardHash:     strings.ToLower(arguments[2].Value.(string)),
 			Token:          strings.ToLower(actualOuputData.Token),
-			Amount:         actualOuputData.Amount.String(),
+			Amount:         amountBig.String(),
 			Strategy:       strategyAndMultiplier.Strategy,
-			Multiplier:     strategyAndMultiplier.Multiplier.String(),
+			Multiplier:     multiplierBig.String(),
 			StartTimestamp: &startTimestamp,
 			EndTimestamp:   &endTimestamp,
 			Duration:       actualOuputData.Duration,
@@ -249,7 +261,7 @@ func (rs *RewardSubmissionsModel) HandleStateChange(log *storage.TransactionLog)
 
 func (rs *RewardSubmissionsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
 	query := `
-		insert into reward_submissions(avs, reward_hash, token, amount, strategy, strategy_index, multiplier, start_timestamp, end_timestamp, duration, block_number, is_for_all)
+		insert into reward_submissions(avs, reward_hash, token, amount, strategy, strategy_index, multiplier, start_timestamp, end_timestamp, duration, is_for_all, block_number)
 			select
 				avs,
 				reward_hash,
@@ -286,7 +298,6 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 		rs.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, nil, err
 	}
-	fmt.Printf("Accumulated state: %v\n", accumulatedState)
 
 	currentBlock := &storage.Block{}
 	err := rs.Db.Where("number = ?", blockNumber).First(currentBlock).Error
@@ -352,9 +363,6 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 		return err
 	}
 
-	fmt.Printf("Records to insert: %v\n", recordsToInsert)
-	fmt.Printf("Records to delete: %v\n", recordsToDelete)
-
 	for _, record := range recordsToDelete {
 		res := rs.Db.Delete(&RewardSubmission{}, "reward_hash = ? and strategy = ? and block_number = ?", record.RewardSubmission.RewardHash, record.RewardSubmission.Strategy, blockNumber)
 		if res.Error != nil {
@@ -368,14 +376,14 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 		}
 	}
 	if len(recordsToInsert) > 0 {
-		records := make([]RewardSubmission, 0)
+		// records := make([]RewardSubmission, 0)
 		for _, record := range recordsToInsert {
-			records = append(records, *record.RewardSubmission)
-		}
-		res := rs.Db.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&records)
-		if res.Error != nil {
-			rs.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-			return res.Error
+			res := rs.Db.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&record.RewardSubmission)
+			if res.Error != nil {
+				rs.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
+				fmt.Printf("\n\n%+v\n\n", record.RewardSubmission)
+				return res.Error
+			}
 		}
 	}
 	return nil
@@ -408,16 +416,45 @@ func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.S
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
+func (rs *RewardSubmissionsModel) sortRewardSubmissionsForMerkelization(submissions []*RewardSubmissionDiff) []*RewardSubmissionDiff {
+	mappedByAvs := make(map[string][]*RewardSubmissionDiff)
+	for _, submission := range submissions {
+		if _, ok := mappedByAvs[submission.RewardSubmission.Avs]; !ok {
+			mappedByAvs[submission.RewardSubmission.Avs] = make([]*RewardSubmissionDiff, 0)
+		}
+		mappedByAvs[submission.RewardSubmission.Avs] = append(mappedByAvs[submission.RewardSubmission.Avs], submission)
+	}
+
+	for _, sub := range mappedByAvs {
+		slices.SortFunc(sub, func(i, j *RewardSubmissionDiff) int {
+			iSlotId := NewSlotId(i.RewardSubmission.RewardHash, i.RewardSubmission.Strategy)
+			jSlotId := NewSlotId(j.RewardSubmission.RewardHash, j.RewardSubmission.Strategy)
+
+			return strings.Compare(string(iSlotId), string(jSlotId))
+		})
+	}
+
+	avsAddresses := make([]string, 0)
+	for key, _ := range mappedByAvs {
+		avsAddresses = append(avsAddresses, key)
+	}
+
+	sort.Slice(avsAddresses, func(i, j int) bool {
+		return avsAddresses[i] < avsAddresses[j]
+	})
+
+	sorted := make([]*RewardSubmissionDiff, 0)
+	for _, avs := range avsAddresses {
+		sorted = append(sorted, mappedByAvs[avs]...)
+	}
+	return sorted
+}
+
 func (rs *RewardSubmissionsModel) merkelizeState(blockNumber uint64, rewardSubmissions []*RewardSubmissionDiff) (*merkletree.MerkleTree, error) {
 	// Avs -> slot_id -> string (added/removed)
 	om := orderedmap.New[string, *orderedmap.OrderedMap[SlotId, string]]()
 
-	sort.Slice(rewardSubmissions, func(i, j int) bool {
-		if rewardSubmissions[i].RewardSubmission.Avs != rewardSubmissions[j].RewardSubmission.Avs {
-			return strings.Compare(rewardSubmissions[i].RewardSubmission.Avs, rewardSubmissions[j].RewardSubmission.Avs) < 0
-		}
-		return strings.Compare(rewardSubmissions[i].RewardSubmission.Strategy, rewardSubmissions[j].RewardSubmission.Strategy) < 0
-	})
+	rewardSubmissions = rs.sortRewardSubmissionsForMerkelization(rewardSubmissions)
 
 	for _, result := range rewardSubmissions {
 		existingAvs, found := om.Get(result.RewardSubmission.Avs)
