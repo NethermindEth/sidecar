@@ -10,6 +10,7 @@ import (
 	_202409080918_staterootTable "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409080918_staterootTable"
 	_202409082234_stakerShare "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409082234_stakerShare"
 	_202409101144_submittedDistributionRoot "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409101144_submittedDistributionRoot"
+	_202409101540_rewardSubmissions "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409101540_rewardSubmissions"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -47,6 +48,7 @@ func (m *SqliteMigrator) MigrateAll() error {
 		&_202409080918_staterootTable.SqliteMigration{},
 		&_202409082234_stakerShare.SqliteMigration{},
 		&_202409101144_submittedDistributionRoot.SqliteMigration{},
+		&_202409101540_rewardSubmissions.SqliteMigration{},
 	}
 
 	m.Logger.Sugar().Info("Running migrations")

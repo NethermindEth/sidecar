@@ -74,8 +74,6 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		assert.Nil(t, err)
-
 		err = model.InitBlockProcessing(blockNumber)
 		assert.Nil(t, err)
 
