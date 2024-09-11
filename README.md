@@ -8,6 +8,9 @@
 * gRPCurl (for testing)
 
 ```bash
+# Create the directory to hold the sqlite database
+mkdir ./sqlite || true
+
 SIDECAR_DEBUG=false \
 SIDECAR_ETHEREUM_RPC_BASE_URL="http://54.198.82.217:8545" \
 SIDECAR_ENVIRONMENT="testnet" \
