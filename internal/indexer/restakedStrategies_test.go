@@ -122,6 +122,69 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		assert.True(t, len(results) > 0)
 
 		fmt.Printf("Results: %+v\n", results)
+
+		t.Cleanup(func() {
+			teardown(grm)
+		})
+	})
+	t.Run("Integration - process avs/operators with multicall", func(t *testing.T) {
+		avs := "0x5e78eff26480a75e06ccdabe88eb522d4d8e1c9d"
+		operator := "0x000dba91cdee891ac56f9798f57f563257ea9ec8"
+
+		block := &storage.Block{
+			Number:    uint64(2314800),
+			Hash:      "",
+			BlockTime: time.Unix(1726063248, 0),
+		}
+
+		contracts := cfg.GetContractsMapForEnvAndNetwork()
+
+		avsOperator := &storage.ActiveAvsOperator{
+			Avs:      avs,
+			Operator: operator,
+		}
+
+		err = idxr.getAndInsertRestakedStrategiesWithMulticall(context.Background(), []*storage.ActiveAvsOperator{avsOperator}, contracts.AvsDirectory, block)
+		assert.Nil(t, err)
+
+		results := make([]storage.OperatorRestakedStrategies, 0)
+		query := `select * from operator_restaked_strategies`
+		result := grm.Raw(query).Scan(&results)
+
+		assert.Nil(t, result.Error)
+		assert.True(t, len(results) > 0)
+
+		fmt.Printf("Results: %+v\n", results)
+
+		t.Cleanup(func() {
+			teardown(grm)
+		})
+	})
+	t.Run("Integration - gets restaked strategies for avs/operator multicall", func(t *testing.T) {
+		avs := "0x5e78eff26480a75e06ccdabe88eb522d4d8e1c9d"
+		operator := "0x000dba91cdee891ac56f9798f57f563257ea9ec8"
+
+		block := &storage.Block{
+			Number:    uint64(2314800),
+			Hash:      "",
+			BlockTime: time.Unix(1726063248, 0),
+		}
+
+		avsOperator := []*contractCaller.OperatorRestakedStrategy{
+			&contractCaller.OperatorRestakedStrategy{
+				Avs:      avs,
+				Operator: operator,
+			},
+		}
+
+		results, err := cc.GetOperatorRestakedStrategiesMulticall(context.Background(), avsOperator, block.Number)
+		assert.Nil(t, err)
+
+		assert.Equal(t, len(avsOperator), len(results))
+
+		t.Cleanup(func() {
+			teardown(grm)
+		})
 	})
 
 	t.Cleanup(func() {

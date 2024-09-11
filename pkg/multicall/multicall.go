@@ -102,8 +102,8 @@ func NewMulticallClient(ctx context.Context, eth *ethclient.Client, options *TMu
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func MultiCall[T any](contractAddress common.Address, abi abi.ABI, deserialize func([]byte) (T, error), method string, params ...interface{}) (*MultiCallMetaData[T], error) {
-	callData, err := abi.Pack(method, params...)
+func MultiCall[T any](contractAddress common.Address, abi abi.ABI, deserialize func([]byte) (T, error), method string, args ...interface{}) (*MultiCallMetaData[T], error) {
+	callData, err := abi.Pack(method, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error packing multicall: %s", err.Error())
 	}
