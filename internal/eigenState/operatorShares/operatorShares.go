@@ -40,7 +40,6 @@ type AccumulatedStateChange struct {
 	Strategy    string
 	Shares      *big.Int
 	BlockNumber uint64
-	IsNegative  bool
 }
 
 type OperatorSharesDiff struct {
@@ -149,10 +148,9 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 			return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", sharesStr)
 		}
 
-		isNegative := false
 		// All shares are emitted as ABS(shares), so we need to negate the shares if the event is a decrease
 		if log.EventName == "OperatorSharesDecreased" {
-			isNegative = true
+			shares = shares.Mul(shares, big.NewInt(-1))
 		}
 
 		slotId := NewSlotId(operator, outputData.Strategy)
@@ -163,15 +161,10 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 				Strategy:    outputData.Strategy,
 				Shares:      shares,
 				BlockNumber: log.BlockNumber,
-				IsNegative:  isNegative,
 			}
 			osm.stateAccumulator[log.BlockNumber][slotId] = record
 		} else {
-			if isNegative {
-				record.Shares = record.Shares.Sub(record.Shares, shares)
-			} else {
-				record.Shares = record.Shares.Add(record.Shares, shares)
-			}
+			record.Shares = record.Shares.Add(record.Shares, shares)
 		}
 
 		return record, nil
