@@ -34,7 +34,7 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlock(ctx context.Context, block
 	}
 
 	for _, avsDirectoryAddress := range addresses {
-		if err := idx.ProcessRestakedStrategiesForBlockAndAvsDirectory(ctx, block, avsDirectoryAddress); err != nil {
+		if err := idx.ProcessRestakedStrategiesForBlockAndAvsDirectoryMulticall(ctx, block, avsDirectoryAddress); err != nil {
 			idx.Logger.Sugar().Errorw("Failed to process restaked strategies", zap.Error(err))
 		}
 	}
