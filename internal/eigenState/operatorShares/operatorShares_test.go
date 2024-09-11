@@ -162,8 +162,7 @@ func Test_OperatorSharesState(t *testing.T) {
 
 		stateChangeTyped := stateChange.(*AccumulatedStateChange)
 
-		assert.Equal(t, "1670000000000000000000", stateChangeTyped.Shares.String())
-		assert.Equal(t, true, stateChangeTyped.IsNegative)
+		assert.Equal(t, "-1670000000000000000000", stateChangeTyped.Shares.String())
 		assert.Equal(t, strings.ToLower("0x32f766cf7BC7dEE7F65573587BECd7AdB2a5CC7f"), stateChangeTyped.Operator)
 		assert.Equal(t, "0x80528d6e9a2babfc766965e0e26d5ab08d9cfaf9", stateChangeTyped.Strategy)
 
