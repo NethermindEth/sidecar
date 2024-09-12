@@ -157,8 +157,6 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		})
 	})
 	t.Run("Integration - gets restaked strategies for avs/operator multicall", func(t *testing.T) {
-		avs := "0xD4A7E1Bd8015057293f0D0A557088c286942e84b"
-		operator := "0xA8C128BD6f5A314b46202Dd7C68E7E2422eD61F2"
 
 		block := &storage.Block{
 			Number:    uint64(1191600),
@@ -168,8 +166,8 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 
 		avsOperator := []*contractCaller.OperatorRestakedStrategy{
 			{
-				Avs:      avs,
-				Operator: operator,
+				Avs:      "0xD4A7E1Bd8015057293f0D0A557088c286942e84b",
+				Operator: "0xA8C128BD6f5A314b46202Dd7C68E7E2422eD61F2",
 			},
 		}
 

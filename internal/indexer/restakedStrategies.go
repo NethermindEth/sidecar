@@ -128,6 +128,9 @@ func (idx *Indexer) getAndInsertRestakedStrategiesWithMulticall(
 	blockNumber := block.Number
 	pairs := make([]*contractCaller.OperatorRestakedStrategy, 0)
 	for _, avsOperator := range avsOperators {
+		if avsOperator == nil || avsOperator.Operator == "" || avsOperator.Avs == "" {
+			return fmt.Errorf("Invalid AVS operator - %v", avsOperator)
+		}
 		pairs = append(pairs, &contractCaller.OperatorRestakedStrategy{
 			Operator: avsOperator.Operator,
 			Avs:      avsOperator.Avs,

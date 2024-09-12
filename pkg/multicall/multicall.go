@@ -134,7 +134,7 @@ func DoMultiCallMany[A any](mc MulticallClient, requests ...*MultiCallMetaData[A
 	// unwind results
 	unwoundResults := utils.Map(res, func(d DeserializedMulticall3Result, i uint64) A {
 		// force these back to A
-		return any(d.Value).(A)
+		return d.Value.(A)
 	})
 	return &unwoundResults, nil
 }
