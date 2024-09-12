@@ -58,3 +58,10 @@ ci-test: test
 .PHONY: lint
 lint:
 	golangci-lint run
+
+fmt:
+	gofmt -s -w .
+
+fmt-check:
+	gofmt -l .
+

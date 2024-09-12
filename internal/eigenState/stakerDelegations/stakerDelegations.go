@@ -139,7 +139,7 @@ func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[A
 
 	// Create an ordered list of block numbers
 	blockNumbers := make([]uint64, 0)
-	for blockNumber, _ := range stateChanges {
+	for blockNumber := range stateChanges {
 		blockNumbers = append(blockNumbers, blockNumber)
 	}
 	sort.Slice(blockNumbers, func(i, j int) bool {
@@ -153,7 +153,7 @@ func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[A
 func (s *StakerDelegationsModel) getContractAddressesForEnvironment() map[string][]string {
 	contracts := s.globalConfig.GetContractsMapForEnvAndNetwork()
 	return map[string][]string{
-		contracts.DelegationManager: []string{
+		contracts.DelegationManager: {
 			"StakerUndelegated",
 			"StakerDelegated",
 		},

@@ -167,7 +167,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		}
 
 		avsOperator := []*contractCaller.OperatorRestakedStrategy{
-			&contractCaller.OperatorRestakedStrategy{
+			{
 				Avs:      avs,
 				Operator: operator,
 			},
