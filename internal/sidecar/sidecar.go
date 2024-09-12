@@ -4,6 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"regexp"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
@@ -18,10 +23,6 @@ import (
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"net"
-	"net/http"
-	"regexp"
-	"time"
 )
 
 type SidecarConfig struct {
@@ -61,7 +62,6 @@ func NewSidecar(
 }
 
 func (s *Sidecar) Start(ctx context.Context) {
-
 	s.Logger.Info("Starting sidecar")
 
 	s.StartIndexing(ctx)

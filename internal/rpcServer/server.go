@@ -2,6 +2,7 @@ package rpcServer
 
 import (
 	"context"
+
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	v1 "github.com/Layr-Labs/go-sidecar/protos/eigenlayer/sidecar/v1"

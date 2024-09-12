@@ -3,6 +3,11 @@ package avsOperators
 import (
 	"database/sql"
 	"fmt"
+	"slices"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
@@ -16,13 +21,9 @@ import (
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"slices"
-	"sort"
-	"strings"
-	"time"
 )
 
-// Schema for registered_avs_operators block state table
+// Schema for registered_avs_operators block state table.
 type RegisteredAvsOperators struct {
 	Operator    string
 	Avs         string
@@ -30,7 +31,7 @@ type RegisteredAvsOperators struct {
 	CreatedAt   time.Time
 }
 
-// AccumulatedStateChange represents the accumulated state change for a given block
+// AccumulatedStateChange represents the accumulated state change for a given block.
 type AccumulatedStateChange struct {
 	Avs         string
 	Operator    string
@@ -38,7 +39,7 @@ type AccumulatedStateChange struct {
 	BlockNumber uint64
 }
 
-// RegisteredAvsOperatorDiff represents the diff between the registered_avs_operators table and the accumulated state
+// RegisteredAvsOperatorDiff represents the diff between the registered_avs_operators table and the accumulated state.
 type RegisteredAvsOperatorDiff struct {
 	Avs         string
 	Operator    string
@@ -46,14 +47,14 @@ type RegisteredAvsOperatorDiff struct {
 	Registered  bool
 }
 
-// SlotId represents a unique identifier for a slot
+// SlotId represents a unique identifier for a slot.
 type SlotId string
 
 func NewSlotId(avs string, operator string) SlotId {
 	return SlotId(fmt.Sprintf("%s_%s", avs, operator))
 }
 
-// EigenState model for AVS operators that implements IEigenStateModel
+// EigenState model for AVS operators that implements IEigenStateModel.
 type AvsOperatorsModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[AccumulatedStateChange]
@@ -67,7 +68,7 @@ type AvsOperatorsModel struct {
 	stateAccumulator map[uint64]map[SlotId]*AccumulatedStateChange
 }
 
-// Create new instance of AvsOperatorsModel state model
+// Create new instance of AvsOperatorsModel state model.
 func NewAvsOperators(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
@@ -166,7 +167,7 @@ func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[Accumu
 	return stateChanges, blockNumbers
 }
 
-// Returns a map of contract addresses to event names that are interesting to the state model
+// Returns a map of contract addresses to event names that are interesting to the state model.
 func (a *AvsOperatorsModel) getContractAddressesForEnvironment() map[string][]string {
 	contracts := a.globalConfig.GetContractsMapForEnvAndNetwork()
 	return map[string][]string{
@@ -176,7 +177,7 @@ func (a *AvsOperatorsModel) getContractAddressesForEnvironment() map[string][]st
 	}
 }
 
-// Given a log, determine if it is interesting to the state model
+// Given a log, determine if it is interesting to the state model.
 func (a *AvsOperatorsModel) IsInterestingLog(log *storage.TransactionLog) bool {
 	addresses := a.getContractAddressesForEnvironment()
 	return a.BaseEigenState.IsInterestingLog(addresses, log)
@@ -234,7 +235,7 @@ func (a *AvsOperatorsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) er
 }
 
 // prepareState prepares the state for the current block by comparing the accumulated state changes.
-// It separates out the changes into inserts and deletes
+// It separates out the changes into inserts and deletes.
 func (a *AvsOperatorsModel) prepareState(blockNumber uint64) ([]RegisteredAvsOperators, []RegisteredAvsOperators, error) {
 	accumulatedState, ok := a.stateAccumulator[blockNumber]
 	if !ok {
@@ -260,7 +261,7 @@ func (a *AvsOperatorsModel) prepareState(blockNumber uint64) ([]RegisteredAvsOpe
 	return inserts, deletes, nil
 }
 
-// CommitFinalState commits the final state for the given block number
+// CommitFinalState commits the final state for the given block number.
 func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64) error {
 	err := a.clonePreviousBlocksToNewBlock(blockNumber)
 	if err != nil {
@@ -299,7 +300,7 @@ func (a *AvsOperatorsModel) ClearAccumulatedState(blockNumber uint64) error {
 	return nil
 }
 
-// GenerateStateRoot generates the state root for the given block number using the results of the state changes
+// GenerateStateRoot generates the state root for the given block number using the results of the state changes.
 func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
 	inserts, deletes, err := a.prepareState(blockNumber)
 	if err != nil {
@@ -359,7 +360,6 @@ func (a *AvsOperatorsModel) merkelizeState(blockNumber uint64, avsOperators []Re
 	avsLeaves := a.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
 
 	for avs := om.Oldest(); avs != nil; avs = avs.Next() {
-
 		operatorLeafs := make([][]byte, 0)
 		for operator := avs.Value.Oldest(); operator != nil; operator = operator.Next() {
 			operatorAddr := operator.Key
@@ -393,5 +393,5 @@ func encodeOperatorLeaf(operator string, registered bool) []byte {
 }
 
 func encodeAvsLeaf(avs string, avsOperatorRoot []byte) []byte {
-	return append([]byte(avs), avsOperatorRoot[:]...)
+	return append([]byte(avs), avsOperatorRoot...)
 }

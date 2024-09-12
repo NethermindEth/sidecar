@@ -3,12 +3,13 @@ package indexer
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"go.uber.org/zap"
-	"sync"
 )
 
 func (idx *Indexer) ProcessRestakedStrategiesForBlock(ctx context.Context, blockNumber uint64) error {

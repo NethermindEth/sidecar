@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/fetcher"
 	"github.com/Layr-Labs/go-sidecar/internal/indexer"

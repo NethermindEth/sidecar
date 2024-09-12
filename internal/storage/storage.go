@@ -1,8 +1,9 @@
 package storage
 
 import (
-	"github.com/Layr-Labs/go-sidecar/internal/parser"
 	"time"
+
+	"github.com/Layr-Labs/go-sidecar/internal/parser"
 )
 
 type BlockStore interface {
@@ -23,7 +24,7 @@ type BlockStore interface {
 	DeleteCorruptedState(startBlockNumber uint64, endBlockNumber uint64) error
 }
 
-// Tables
+// Tables.
 type Block struct {
 	Number    uint64
 	Hash      string

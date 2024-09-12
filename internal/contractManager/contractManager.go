@@ -3,6 +3,7 @@ package contractManager
 import (
 	"context"
 	"fmt"
+
 	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"

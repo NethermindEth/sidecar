@@ -24,5 +24,4 @@ func NewLogger(cfg *LoggerConfig, options ...zap.Option) (*zap.Logger, error) {
 	}
 
 	return c.Build(mergedOptions...)
-
 }

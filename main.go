@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"math/big"
 
-	// "encoding/json"
+	// "encoding/json".
 	"fmt"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"log"
+
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 func main() {
-	//client, err := ethclient.Dial("wss://mainnet.infura.io/ws/v3/257f8c940c9b49e0b1ecf4f58dddadae")
+	// client, err := ethclient.Dial("wss://mainnet.infura.io/ws/v3/257f8c940c9b49e0b1ecf4f58dddadae")
 	client, err := ethclient.Dial("ws://3.21.167.130:8546")
 
 	if err != nil {
@@ -39,9 +40,9 @@ func main() {
 	jsonTx, _ := json.MarshalIndent(tx, "", "\t")
 	fmt.Printf("Transaction: %+v\n", string(jsonTx))
 
-	//parser := parsers.NewParser(client)
+	// parser := parsers.NewParser(client)
 
-	//_, err = parser.ParseBlockToProto(block)
+	// _, err = parser.ParseBlockToProto(block)
 
 	//
 	// if err != nil {
@@ -52,7 +53,7 @@ func main() {
 
 	// fmt.Printf("JSON block: %+v\n", string(jsonBlock))
 
-	//subch := make(chan types.Block)
+	// subch := make(chan types.Block)
 	//
 	//go func() {
 	//	for i := 0; ; i++ {

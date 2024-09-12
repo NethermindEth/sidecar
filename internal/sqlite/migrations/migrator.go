@@ -3,6 +3,8 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
+	"time"
+
 	_202409061249_bootstrapDb "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409061249_bootstrapDb"
 	_202409061250_eigenlayerStateTables "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409061250_eigenlayerStateTables"
 	_202409061720_operatorShareChanges "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409061720_operatorShareChanges"
@@ -14,7 +16,6 @@ import (
 	_202409111509_removeOperatorRestakedStrategiesBlockConstraint "github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations/202409111509_removeOperatorRestakedStrategiesBlockConstraint"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"time"
 )
 
 type ISqliteMigration interface {

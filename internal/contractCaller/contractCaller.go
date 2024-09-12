@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+	"reflect"
+	"strings"
+
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/pkg/multicall"
 	"github.com/Layr-Labs/go-sidecar/pkg/utils"
@@ -11,9 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
-	"math/big"
-	"reflect"
-	"strings"
 )
 
 type OperatorRestakedStrategy struct {

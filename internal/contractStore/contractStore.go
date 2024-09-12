@@ -24,7 +24,7 @@ type ContractStore interface {
 	InitializeCoreContracts() error
 }
 
-// Tables
+// Tables.
 type Contract struct {
 	ContractAddress         string
 	ContractAbi             string
@@ -54,7 +54,7 @@ type ProxyContract struct {
 	DeletedAt            time.Time
 }
 
-// Result queries
+// Result queries.
 type ContractWithProxyContract struct {
 	ContractAddress       string
 	ContractAbi           string

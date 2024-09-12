@@ -3,6 +3,11 @@ package stakerDelegations
 import (
 	"database/sql"
 	"fmt"
+	"slices"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
@@ -16,13 +21,9 @@ import (
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"slices"
-	"sort"
-	"strings"
-	"time"
 )
 
-// DelegatedStakers State model for staker delegations at block_number
+// DelegatedStakers State model for staker delegations at block_number.
 type DelegatedStakers struct {
 	Staker      string
 	Operator    string
@@ -30,7 +31,7 @@ type DelegatedStakers struct {
 	CreatedAt   time.Time
 }
 
-// AccumulatedStateChange represents the accumulated state change for a staker/operator pair
+// AccumulatedStateChange represents the accumulated state change for a staker/operator pair.
 type AccumulatedStateChange struct {
 	Staker      string
 	Operator    string
@@ -38,7 +39,7 @@ type AccumulatedStateChange struct {
 	Delegated   bool
 }
 
-// SlotId represents a unique identifier for a staker/operator pair
+// SlotId represents a unique identifier for a staker/operator pair.
 type SlotId string
 
 func NewSlotId(staker string, operator string) SlotId {
@@ -165,7 +166,7 @@ func (s *StakerDelegationsModel) IsInterestingLog(log *storage.TransactionLog) b
 	return s.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-// StartBlockProcessing Initialize state accumulator for the block
+// StartBlockProcessing Initialize state accumulator for the block.
 func (s *StakerDelegationsModel) InitBlockProcessing(blockNumber uint64) error {
 	s.stateAccumulator[blockNumber] = make(map[SlotId]*AccumulatedStateChange)
 	return nil
@@ -214,7 +215,7 @@ func (s *StakerDelegationsModel) clonePreviousBlocksToNewBlock(blockNumber uint6
 }
 
 // prepareState prepares the state for the current block by comparing the accumulated state changes.
-// It separates out the changes into inserts and deletes
+// It separates out the changes into inserts and deletes.
 func (s *StakerDelegationsModel) prepareState(blockNumber uint64) ([]DelegatedStakers, []DelegatedStakers, error) {
 	accumulatedState, ok := s.stateAccumulator[blockNumber]
 	if !ok {
@@ -278,7 +279,7 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 	return nil
 }
 
-// ClearAccumulatedState clears the accumulated state for the given block number to free up memory
+// ClearAccumulatedState clears the accumulated state for the given block number to free up memory.
 func (s *StakerDelegationsModel) ClearAccumulatedState(blockNumber uint64) error {
 	delete(s.stateAccumulator, blockNumber)
 	return nil
@@ -320,7 +321,7 @@ func (s *StakerDelegationsModel) GenerateStateRoot(blockNumber uint64) (types.St
 
 // merkelizeState generates a merkle tree for the given block number and delegated stakers.
 // Changes are stored in the following format:
-// Operator -> staker:delegated
+// Operator -> staker:delegated.
 func (s *StakerDelegationsModel) merkelizeState(blockNumber uint64, delegatedStakers []DelegatedStakersDiff) (*merkletree.MerkleTree, error) {
 	om := orderedmap.New[string, *orderedmap.OrderedMap[string, bool]]()
 
@@ -348,7 +349,6 @@ func (s *StakerDelegationsModel) merkelizeState(blockNumber uint64, delegatedSta
 	operatorLeaves := s.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
 
 	for op := om.Oldest(); op != nil; op = op.Next() {
-
 		stakerLeafs := make([][]byte, 0)
 		for staker := op.Value.Oldest(); staker != nil; staker = staker.Next() {
 			operatorAddr := staker.Key
@@ -378,7 +378,7 @@ func encodeStakerLeaf(staker string, delegated bool) []byte {
 }
 
 func encodeOperatorLeaf(operator string, operatorStakersRoot []byte) []byte {
-	return append([]byte(operator), operatorStakersRoot[:]...)
+	return append([]byte(operator), operatorStakersRoot...)
 }
 
 func (s *StakerDelegationsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

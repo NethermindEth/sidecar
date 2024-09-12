@@ -3,8 +3,6 @@ package etherscan
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"go.uber.org/zap"
 	"io"
 	"math/rand/v2"
 	"net/http"
@@ -12,6 +10,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"go.uber.org/zap"
 )
 
 var backoffSchedule = []time.Duration{

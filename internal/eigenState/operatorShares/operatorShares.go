@@ -4,6 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"slices"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
@@ -18,14 +24,9 @@ import (
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"math/big"
-	"slices"
-	"sort"
-	"strings"
-	"time"
 )
 
-// OperatorShares represents the state of an operator's shares in a strategy at a given block number
+// OperatorShares represents the state of an operator's shares in a strategy at a given block number.
 type OperatorShares struct {
 	Operator    string
 	Strategy    string
@@ -34,7 +35,7 @@ type OperatorShares struct {
 	CreatedAt   time.Time
 }
 
-// AccumulatedStateChange represents the accumulated state change for an operator's shares in a strategy at a given block number
+// AccumulatedStateChange represents the accumulated state change for an operator's shares in a strategy at a given block number.
 type AccumulatedStateChange struct {
 	Operator    string
 	Strategy    string
@@ -50,14 +51,14 @@ type OperatorSharesDiff struct {
 	IsNew       bool
 }
 
-// SlotId is a unique identifier for an operator's shares in a strategy
+// SlotId is a unique identifier for an operator's shares in a strategy.
 type SlotId string
 
 func NewSlotId(operator string, strategy string) SlotId {
 	return SlotId(fmt.Sprintf("%s_%s", operator, strategy))
 }
 
-// Implements IEigenStateModel
+// Implements IEigenStateModel.
 type OperatorSharesModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[AccumulatedStateChange]
@@ -246,7 +247,7 @@ func (osm *OperatorSharesModel) clonePreviousBlocksToNewBlock(blockNumber uint64
 	return nil
 }
 
-// prepareState prepares the state for commit by adding the new state to the existing state
+// prepareState prepares the state for commit by adding the new state to the existing state.
 func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorSharesDiff, error) {
 	preparedState := make([]OperatorSharesDiff, 0)
 
@@ -422,7 +423,6 @@ func (osm *OperatorSharesModel) merkelizeState(blockNumber uint64, diffs []Opera
 
 	leaves := osm.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
 	for strat := om.Oldest(); strat != nil; strat = strat.Next() {
-
 		operatorLeaves := make([][]byte, 0)
 		for operator := strat.Value.Oldest(); operator != nil; operator = operator.Next() {
 			operatorAddr := operator.Key
@@ -449,12 +449,12 @@ func encodeOperatorSharesLeaf(operator string, shares string) []byte {
 	operatorBytes := []byte(operator)
 	sharesBytes := []byte(shares)
 
-	return append(operatorBytes, sharesBytes[:]...)
+	return append(operatorBytes, sharesBytes...)
 }
 
 func encodeStratTree(strategy string, operatorTreeRoot []byte) []byte {
 	strategyBytes := []byte(strategy)
-	return append(strategyBytes, operatorTreeRoot[:]...)
+	return append(strategyBytes, operatorTreeRoot...)
 }
 
 func (osm *OperatorSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
