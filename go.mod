@@ -7,7 +7,7 @@ require (
 	github.com/ethereum/go-ethereum v1.14.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0
-	github.com/holiman/uint256 v1.3.1
+	github.com/mattn/go-sqlite3 v1.14.23
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.9.0
 	github.com/wealdtech/go-merkletree/v2 v2.6.0
@@ -40,13 +40,13 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
+	github.com/holiman/uint256 v1.3.1 // indirect
 	github.com/iden3/go-iden3-crypto v0.0.16 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
-	github.com/mattn/go-sqlite3 v1.14.23 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
