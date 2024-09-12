@@ -24,7 +24,7 @@ func setup() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	db, err := tests.GetSqliteDatabaseConnection()
+	db, err := tests.GetInMemorySqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}
@@ -39,6 +39,7 @@ func setup() (
 func teardown(model *StakerDelegationsModel) {
 	model.DB.Exec("delete from staker_delegation_changes")
 	model.DB.Exec("delete from delegated_stakers")
+	model.DB.Exec("delete from staker_delegation_changes")
 }
 
 func Test_DelegatedStakersState(t *testing.T) {

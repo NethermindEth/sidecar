@@ -1,24 +1,27 @@
 .PHONY: deps proto
 
+args=CGO_ENABLED=1
+GO=$(shell which go)
+
 deps/dev:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
-	go install honnef.co/go/tools/cmd/staticcheck@latest
-	go install github.com/google/yamlfmt/cmd/yamlfmt@latest
+	${GO} install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+	${GO} install honnef.co/go/tools/cmd/staticcheck@latest
+	${GO} install github.com/google/yamlfmt/cmd/yamlfmt@latest
 
 deps/go:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
-	go get \
+	${GO} install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
+	${GO} install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+	${GO} get \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
 		google.golang.org/protobuf/cmd/protoc-gen-go \
 		google.golang.org/grpc/cmd/protoc-gen-go-grpc
-	go install \
+	${GO} install \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
 		google.golang.org/protobuf/cmd/protoc-gen-go \
 		google.golang.org/grpc/cmd/protoc-gen-go-grpc
-	go mod tidy
+	${GO} mod tidy
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.61.0
 
 
@@ -42,7 +45,7 @@ clean:
 
 .PHONY: build/cmd/sidecar
 build/cmd/sidecar:
-	CGO_ENABLED=1 go build -o bin/sidecar main.go
+	${args} ${GO} build -o bin/sidecar main.go
 
 .PHONY: build
 build: build/cmd/sidecar
@@ -88,3 +91,38 @@ staticcheck:
 
 .PHONY: ci-test
 ci-test: test
+
+test-rewards:
+	TEST_REWARDS=true TESTING=true ${GO} test ./pkg/rewards -v -p 1
+
+# -----------------------------------------------------------------------------
+# SQLite extension build steps
+# -----------------------------------------------------------------------------
+CC = gcc -g -fPIC -shared
+
+PYTHON_CONFIG = python3-config
+PYTHON_VERSION = $(shell python3 -c "import sys; print('{}.{}'.format(sys.version_info.major, sys.version_info.minor))")
+PYTHON_LIBDIR := $(shell $(PYTHON_CONFIG) --prefix)/lib
+
+# Base flags
+CFLAGS =
+LDFLAGS =
+
+INCLUDE_DIRS =
+CFLAGS += $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
+
+# Python flags
+PYTHON_CFLAGS := $(shell $(PYTHON_CONFIG) --includes)
+PYTHON_LDFLAGS := $(shell $(PYTHON_CONFIG) --ldflags)
+
+SQLITE_DIR = /opt/homebrew/opt/sqlite
+CFLAGS += -I$(SQLITE_DIR)/include
+LDFLAGS += -L$(SQLITE_DIR)/lib -lsqlite3
+
+CFLAGS += $(PYTHON_CFLAGS)
+LDFLAGS += $(PYTHON_LDFLAGS) -L$(PYTHON_LIBDIR) -lpython$(PYTHON_VERSION)
+
+
+.PHONY: sqlite-extensions
+sqlite-extensions:
+	$(CC) $(CFLAGS) -o sqlite-extensions/libcalculations.dylib sqlite-extensions/calculations.c $(LDFLAGS)

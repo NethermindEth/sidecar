@@ -27,7 +27,7 @@ func setup() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	db, err := tests.GetSqliteDatabaseConnection()
+	db, err := tests.GetInMemorySqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}
@@ -40,7 +40,6 @@ func setup() (
 }
 
 func teardown(model *OperatorSharesModel) {
-	model.DB.Exec("delete from operator_share_changes")
 	model.DB.Exec("delete from operator_shares")
 }
 

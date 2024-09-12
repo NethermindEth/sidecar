@@ -14,5 +14,10 @@ go-sidecar
 /internal/tests/testdata/**/*.json
 /internal/tests/testdata/*.sql
 !/internal/tests/testdata/**/generateExpectedResults.sql
+!sqlite-extensions
 /*.tar
 /sidecar-data
+__pycache__
+test-db
+*.dylib
+*.dylib.dSYM
