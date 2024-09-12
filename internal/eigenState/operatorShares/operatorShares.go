@@ -172,7 +172,7 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 
 	// Create an ordered list of block numbers
 	blockNumbers := make([]uint64, 0)
-	for blockNumber, _ := range stateChanges {
+	for blockNumber := range stateChanges {
 		blockNumbers = append(blockNumbers, blockNumber)
 	}
 	sort.Slice(blockNumbers, func(i, j int) bool {
@@ -186,7 +186,7 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 func (osm *OperatorSharesModel) getContractAddressesForEnvironment() map[string][]string {
 	contracts := osm.globalConfig.GetContractsMapForEnvAndNetwork()
 	return map[string][]string{
-		contracts.DelegationManager: []string{
+		contracts.DelegationManager: {
 			"OperatorSharesIncreased",
 			"OperatorSharesDecreased",
 		},
@@ -258,7 +258,7 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 	}
 
 	slotIds := make([]SlotId, 0)
-	for slotId, _ := range accumulatedState {
+	for slotId := range accumulatedState {
 		slotIds = append(slotIds, slotId)
 	}
 

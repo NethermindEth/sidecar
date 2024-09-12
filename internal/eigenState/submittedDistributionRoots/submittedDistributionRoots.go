@@ -181,7 +181,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 
 	// Create an ordered list of block numbers
 	blockNumbers := make([]uint64, 0)
-	for blockNumber, _ := range stateChanges {
+	for blockNumber := range stateChanges {
 		blockNumbers = append(blockNumbers, blockNumber)
 	}
 	sort.Slice(blockNumbers, func(i, j int) bool {
@@ -195,7 +195,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 func (sdr *SubmittedDistributionRootsModel) getContractAddressesForEnvironment() map[string][]string {
 	contracts := sdr.globalConfig.GetContractsMapForEnvAndNetwork()
 	return map[string][]string{
-		contracts.RewardsCoordinator: []string{
+		contracts.RewardsCoordinator: {
 			"DistributionRootSubmitted",
 		},
 	}
@@ -270,7 +270,7 @@ func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]
 	}
 
 	slotIds := make([]SlotId, 0)
-	for slotId, _ := range accumulatedState {
+	for slotId := range accumulatedState {
 		slotIds = append(slotIds, slotId)
 	}
 

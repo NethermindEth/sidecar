@@ -4,6 +4,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	sqlite2 "github.com/Layr-Labs/go-sidecar/internal/sqlite"
 	"gorm.io/gorm"
+	"os"
 )
 
 func GetConfig() *config.Config {
@@ -18,4 +19,17 @@ func GetSqliteDatabaseConnection() (*gorm.DB, error) {
 		panic(err)
 	}
 	return db, nil
+}
+
+func ReplaceEnv(newValues map[string]string, previousValues *map[string]string) {
+	for k, v := range newValues {
+		(*previousValues)[k] = os.Getenv(k)
+		os.Setenv(k, v)
+	}
+}
+
+func RestoreEnv(previousValues map[string]string) {
+	for k, v := range previousValues {
+		os.Setenv(k, v)
+	}
 }

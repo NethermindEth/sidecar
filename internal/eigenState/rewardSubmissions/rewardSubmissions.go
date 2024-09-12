@@ -88,7 +88,7 @@ func NewRewardSubmissionsModel(
 		stateAccumulator: make(map[uint64]map[SlotId]*RewardSubmission),
 	}
 
-	esm.RegisterState(model, 4)
+	esm.RegisterState(model, 5)
 	return model, nil
 }
 
@@ -206,7 +206,7 @@ func (rs *RewardSubmissionsModel) GetStateTransitions() (types.StateTransitions[
 
 	// Create an ordered list of block numbers
 	blockNumbers := make([]uint64, 0)
-	for blockNumber, _ := range stateChanges {
+	for blockNumber := range stateChanges {
 		blockNumbers = append(blockNumbers, blockNumber)
 	}
 	sort.Slice(blockNumbers, func(i, j int) bool {
@@ -220,7 +220,7 @@ func (rs *RewardSubmissionsModel) GetStateTransitions() (types.StateTransitions[
 func (rs *RewardSubmissionsModel) getContractAddressesForEnvironment() map[string][]string {
 	contracts := rs.globalConfig.GetContractsMapForEnvAndNetwork()
 	return map[string][]string{
-		contracts.RewardsCoordinator: []string{
+		contracts.RewardsCoordinator: {
 			"RangePaymentForAllCreated",
 			"RewardsSubmissionForAllCreated",
 			"RangePaymentCreated",
@@ -435,7 +435,7 @@ func (rs *RewardSubmissionsModel) sortRewardSubmissionsForMerkelization(submissi
 	}
 
 	avsAddresses := make([]string, 0)
-	for key, _ := range mappedByAvs {
+	for key := range mappedByAvs {
 		avsAddresses = append(avsAddresses, key)
 	}
 

@@ -155,7 +155,7 @@ func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[Accumu
 
 	// Create an ordered list of block numbers
 	blockNumbers := make([]uint64, 0)
-	for blockNumber, _ := range stateChanges {
+	for blockNumber := range stateChanges {
 		blockNumbers = append(blockNumbers, blockNumber)
 	}
 	sort.Slice(blockNumbers, func(i, j int) bool {
@@ -170,7 +170,7 @@ func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[Accumu
 func (a *AvsOperatorsModel) getContractAddressesForEnvironment() map[string][]string {
 	contracts := a.globalConfig.GetContractsMapForEnvAndNetwork()
 	return map[string][]string{
-		contracts.AvsDirectory: []string{
+		contracts.AvsDirectory: {
 			"OperatorAVSRegistrationStatusUpdated",
 		},
 	}

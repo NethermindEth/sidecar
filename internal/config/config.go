@@ -110,29 +110,19 @@ func parseIntEnvVar(envVar string, defaultVal int) int {
 }
 
 type Config struct {
-	Network                    Network
-	Environment                Environment
-	Debug                      bool
-	StatsdUrl                  string
-	EthereumRpcConfig          EthereumRpcConfig
-	QuickNodeEthereumRpcConfig EthereumRpcConfig
-	PostgresConfig             PostgresConfig
-	EtherscanConfig            EtherscanConfig
-	SqliteConfig               SqliteConfig
-	RpcConfig                  RpcConfig
+	Network           Network
+	Environment       Environment
+	Debug             bool
+	StatsdUrl         string
+	EthereumRpcConfig EthereumRpcConfig
+	EtherscanConfig   EtherscanConfig
+	SqliteConfig      SqliteConfig
+	RpcConfig         RpcConfig
 }
 
 type EthereumRpcConfig struct {
 	BaseUrl string
 	WsUrl   string
-}
-
-type PostgresConfig struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
-	DbName   string
 }
 
 type EtherscanConfig struct {
@@ -166,19 +156,6 @@ func NewConfig() *Config {
 		EthereumRpcConfig: EthereumRpcConfig{
 			BaseUrl: getPrefixedEnvVar("ETHEREUM_RPC_BASE_URL"),
 			WsUrl:   getPrefixedEnvVar("ETHEREUM_WS_URL"),
-		},
-
-		QuickNodeEthereumRpcConfig: EthereumRpcConfig{
-			BaseUrl: getPrefixedEnvVar("QUICKNODE_ETHEREUM_RPC_BASE_URL"),
-			WsUrl:   getPrefixedEnvVar("QUICKNODE_ETHEREUM_WS_URL"),
-		},
-
-		PostgresConfig: PostgresConfig{
-			Host:     getPrefixedEnvVar("POSTGRES_HOST"),
-			Port:     parseIntEnvVar(getPrefixedEnvVar("POSTGRES_PORT"), 5432),
-			Username: getPrefixedEnvVar("POSTGRES_USERNAME"),
-			Password: getPrefixedEnvVar("POSTGRES_PASSWORD"),
-			DbName:   getPrefixedEnvVar("POSTGRES_DBNAME"),
 		},
 
 		EtherscanConfig: EtherscanConfig{
@@ -289,4 +266,15 @@ func (c *Config) GetEigenLayerGenesisBlockHeight() (uint64, error) {
 	default:
 		return 0, fmt.Errorf("unsupported environment %d", c.Environment)
 	}
+}
+
+func (c *Config) GetOperatorRestakedStrategiesStartBlock() int64 {
+	switch c.Environment {
+	case Environment_PreProd:
+	case Environment_Testnet:
+		return 1162800
+	case Environment_Mainnet:
+		return 19616400
+	}
+	return 0
 }

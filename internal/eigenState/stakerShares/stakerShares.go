@@ -436,7 +436,7 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 
 	// Create an ordered list of block numbers
 	blockNumbers := make([]uint64, 0)
-	for blockNumber, _ := range stateChanges {
+	for blockNumber := range stateChanges {
 		blockNumbers = append(blockNumbers, blockNumber)
 	}
 	sort.Slice(blockNumbers, func(i, j int) bool {
@@ -450,15 +450,15 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 func (ss *StakerSharesModel) getContractAddressesForEnvironment() map[string][]string {
 	contracts := ss.globalConfig.GetContractsMapForEnvAndNetwork()
 	return map[string][]string{
-		contracts.DelegationManager: []string{
+		contracts.DelegationManager: {
 			"WithdrawalMigrated",
 			"WithdrawalQueued",
 		},
-		contracts.StrategyManager: []string{
+		contracts.StrategyManager: {
 			"Deposit",
 			"ShareWithdrawalQueued",
 		},
-		contracts.EigenpodManager: []string{
+		contracts.EigenpodManager: {
 			"PodSharesUpdated",
 		},
 	}
@@ -529,7 +529,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 	}
 
 	slotIds := make([]SlotId, 0)
-	for slotId, _ := range accumulatedState {
+	for slotId := range accumulatedState {
 		slotIds = append(slotIds, slotId)
 	}
 

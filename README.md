@@ -12,7 +12,7 @@
 mkdir ./sqlite || true
 
 SIDECAR_DEBUG=false \
-SIDECAR_ETHEREUM_RPC_BASE_URL="http://54.198.82.217:8545" \
+SIDECAR_ETHEREUM_RPC_BASE_URL="http://34.229.43.36:8545" \
 SIDECAR_ENVIRONMENT="testnet" \
 SIDECAR_NETWORK="holesky" \
 SIDECAR_ETHERSCAN_API_KEYS="<your etherscan key>" \
@@ -28,7 +28,7 @@ mkdir ./sqlite || true
 
 docker run -it --rm \
   -e SIDECAR_DEBUG=false \
-  -e SIDECAR_ETHEREUM_RPC_BASE_URL="http://54.198.82.217:8545" \
+  -e SIDECAR_ETHEREUM_RPC_BASE_URL="http://34.229.43.36:8545" \
   -e SIDECAR_ENVIRONMENT="testnet" \
   -e SIDECAR_NETWORK="holesky" \
   -e SIDECAR_ETHERSCAN_API_KEYS="<your etherscan key>" \
@@ -48,7 +48,7 @@ make docker-buildx-self
 
 docker run \
   -e "SIDECAR_DEBUG=false" \
-  -e "SIDECAR_ETHEREUM_RPC_BASE_URL=http://54.198.82.217:8545" \
+  -e "SIDECAR_ETHEREUM_RPC_BASE_URL=http://34.229.43.36:8545" \
   -e "SIDECAR_ENVIRONMENT=testnet" \
   -e "SIDECAR_NETWORK=holesky" \
   -e "SIDECAR_ETHERSCAN_API_KEYS='<your etherscan key>'" \

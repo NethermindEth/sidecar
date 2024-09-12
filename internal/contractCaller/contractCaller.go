@@ -2,18 +2,29 @@ package contractCaller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
+	"github.com/Layr-Labs/go-sidecar/pkg/multicall"
+	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 	"math/big"
+	"reflect"
 	"strings"
 )
 
+type OperatorRestakedStrategy struct {
+	Operator string
+	Avs      string
+	Results  []common.Address
+}
+
 type IContractCaller interface {
 	GetOperatorRestakedStrategies(ctx context.Context, avs string, operator string, blockNumber uint64) ([]common.Address, error)
+	GetOperatorRestakedStrategiesMulticall(ctx context.Context, operatorRestakedStrategies []*OperatorRestakedStrategy, blockNumber uint64) ([]*OperatorRestakedStrategy, error)
 }
 
 type ContractCaller struct {
@@ -58,6 +69,92 @@ func getOperatorRestakedStrategies(ctx context.Context, avs string, operator str
 
 func (cc *ContractCaller) GetOperatorRestakedStrategies(ctx context.Context, avs string, operator string, blockNumber uint64) ([]common.Address, error) {
 	return getOperatorRestakedStrategies(ctx, avs, operator, blockNumber, cc.EthereumClient, cc.Logger)
+}
+
+func (cc *ContractCaller) GetOperatorRestakedStrategiesMulticall(
+	ctx context.Context,
+	operatorRestakedStrategies []*OperatorRestakedStrategy,
+	blockNumber uint64,
+) ([]*OperatorRestakedStrategy, error) {
+	a, err := abi.JSON(strings.NewReader(serviceManagerAbi))
+	if err != nil {
+		cc.Logger.Sugar().Errorw("GetOperatorRestakedStrategies - failed to parse abi", zap.Error(err))
+		return nil, err
+	}
+
+	type MulticallAndError struct {
+		Multicall *multicall.MultiCallMetaData[[]common.Address]
+		Error     error
+	}
+
+	requests := utils.Map(operatorRestakedStrategies, func(ors *OperatorRestakedStrategy, index uint64) *MulticallAndError {
+		mc, err := multicall.MultiCall(common.HexToAddress(ors.Avs), a, func(data []byte) ([]common.Address, error) {
+			res, err := a.Unpack("getOperatorRestakedStrategies", data)
+			if err != nil {
+				return nil, err
+			}
+
+			responseType := reflect.TypeOf(res[0])
+			switch responseType.Kind() {
+			case reflect.Slice:
+				return res[0].([]common.Address), nil
+			default:
+				return nil, fmt.Errorf("Unexpected response type: %v", responseType)
+			}
+		}, "getOperatorRestakedStrategies", common.HexToAddress(ors.Operator))
+		return &MulticallAndError{
+			Multicall: mc,
+			Error:     err,
+		}
+	})
+
+	errs := []error{}
+	for _, mc := range requests {
+		if mc.Error != nil {
+			errs = append(errs, mc.Error)
+		}
+	}
+
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("Failed to create multicalls: %v", errors.Join(errs...))
+	}
+
+	allMultiCalls := utils.Map(requests, func(mc *MulticallAndError, index uint64) *multicall.MultiCallMetaData[[]common.Address] {
+		return mc.Multicall
+	})
+
+	client, err := cc.EthereumClient.GetEthereumContractCaller()
+	if err != nil {
+		cc.Logger.Sugar().Errorw("GetOperatorRestakedStrategiesMulticall - failed to get contract caller", zap.Error(err))
+		return nil, err
+	}
+
+	multicallInstance, err := multicall.NewMulticallClient(ctx, client, &multicall.TMulticallClientOptions{
+		MaxBatchSizeBytes: 4096,
+		OverrideCallOptions: &bind.CallOpts{
+			BlockNumber: big.NewInt(int64(blockNumber)),
+		},
+	})
+	if err != nil {
+		cc.Logger.Sugar().Errorw("GetOperatorRestakedStrategiesMulticall - failed to create multicall client", zap.Error(err))
+		return nil, err
+	}
+
+	results, err := multicall.DoMultiCallMany(*multicallInstance, allMultiCalls...)
+	if err != nil {
+		cc.Logger.Sugar().Errorw("GetOperatorRestakedStrategiesMulticall - failed to execute multicalls", zap.Error(err))
+		return nil, err
+	}
+
+	if results == nil {
+		return nil, fmt.Errorf("Results are nil")
+	}
+
+	return utils.Map(*results, func(result []common.Address, i uint64) *OperatorRestakedStrategy {
+		oas := operatorRestakedStrategies[i]
+		oas.Results = result
+		return oas
+	}), nil
 }
 
 type ReconciledContractCaller struct {

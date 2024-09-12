@@ -15,6 +15,8 @@ deps/go:
 		google.golang.org/protobuf/cmd/protoc-gen-go \
 		google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	go mod tidy
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.61.0
+
 
 deps-linux: deps/go
 	BIN="/usr/local/bin" VERSION="1.32.2" && \
@@ -52,3 +54,14 @@ test:
 
 .PHONY: ci-test
 ci-test: test
+
+.PHONY: lint
+lint:
+	golangci-lint run
+
+fmt:
+	gofmt -s -w .
+
+fmt-check:
+	gofmt -l .
+

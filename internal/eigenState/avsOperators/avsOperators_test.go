@@ -142,7 +142,7 @@ func Test_AvsOperatorState(t *testing.T) {
 		}
 
 		logs := []*storage.TransactionLog{
-			&storage.TransactionLog{
+			{
 				TransactionHash:  "some hash",
 				TransactionIndex: 100,
 				BlockNumber:      blocks[0],
@@ -155,7 +155,7 @@ func Test_AvsOperatorState(t *testing.T) {
 				UpdatedAt:        time.Time{},
 				DeletedAt:        time.Time{},
 			},
-			&storage.TransactionLog{
+			{
 				TransactionHash:  "some hash",
 				TransactionIndex: 100,
 				BlockNumber:      blocks[1],

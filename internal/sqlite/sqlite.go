@@ -9,6 +9,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"regexp"
 )
 
 // bytesToHex is a custom SQLite function that converts a JSON byte array to a hex string.
@@ -76,8 +77,13 @@ func WrapTxAndCommit[T any](fn func(*gorm.DB) (T, error), db *gorm.DB, tx *gorm.
 		tx.Rollback()
 	}
 	if err == nil && !exists {
-		fmt.Printf("Commit transaction\n")
 		tx.Commit()
 	}
 	return res, err
+}
+
+func IsDuplicateKeyError(err error) bool {
+	r := regexp.MustCompile(`UNIQUE constraint failed`)
+
+	return r.MatchString(err.Error())
 }

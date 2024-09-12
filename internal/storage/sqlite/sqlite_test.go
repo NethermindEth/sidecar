@@ -146,7 +146,7 @@ func Test_SqliteBlockstore(t *testing.T) {
 				LogIndex: 0,
 				Address:  "log-address",
 				Arguments: []parser.Argument{
-					parser.Argument{
+					{
 						Name:    "arg1",
 						Type:    "string",
 						Value:   "some-value",
@@ -191,7 +191,7 @@ func Test_SqliteBlockstore(t *testing.T) {
 				LogIndex: 0,
 				Address:  "log-address",
 				Arguments: []parser.Argument{
-					parser.Argument{
+					{
 						Name:    "arg1",
 						Type:    "string",
 						Value:   "some-value",
