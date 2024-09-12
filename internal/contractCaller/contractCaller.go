@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 	"math/big"
+	"reflect"
 	"strings"
 )
 
@@ -86,15 +87,22 @@ func (cc *ContractCaller) GetOperatorRestakedStrategiesMulticall(
 		Error     error
 	}
 
-	requests := utils.Map(operatorRestakedStrategies, func(ors *OperatorRestakedStrategy, index uint64) MulticallAndError {
+	requests := utils.Map(operatorRestakedStrategies, func(ors *OperatorRestakedStrategy, index uint64) *MulticallAndError {
 		mc, err := multicall.MultiCall(common.HexToAddress(ors.Avs), a, func(data []byte) ([]common.Address, error) {
 			res, err := a.Unpack("getOperatorRestakedStrategies", data)
 			if err != nil {
 				return nil, err
 			}
-			return res[0].([]common.Address), nil
+
+			responseType := reflect.TypeOf(res[0])
+			switch responseType.Kind() {
+			case reflect.Slice:
+				return res[0].([]common.Address), nil
+			default:
+				return nil, fmt.Errorf("Unexpected response type: %v", responseType)
+			}
 		}, "getOperatorRestakedStrategies", common.HexToAddress(ors.Operator))
-		return MulticallAndError{
+		return &MulticallAndError{
 			Multicall: mc,
 			Error:     err,
 		}
@@ -111,7 +119,7 @@ func (cc *ContractCaller) GetOperatorRestakedStrategiesMulticall(
 		return nil, fmt.Errorf("Failed to create multicalls: %v", errors.Join(errs...))
 	}
 
-	allMultiCalls := utils.Map(requests, func(mc MulticallAndError, index uint64) *multicall.MultiCallMetaData[[]common.Address] {
+	allMultiCalls := utils.Map(requests, func(mc *MulticallAndError, index uint64) *multicall.MultiCallMetaData[[]common.Address] {
 		return mc.Multicall
 	})
 
@@ -123,6 +131,9 @@ func (cc *ContractCaller) GetOperatorRestakedStrategiesMulticall(
 
 	multicallInstance, err := multicall.NewMulticallClient(ctx, client, &multicall.TMulticallClientOptions{
 		MaxBatchSizeBytes: 4096,
+		OverrideCallOptions: &bind.CallOpts{
+			BlockNumber: big.NewInt(int64(blockNumber)),
+		},
 	})
 	if err != nil {
 		cc.Logger.Sugar().Errorw("GetOperatorRestakedStrategiesMulticall - failed to create multicall client", zap.Error(err))

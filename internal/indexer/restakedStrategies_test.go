@@ -35,7 +35,7 @@ func setup() (
 	tests.ReplaceEnv(map[string]string{
 		"SIDECAR_ENVIRONMENT":           "testnet",
 		"SIDECAR_NETWORK":               "holesky",
-		"SIDECAR_ETHEREUM_RPC_BASE_URL": "http://54.198.82.217:8545",
+		"SIDECAR_ETHEREUM_RPC_BASE_URL": "http://34.229.43.36:8545",
 		"SIDECAR_ETHERSCAN_API_KEYS":    "QIPXW3YCXPR5NQ9GXTRQ3TSXB9EKMGDE34",
 		"SIDECAR_STATSD_URL":            "localhost:8125",
 		"SIDECAR_DEBUG":                 "true",
@@ -95,11 +95,11 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 	idxr := NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, cc, l, cfg)
 
 	t.Run("Integration - gets restaked strategies for avs/operator", func(t *testing.T) {
-		avs := "0x5e78eff26480a75e06ccdabe88eb522d4d8e1c9d"
-		operator := "0x000dba91cdee891ac56f9798f57f563257ea9ec8"
+		avs := "0xD4A7E1Bd8015057293f0D0A557088c286942e84b"
+		operator := "0xA8C128BD6f5A314b46202Dd7C68E7E2422eD61F2"
 
 		block := &storage.Block{
-			Number:    uint64(2314800),
+			Number:    uint64(1191600),
 			Hash:      "",
 			BlockTime: time.Unix(1726063248, 0),
 		}
@@ -121,18 +121,16 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		assert.Nil(t, result.Error)
 		assert.True(t, len(results) > 0)
 
-		fmt.Printf("Results: %+v\n", results)
-
 		t.Cleanup(func() {
 			teardown(grm)
 		})
 	})
 	t.Run("Integration - process avs/operators with multicall", func(t *testing.T) {
-		avs := "0x5e78eff26480a75e06ccdabe88eb522d4d8e1c9d"
-		operator := "0x000dba91cdee891ac56f9798f57f563257ea9ec8"
+		avs := "0xD4A7E1Bd8015057293f0D0A557088c286942e84b"
+		operator := "0xA8C128BD6f5A314b46202Dd7C68E7E2422eD61F2"
 
 		block := &storage.Block{
-			Number:    uint64(2314800),
+			Number:    uint64(1191600),
 			Hash:      "",
 			BlockTime: time.Unix(1726063248, 0),
 		}
@@ -154,18 +152,16 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		assert.Nil(t, result.Error)
 		assert.True(t, len(results) > 0)
 
-		fmt.Printf("Results: %+v\n", results)
-
 		t.Cleanup(func() {
 			teardown(grm)
 		})
 	})
 	t.Run("Integration - gets restaked strategies for avs/operator multicall", func(t *testing.T) {
-		avs := "0x5e78eff26480a75e06ccdabe88eb522d4d8e1c9d"
-		operator := "0x000dba91cdee891ac56f9798f57f563257ea9ec8"
+		avs := "0xD4A7E1Bd8015057293f0D0A557088c286942e84b"
+		operator := "0xA8C128BD6f5A314b46202Dd7C68E7E2422eD61F2"
 
 		block := &storage.Block{
-			Number:    uint64(2314800),
+			Number:    uint64(1191600),
 			Hash:      "",
 			BlockTime: time.Unix(1726063248, 0),
 		}
