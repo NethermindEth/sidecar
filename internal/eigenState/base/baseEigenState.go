@@ -4,12 +4,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
+
 	"github.com/Layr-Labs/go-sidecar/internal/parser"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"slices"
-	"strings"
 )
 
 type BaseEigenState struct {
@@ -47,7 +48,7 @@ func (b *BaseEigenState) ParseLogOutput(log *storage.TransactionLog) (map[string
 // Include the block number as the first item in the tree.
 // This does two things:
 // 1. Ensures that the tree is always different for different blocks
-// 2. Allows us to have at least 1 value if there are no model changes for a block
+// 2. Allows us to have at least 1 value if there are no model changes for a block.
 func (b *BaseEigenState) InitializeMerkleTreeBaseStateWithBlock(blockNumber uint64) [][]byte {
 	return [][]byte{
 		[]byte(fmt.Sprintf("%d", blockNumber)),

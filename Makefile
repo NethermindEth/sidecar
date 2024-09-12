@@ -59,9 +59,15 @@ ci-test: test
 lint:
 	golangci-lint run
 
+.PHONY: lint-fix
+lint-fix:
+	golangci-lint run --fix
+
+.PHONY: fmt
 fmt:
 	gofmt -s -w .
 
+.PHONY: fmt-check
 fmt-check:
 	gofmt -l .
 

@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"math"
 	"strings"
+
+	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -142,7 +143,7 @@ func DoMultiCallMany[A any](mc MulticallClient, requests ...*MultiCallMetaData[A
  * Some RPC providers may limit the amount of calldata you can send in one eth_call, which (for those who have 1000's of validators), means
  * you can't just spam one enormous multicall request.
  *
- * This function checks whether the calldata appended exceeds maxBatchSizeBytes
+ * This function checks whether the calldata appended exceeds maxBatchSizeBytes.
  */
 func chunkCalls(allCalls []ParamMulticall3Call3, maxBatchSizeBytes int) [][]ParamMulticall3Call3 {
 	// chunk by the maximum size of calldata, which is 1024 per call.

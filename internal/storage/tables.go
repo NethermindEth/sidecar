@@ -21,7 +21,7 @@ create table if not exists staker_share_changes (
 	block_number bigint,
 	created_at timestamp with time zone
 
-);
+);.
 */
 type StakerShareChanges struct {
 	Id              uint64 `gorm:"type:serial"`
@@ -53,7 +53,7 @@ create table if not exists active_reward_submissions (
 	duration bigint
 	created_at timestamp with time zone
 
-);
+);.
 */
 type ActiveRewardSubmissions struct {
 	Id              uint64 `gorm:"type:serial"`
@@ -92,7 +92,7 @@ create table if not exists active_reward_for_all_submissions (
 	duration bigint
 	created_at timestamp with time zone
 
-);
+);.
 */
 type RewardForAllSubmissions struct {
 	Id              uint64 `gorm:"type:serial"`
@@ -131,7 +131,7 @@ create table if not exists active_rewards (
 	duration bigint,
 	created_at timestamp with time zone
 
-)
+).
 */
 type ActiveRewards struct {
 	Avs            string
@@ -164,7 +164,7 @@ create table if not exists active_reward_for_all (
 	duration bigint,
 	created_at timestamp with time zone
 
-)
+).
 */
 type ActiveRewardForAll struct {
 	Avs            string

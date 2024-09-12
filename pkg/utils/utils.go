@@ -1,6 +1,6 @@
 package utils
 
-// imagine if golang had a standard library
+// imagine if golang had a standard library.
 func Map[A any, B any](coll []A, mapper func(i A, index uint64) B) []B {
 	out := make([]B, len(coll))
 	for i, item := range coll {

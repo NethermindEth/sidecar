@@ -2,9 +2,10 @@ package ethereum
 
 import (
 	"encoding/json"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 type ResponseParserFunc[T any] func(res json.RawMessage) (T, error)
@@ -133,7 +134,7 @@ func GetTransactionReceiptRequest(txHash string, id uint) *RPCRequest {
 // - "latest"
 // - "safe"
 // - "finalized"
-// - "pending"
+// - "pending".
 func GetStorageAtRequest(address string, storagePosition string, block string, id uint) *RPCRequest {
 	return &RPCRequest{
 		JSONRPC: jsonRPCVersion,

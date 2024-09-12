@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
+
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/parser"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
@@ -13,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
-	"regexp"
 )
 
 func (idx *Indexer) getAbi(json string) (*abi.ABI, error) {
@@ -225,7 +226,7 @@ func (idx *Indexer) IndexContractUpgrades(blockNumber uint64, upgradedContractLo
 // DecodeLogWithAbi determines if the provided contract ABI matches that of the log
 // For example, if the target contract performs a token transfer, that token may emit an
 // event that will be captured in the list of logs. That ABI however is different and will
-// need to be loaded in order to decode the log
+// need to be loaded in order to decode the log.
 func (idx *Indexer) DecodeLogWithAbi(
 	a *abi.ABI,
 	txReceipt *ethereum.EthereumTransactionReceipt,
@@ -262,7 +263,7 @@ func (idx *Indexer) DecodeLogWithAbi(
 			return idx.DecodeLog(nil, lg)
 		}
 
-		//newAbi, err := abi.JSON(strings.NewReader(contractAbi))
+		// newAbi, err := abi.JSON(strings.NewReader(contractAbi))
 		newAbi, err := idx.getAbi(contractAbi)
 		if err != nil {
 			idx.Logger.Sugar().Errorw("Failed to parse ABI",
@@ -276,7 +277,7 @@ func (idx *Indexer) DecodeLogWithAbi(
 	}
 }
 
-// DecodeLog will decode a log line using the provided abi
+// DecodeLog will decode a log line using the provided abi.
 func (idx *Indexer) DecodeLog(a *abi.ABI, lg *ethereum.EthereumEventLog) (*parser.DecodedLog, error) {
 	idx.Logger.Sugar().Debugw(fmt.Sprintf("Decoding log with txHash: '%s' address: '%s'", lg.TransactionHash.Value(), lg.Address.Value()))
 	logAddress := common.HexToAddress(lg.Address.Value())
@@ -342,7 +343,6 @@ func (idx *Indexer) DecodeLog(a *abi.ABI, lg *ethereum.EthereumEventLog) (*parse
 		}
 
 		decodedLog.OutputData = outputDataMap
-
 	}
 	return decodedLog, nil
 }

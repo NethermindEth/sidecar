@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
@@ -27,8 +30,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	sqliteBlockStore "github.com/Layr-Labs/go-sidecar/internal/storage/sqlite"
 	"go.uber.org/zap"
-	"log"
-	"time"
 )
 
 func main() {

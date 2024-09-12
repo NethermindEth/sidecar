@@ -4,6 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
@@ -18,10 +23,6 @@ import (
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"slices"
-	"sort"
-	"strings"
-	"time"
 )
 
 type RewardSubmission struct {
@@ -146,7 +147,6 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 	rewardSubmissions := make([]*RewardSubmission, 0)
 
 	for _, strategyAndMultiplier := range actualOuputData.StrategiesAndMultipliers {
-
 		startTimestamp := time.Unix(int64(actualOuputData.StartTimestamp), 0)
 		endTimestamp := startTimestamp.Add(time.Duration(actualOuputData.Duration) * time.Second)
 
@@ -290,7 +290,7 @@ func (rs *RewardSubmissionsModel) clonePreviousBlocksToNewBlock(blockNumber uint
 	return nil
 }
 
-// prepareState prepares the state for commit by adding the new state to the existing state
+// prepareState prepares the state for commit by adding the new state to the existing state.
 func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSubmissionDiff, []*RewardSubmissionDiff, error) {
 	accumulatedState, ok := rs.stateAccumulator[blockNumber]
 	if !ok {
@@ -351,7 +351,7 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 	return inserts, deletes, nil
 }
 
-// CommitFinalState commits the final state for the given block number
+// CommitFinalState commits the final state for the given block number.
 func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 	err := rs.clonePreviousBlocksToNewBlock(blockNumber)
 	if err != nil {
@@ -394,7 +394,7 @@ func (rs *RewardSubmissionsModel) ClearAccumulatedState(blockNumber uint64) erro
 	return nil
 }
 
-// GenerateStateRoot generates the state root for the given block number using the results of the state changes
+// GenerateStateRoot generates the state root for the given block number using the results of the state changes.
 func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
 	inserts, deletes, err := rs.prepareState(blockNumber)
 	if err != nil {
@@ -518,7 +518,7 @@ func encodeSubmissionLeaf(slotId SlotId, state string) []byte {
 }
 
 func encodeAvsLeaf(avs string, avsSubmissionRoot []byte) []byte {
-	return append([]byte(avs), avsSubmissionRoot[:]...)
+	return append([]byte(avs), avsSubmissionRoot...)
 }
 
 func (rs *RewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

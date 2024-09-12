@@ -4,6 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"slices"
+	"sort"
+	"strconv"
+	"strings"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
@@ -17,11 +23,6 @@ import (
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"reflect"
-	"slices"
-	"sort"
-	"strconv"
-	"strings"
 )
 
 type SubmittedDistributionRoots struct {
@@ -258,7 +259,7 @@ func (sdr *SubmittedDistributionRootsModel) clonePreviousBlocksToNewBlock(blockN
 	return nil
 }
 
-// prepareState prepares the state for commit by adding the new state to the existing state
+// prepareState prepares the state for commit by adding the new state to the existing state.
 func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]SubmittedDistributionRoots, error) {
 	preparedState := make([]SubmittedDistributionRoots, 0)
 
@@ -396,7 +397,7 @@ func (sdr *SubmittedDistributionRootsModel) merkelizeState(blockNumber uint64, d
 
 func encodeRootIndexLeaf(rootIndex uint64, root string) []byte {
 	rootIndexBytes := []byte(fmt.Sprintf("%d", rootIndex))
-	return append(rootIndexBytes, []byte(root)[:]...)
+	return append(rootIndexBytes, []byte(root)...)
 }
 
 func (sdr *SubmittedDistributionRootsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

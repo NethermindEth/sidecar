@@ -1,11 +1,12 @@
 package shutdown
 
 import (
-	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func CreateGracefulShutdownChannel() chan os.Signal {

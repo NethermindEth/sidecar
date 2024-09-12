@@ -5,6 +5,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"slices"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
@@ -19,11 +25,6 @@ import (
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"math/big"
-	"slices"
-	"sort"
-	"strings"
-	"time"
 )
 
 type StakerShares struct {
@@ -334,7 +335,7 @@ func parseLogOutputForM2WithdrawalEvent(outputDataStr string) (*m2WithdrawalOutp
 	return outputData, err
 }
 
-// handleM2QueuedWithdrawal handles the WithdrawalQueued event from the DelegationManager contract for M2
+// handleM2QueuedWithdrawal handles the WithdrawalQueued event from the DelegationManager contract for M2.
 func (ss *StakerSharesModel) handleM2QueuedWithdrawal(log *storage.TransactionLog) ([]*AccumulatedStateChange, error) {
 	outputData, err := parseLogOutputForM2WithdrawalEvent(log.OutputData)
 	if err != nil {
@@ -517,7 +518,7 @@ func (ss *StakerSharesModel) clonePreviousBlocksToNewBlock(blockNumber uint64) e
 	return nil
 }
 
-// prepareState prepares the state for commit by adding the new state to the existing state
+// prepareState prepares the state for commit by adding the new state to the existing state.
 func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDiff, error) {
 	preparedState := make([]StakerSharesDiff, 0)
 
@@ -693,7 +694,6 @@ func (ss *StakerSharesModel) merkelizeState(blockNumber uint64, diffs []StakerSh
 
 	leaves := ss.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
 	for strat := om.Oldest(); strat != nil; strat = strat.Next() {
-
 		stakerLeaves := make([][]byte, 0)
 		for staker := strat.Value.Oldest(); staker != nil; staker = staker.Next() {
 			stakerAddr := staker.Key
@@ -720,12 +720,12 @@ func encodeStakerSharesLeaf(staker string, shares string) []byte {
 	stakerBytes := []byte(staker)
 	sharesBytes := []byte(shares)
 
-	return append(stakerBytes, sharesBytes[:]...)
+	return append(stakerBytes, sharesBytes...)
 }
 
 func encodeStratTree(strategy string, stakerTreeRoot []byte) []byte {
 	strategyBytes := []byte(strategy)
-	return append(strategyBytes, stakerTreeRoot[:]...)
+	return append(strategyBytes, stakerTreeRoot...)
 }
 
 func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

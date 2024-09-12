@@ -1,10 +1,10 @@
 .idea
-*.sw*
+/*.sw*
 *.terraform
 *.terraform*
 /bin
 /scripts/runLocal
 sidecar.db*
-*.db*
+/*.db*
 /sqlite
 /sqlite*

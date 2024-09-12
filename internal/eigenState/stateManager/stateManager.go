@@ -3,6 +3,9 @@ package stateManager
 import (
 	"errors"
 	"fmt"
+	"slices"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
@@ -11,8 +14,6 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"slices"
-	"time"
 )
 
 type StateRoot struct {
@@ -36,7 +37,7 @@ func NewEigenStateManager(logger *zap.Logger, grm *gorm.DB) *EigenStateManager {
 	}
 }
 
-// Allows a model to register itself with the state manager
+// Allows a model to register itself with the state manager.
 func (e *EigenStateManager) RegisterState(model types.IEigenStateModel, index int) {
 	if m, ok := e.StateModels[index]; ok {
 		e.logger.Sugar().Fatalf("Registering model model at index %d which already exists and belongs to %s", index, m.GetModelName())
@@ -44,7 +45,7 @@ func (e *EigenStateManager) RegisterState(model types.IEigenStateModel, index in
 	e.StateModels[index] = model
 }
 
-// Given a log, allow each state model to determine if/how to process it
+// Given a log, allow each state model to determine if/how to process it.
 func (e *EigenStateManager) HandleLogStateChange(log *storage.TransactionLog) error {
 	e.logger.Sugar().Debugw("Handling log state change", zap.String("transactionHash", log.TransactionHash), zap.Uint64("logIndex", log.LogIndex))
 	for _, index := range e.GetSortedModelIndexes() {
@@ -74,10 +75,9 @@ func (e *EigenStateManager) InitProcessingForBlock(blockNumber uint64) error {
 		}
 	}
 	return nil
-
 }
 
-// With all transactions/logs processed for a block, commit the final state to the table
+// With all transactions/logs processed for a block, commit the final state to the table.
 func (e *EigenStateManager) CommitFinalState(blockNumber uint64) error {
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
@@ -159,7 +159,7 @@ func (e *EigenStateManager) encodeModelLeaf(model types.IEigenStateModel, blockN
 	if err != nil {
 		return nil, err
 	}
-	return append([]byte(model.GetModelName()), []byte(root)[:]...), nil
+	return append([]byte(model.GetModelName()), []byte(root)...), nil
 }
 
 func (e *EigenStateManager) GetSortedModelIndexes() []int {
@@ -186,7 +186,7 @@ func (e *EigenStateManager) GetLatestStateRoot() (*StateRoot, error) {
 // DeleteCorruptedState deletes state stored that may be incomplete or corrupted
 //
 // @param startBlock the block number to start deleting state from (inclusive)
-// @param endBlock the block number to end deleting state from (inclusive). If 0, delete all state from startBlock
+// @param endBlock the block number to end deleting state from (inclusive). If 0, delete all state from startBlock.
 func (e *EigenStateManager) DeleteCorruptedState(startBlock uint64, endBlock uint64) error {
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]

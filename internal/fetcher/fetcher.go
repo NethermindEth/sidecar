@@ -2,12 +2,13 @@ package fetcher
 
 import (
 	"context"
+	"slices"
+	"sync"
+
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
-	"slices"
-	"sync"
 )
 
 type Fetcher struct {
@@ -137,7 +138,6 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 				}
 			}
 		}
-
 	}
 
 	return &FetchedBlock{

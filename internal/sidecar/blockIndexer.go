@@ -3,9 +3,10 @@ package sidecar
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func (s *Sidecar) GetLastIndexedBlock() (int64, error) {
@@ -42,7 +43,6 @@ func (ct *currentTip) Set(tip uint64) {
 }
 
 func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
-
 	latestBlock, err := s.GetLastIndexedBlock()
 	if err != nil {
 		return err

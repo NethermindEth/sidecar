@@ -2,8 +2,9 @@ package metrics
 
 import (
 	"errors"
-	"github.com/DataDog/datadog-go/v5/statsd"
 	"time"
+
+	"github.com/DataDog/datadog-go/v5/statsd"
 )
 
 var statsdClient *statsd.Client

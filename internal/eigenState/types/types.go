@@ -12,7 +12,7 @@ type IEigenStateModel interface {
 	GetModelName() string
 
 	// IsInterestingLog
-	//Determine if the log is interesting to the state model
+	// Determine if the log is interesting to the state model
 	IsInterestingLog(log *storage.TransactionLog) bool
 
 	// InitBlockProcessing
@@ -46,5 +46,5 @@ type IEigenStateModel interface {
 }
 
 // StateTransitions
-// Map of block number to function that will transition the state to the next block
+// Map of block number to function that will transition the state to the next block.
 type StateTransitions[T interface{}] map[uint64]func(log *storage.TransactionLog) (*T, error)

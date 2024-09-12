@@ -16,7 +16,7 @@ func AreAddressesEqual(a, b string) bool {
 }
 
 func ConvertBytesToString(b []byte) string {
-	return "0x" + hex.EncodeToString(b[:])
+	return "0x" + hex.EncodeToString(b)
 }
 
 func StripLeading0x(s string) string {

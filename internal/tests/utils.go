@@ -1,10 +1,11 @@
 package tests
 
 import (
+	"os"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	sqlite2 "github.com/Layr-Labs/go-sidecar/internal/sqlite"
 	"gorm.io/gorm"
-	"os"
 )
 
 func GetConfig() *config.Config {

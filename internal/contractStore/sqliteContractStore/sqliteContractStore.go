@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/contractStore"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
@@ -12,7 +14,6 @@ import (
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strings"
 )
 
 type SqliteContractStore struct {
@@ -324,7 +325,6 @@ func (s *SqliteContractStore) InitializeCoreContracts() error {
 		if err != nil {
 			return xerrors.Errorf("Failed to create core contract: %w", err)
 		}
-
 	}
 	for _, proxy := range coreContracts.ProxyContracts {
 		_, _, err := s.FindOrCreateProxyContract(

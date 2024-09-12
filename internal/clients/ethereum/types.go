@@ -4,10 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"golang.org/x/xerrors"
 	"math/big"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"golang.org/x/xerrors"
 )
 
 type (
@@ -46,7 +47,7 @@ type (
 		// EIP-4895 introduces new fields in the execution payload
 		// https://eips.ethereum.org/EIPS/eip-4895
 		// Note that the unit of withdrawal `amount` is in Gwei (1e9 wei).
-		//Withdrawals     []*EthereumWithdrawal `json:"withdrawals"`
+		// Withdrawals     []*EthereumWithdrawal `json:"withdrawals"`
 		WithdrawalsRoot EthereumHexString `json:"withdrawalsRoot"`
 	}
 

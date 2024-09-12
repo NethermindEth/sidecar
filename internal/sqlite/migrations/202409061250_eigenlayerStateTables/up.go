@@ -2,6 +2,7 @@ package _202409061250_eigenlayerStateTables
 
 import (
 	"fmt"
+
 	"gorm.io/gorm"
 )
 

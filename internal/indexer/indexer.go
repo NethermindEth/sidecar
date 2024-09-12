@@ -3,6 +3,8 @@ package indexer
 import (
 	"context"
 	"fmt"
+	"slices"
+
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
@@ -14,7 +16,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
-	"slices"
 )
 
 type Indexer struct {
@@ -256,7 +257,6 @@ func (idx *Indexer) FilterInterestingTransactions(
 ) []*ethereum.EthereumTransaction {
 	interestingTransactions := make([]*ethereum.EthereumTransaction, 0)
 	for _, tx := range fetchedBlock.Block.Transactions {
-
 		txReceipt, ok := fetchedBlock.TxReceipts[tx.Hash.Value()]
 		if !ok {
 			idx.Logger.Sugar().Errorw("Receipt not found for transaction",
@@ -335,7 +335,7 @@ func (idx *Indexer) FindAndHandleContractCreationForTransactions(
 }
 
 // Handles indexing a contract created by a transaction
-// Does NOT include contracts that are part of logs
+// Does NOT include contracts that are part of logs.
 func (idx *Indexer) IndexContractsForBlock(
 	block *storage.Block,
 	fetchedBlock *fetcher.FetchedBlock,
