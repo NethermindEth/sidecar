@@ -1,7 +1,7 @@
 FROM golang:1.22-bullseye as build
 
 RUN apt-get update
-RUN apt-get install -y make postgresql-client
+RUN apt-get install -y make
 
 RUN mkdir /build
 
@@ -15,4 +15,7 @@ RUN make build
 
 FROM debian:stable-slim as run
 
-COPY --from=build /build/bin/cmd/* /bin
+RUN apt-get update
+RUN apt-get install -y ca-certificates
+
+COPY --from=build /build /build
