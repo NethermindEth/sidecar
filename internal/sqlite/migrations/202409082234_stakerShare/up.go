@@ -12,7 +12,7 @@ func (m *SqliteMigration) Up(grm *gorm.DB) error {
 		`create table if not exists staker_shares (
 			staker TEXT NOT NULL,
 			strategy TEXT NOT NULL,
-			shares NUMERIC NOT NULL,
+			shares TEXT NOT NULL,
 			block_number INTEGER NOT NULL,
 			created_at DATETIME default current_timestamp,
 			unique (staker, strategy, block_number)

@@ -30,7 +30,7 @@ import (
 type OperatorShares struct {
 	Operator    string
 	Strategy    string
-	Shares      string `gorm:"type:numeric"`
+	Shares      string
 	BlockNumber uint64
 	CreatedAt   time.Time
 }
@@ -290,6 +290,7 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 	// Map the existing records to a map for easier lookup
 	mappedRecords := make(map[SlotId]OperatorShares)
 	for _, record := range existingRecords {
+		fmt.Printf("Existing OperatorShares %+v\n", record)
 		slotId := NewSlotId(record.Operator, record.Strategy)
 		mappedRecords[slotId] = record
 	}
@@ -308,7 +309,12 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 		if existingRecord, ok := mappedRecords[slotId]; ok {
 			existingShares, success := numbers.NewBig257().SetString(existingRecord.Shares, 10)
 			if !success {
-				osm.logger.Sugar().Errorw("Failed to convert existing shares to big.Int")
+				osm.logger.Sugar().Errorw("Failed to convert existing shares to big.Int",
+					zap.String("shares", existingRecord.Shares),
+					zap.String("operator", existingRecord.Operator),
+					zap.String("strategy", existingRecord.Strategy),
+					zap.Uint64("blockNumber", blockNumber),
+				)
 				continue
 			}
 			prepared.Shares = existingShares.Add(existingShares, newState.Shares)

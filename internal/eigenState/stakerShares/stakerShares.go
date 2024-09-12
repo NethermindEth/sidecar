@@ -30,7 +30,7 @@ import (
 type StakerShares struct {
 	Staker      string
 	Strategy    string
-	Shares      string `gorm:"type:numeric"`
+	Shares      string
 	BlockNumber uint64
 	CreatedAt   time.Time
 }
@@ -579,7 +579,12 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 		if existingRecord, ok := mappedRecords[slotId]; ok {
 			existingShares, success := numbers.NewBig257().SetString(existingRecord.Shares, 10)
 			if !success {
-				ss.logger.Sugar().Errorw("Failed to convert existing shares to big.Int")
+				ss.logger.Sugar().Errorw("Failed to convert existing shares to big.Int",
+					zap.String("shares", existingRecord.Shares),
+					zap.String("staker", existingRecord.Staker),
+					zap.String("strategy", existingRecord.Strategy),
+					zap.Uint64("blockNumber", blockNumber),
+				)
 				continue
 			}
 			prepared.Shares = existingShares.Add(existingShares, newState.Shares)

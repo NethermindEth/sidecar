@@ -32,7 +32,7 @@ type RewardSubmission struct {
 	Amount         string
 	Strategy       string
 	StrategyIndex  uint64
-	Multiplier     string     `gorm:"type:numeric"`
+	Multiplier     string
 	StartTimestamp *time.Time `gorm:"type:DATETIME"`
 	EndTimestamp   *time.Time `gorm:"type:DATETIME"`
 	Duration       uint64

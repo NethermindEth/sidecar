@@ -13,9 +13,6 @@ RUN make deps-linux
 
 RUN make build
 
-# FROM golang:1.22-bullseye as run
-#
-# RUN apt-get update
-# RUN apt-get install -y vim postgresql-client
-#
-# COPY --from=build /build/bin/cmd /bin
+FROM debian:stable-slim as run
+
+COPY --from=build /build/bin/cmd/* /bin
