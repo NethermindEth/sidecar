@@ -112,19 +112,23 @@ func (ec *EtherscanClient) makeRequestWithBackoff(values url.Values) (*Etherscan
 	for _, backoff := range backoffSchedule {
 		res, err := ec.makeRequest(values)
 
-		if res.Status == "1" && err == nil {
-			return res, nil
+		if res != nil {
+			if res.Status == "1" && err == nil {
+				return res, nil
+			}
+
+			stringResult := strings.ReplaceAll(string(res.Result), "\"", "")
+			r := regexp.MustCompile(`^Max rate limit reached`)
+
+			if !r.MatchString(stringResult) {
+				return res, err
+			}
+
+			ec.logger.Info("Rate limit reached, backing off", zap.Duration("backoff", backoff))
+
+		} else {
+			ec.logger.Sugar().Errorw("Failed to make request - got nil response", zap.Error(err))
 		}
-
-		stringResult := strings.ReplaceAll(string(res.Result), "\"", "")
-		r := regexp.MustCompile(`^Max rate limit reached`)
-
-		if !r.MatchString(stringResult) {
-			return res, err
-		}
-
-		ec.logger.Info("Rate limit reached, backing off", zap.Duration("backoff", backoff))
-
 		time.Sleep(backoff)
 	}
 
