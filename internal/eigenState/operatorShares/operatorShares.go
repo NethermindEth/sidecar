@@ -167,7 +167,6 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 		} else {
 			record.Shares = record.Shares.Add(record.Shares, shares)
 		}
-		fmt.Printf("OperatorShares %+v\n", record)
 
 		return record, nil
 	}
@@ -269,7 +268,7 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 		select
 			operator,
 			strategy,
-			cast(shares as text) as shares
+			shares
 		from operator_shares
 		where
 			block_number = @previousBlock
