@@ -183,11 +183,16 @@ func (s *SqliteBlockStore) GetLatestActiveAvsOperators(blockNumber uint64, avsDi
 	rows := make([]*storage.ActiveAvsOperator, 0)
 	query := `
 		WITH latest_status AS (
-			SELECT 
-				lower(tl.arguments #>> '{0,Value}') as operator,
-				lower(tl.arguments #>> '{1,Value}') as avs,
-				lower(tl.output_data #>> '{status}') as status,
-				ROW_NUMBER() OVER (PARTITION BY lower(tl.arguments #>> '{0,Value}'), lower(tl.arguments #>> '{1,Value}') ORDER BY block_number DESC) AS row_number
+			SELECT
+				lower(json_extract(tl.arguments, '$[0].Value')) as operator,
+				lower(json_extract(tl.arguments, '$[2].Value')) as avs,
+				lower(json_extract(tl.output_data, '$.status')) as status,
+				ROW_NUMBER() OVER (
+					PARTITION BY
+						lower(json_extract(tl.arguments, '$[0].Value')),
+						lower(json_extract(tl.arguments, '$[1].Value'))
+					ORDER BY block_number DESC
+					) AS row_number
 			FROM transaction_logs as tl
 			WHERE
 				tl.address = ?
