@@ -266,12 +266,12 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		return nil, xerrors.Errorf("Request failed", err)
+		return nil, xerrors.Errorf("Request failed %v", err)
 	}
 
 	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to read body", err)
+		return nil, xerrors.Errorf("Failed to read body %v", err)
 	}
 
 	if response.StatusCode != http.StatusOK {
@@ -349,7 +349,7 @@ func (c *Client) BatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 	return results, nil
 }
 
-func (c *Client) Call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse, error) {
+func (c *Client) call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse, error) {
 	requestBody, err := json.Marshal(rpcRequest)
 
 	c.Logger.Sugar().Debug("Request body", zap.String("requestBody", string(requestBody)))
@@ -377,9 +377,6 @@ func (c *Client) Call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to read body", err)
 	}
-	// var prettyBody bytes.Buffer
-	// json.Indent(&prettyBody, responseBody, "", "\t")
-	// fmt.Printf("Response: %+v\n", string(prettyBody.Bytes()))
 	if response.StatusCode != http.StatusOK {
 		return nil, xerrors.Errorf("received http error code %+v", response.StatusCode)
 	}
@@ -396,4 +393,19 @@ func (c *Client) Call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse
 	response.Body.Close()
 
 	return destination, nil
+}
+
+func (c *Client) Call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse, error) {
+	backoffs := []int{1, 3, 5, 10, 20, 30, 60}
+
+	for _, backoff := range backoffs {
+		res, err := c.call(ctx, rpcRequest)
+		if err == nil {
+			return res, nil
+		}
+		c.Logger.Sugar().Errorw("Failed to call", zap.Error(err), zap.Int("backoffSecs", backoff))
+		time.Sleep(time.Second * time.Duration(backoff))
+	}
+	c.Logger.Sugar().Errorw("Exceeded retries for Call", zap.Any("rpcRequest", rpcRequest))
+	return nil, xerrors.Errorf("Exceeded retries for Call")
 }
