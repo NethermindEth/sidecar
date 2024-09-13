@@ -16,9 +16,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
-	"github.com/wealdtech/go-merkletree/v2"
-	"github.com/wealdtech/go-merkletree/v2/keccak256"
-	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -44,8 +41,6 @@ type SubmittedDistributionRootsModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[SubmittedDistributionRoots]
 	DB               *gorm.DB
-	Network          config.Network
-	Environment      config.Environment
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
@@ -56,8 +51,6 @@ type SubmittedDistributionRootsModel struct {
 func NewSubmittedDistributionRootsModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
-	Network config.Network,
-	Environment config.Environment,
 	logger *zap.Logger,
 	globalConfig *config.Config,
 ) (*SubmittedDistributionRootsModel, error) {
@@ -66,8 +59,6 @@ func NewSubmittedDistributionRootsModel(
 			Logger: logger,
 		},
 		DB:               grm,
-		Network:          Network,
-		Environment:      Environment,
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*SubmittedDistributionRoots),
@@ -350,52 +341,34 @@ func (sdr *SubmittedDistributionRootsModel) ClearAccumulatedState(blockNumber ui
 	return nil
 }
 
+func (sdr *SubmittedDistributionRootsModel) sortValuesForMerkleTree(inputs []SubmittedDistributionRoots) []*base.MerkleTreeInput {
+	slices.SortFunc(inputs, func(i, j SubmittedDistributionRoots) int {
+		return int(i.RootIndex - j.RootIndex)
+	})
+
+	values := make([]*base.MerkleTreeInput, 0)
+	for _, input := range inputs {
+		values = append(values, &base.MerkleTreeInput{
+			SlotID: NewSlotID(input.Root, input.RootIndex),
+			Value:  []byte(input.Root),
+		})
+	}
+	return values
+}
+
 func (sdr *SubmittedDistributionRootsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
 	diffs, err := sdr.prepareState(blockNumber)
 	if err != nil {
 		return "", err
 	}
 
-	fullTree, err := sdr.merkelizeState(blockNumber, diffs)
+	sortedInputs := sdr.sortValuesForMerkleTree(diffs)
+
+	fullTree, err := sdr.MerkleizeState(blockNumber, sortedInputs)
 	if err != nil {
 		return "", err
 	}
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
-}
-
-func (sdr *SubmittedDistributionRootsModel) merkelizeState(blockNumber uint64, diffs []SubmittedDistributionRoots) (*merkletree.MerkleTree, error) {
-	// Create a merkle tree with the structure:
-	// rootIndex: root
-	om := orderedmap.New[uint64, string]()
-
-	for _, diff := range diffs {
-		_, found := om.Get(diff.RootIndex)
-		if !found {
-			om.Set(diff.RootIndex, diff.Root)
-
-			prev := om.GetPair(diff.RootIndex).Prev()
-			if prev != nil && prev.Key > diff.RootIndex {
-				om.Delete(diff.RootIndex)
-				return nil, fmt.Errorf("root indexes not in order")
-			}
-		} else {
-			return nil, fmt.Errorf("duplicate root index %d", diff.RootIndex)
-		}
-	}
-
-	leaves := sdr.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
-	for rootIndex := om.Oldest(); rootIndex != nil; rootIndex = rootIndex.Next() {
-		leaves = append(leaves, encodeRootIndexLeaf(rootIndex.Key, rootIndex.Value))
-	}
-	return merkletree.NewTree(
-		merkletree.WithData(leaves),
-		merkletree.WithHashType(keccak256.New()),
-	)
-}
-
-func encodeRootIndexLeaf(rootIndex uint64, root string) []byte {
-	rootIndexBytes := []byte(fmt.Sprintf("%d", rootIndex))
-	return append(rootIndexBytes, []byte(root)...)
 }
 
 func (sdr *SubmittedDistributionRootsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

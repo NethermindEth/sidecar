@@ -3,8 +3,12 @@ package base
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
+	"github.com/wealdtech/go-merkletree/v2"
+	"github.com/wealdtech/go-merkletree/v2/keccak256"
+	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"slices"
 	"strings"
 
@@ -96,7 +100,37 @@ func (b *BaseEigenState) DeleteState(tableName string, startBlockNumber uint64, 
 
 type MerkleTreeInput struct {
 	SlotID types.SlotID
+	Value  []byte
 }
 
-func (b *BaseEigenState) MerkleizeState() {
+func (b *BaseEigenState) MerkleizeState(blockNumber uint64, inputs []*MerkleTreeInput) (*merkletree.MerkleTree, error) {
+	om := orderedmap.New[types.SlotID, []byte]()
+
+	for _, input := range inputs {
+		_, found := om.Get(input.SlotID)
+		if !found {
+			om.Set(input.SlotID, input.Value)
+
+			prev := om.GetPair(input.SlotID).Prev()
+			if prev != nil && prev.Key > input.SlotID {
+				om.Delete(input.SlotID)
+				return nil, errors.New("slotIDs are not in order")
+			}
+		} else {
+			return nil, errors.New(fmt.Sprintf("duplicate slotID %d", input.SlotID))
+		}
+	}
+
+	leaves := b.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
+	for rootIndex := om.Oldest(); rootIndex != nil; rootIndex = rootIndex.Next() {
+		leaves = append(leaves, encodeMerkleLeaf(rootIndex.Key, rootIndex.Value))
+	}
+	return merkletree.NewTree(
+		merkletree.WithData(leaves),
+		merkletree.WithHashType(keccak256.New()),
+	)
+}
+
+func encodeMerkleLeaf(slotID types.SlotID, value []byte) []byte {
+	return append([]byte(slotID), value[:]...)
 }

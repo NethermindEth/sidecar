@@ -415,7 +415,7 @@ func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.S
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (rs *RewardSubmissionsModel) sortRewardSubmissionsForMerkelization(submissions []*RewardSubmissionDiff) []*RewardSubmissionDiff {
+func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardSubmissionDiff) []*RewardSubmissionDiff {
 	mappedByAvs := make(map[string][]*RewardSubmissionDiff)
 	for _, submission := range submissions {
 		if _, ok := mappedByAvs[submission.RewardSubmission.Avs]; !ok {
@@ -453,7 +453,7 @@ func (rs *RewardSubmissionsModel) merkelizeState(blockNumber uint64, rewardSubmi
 	// Avs -> slot_id -> string (added/removed)
 	om := orderedmap.New[string, *orderedmap.OrderedMap[types.SlotID, string]]()
 
-	rewardSubmissions = rs.sortRewardSubmissionsForMerkelization(rewardSubmissions)
+	rewardSubmissions = rs.sortValuesForMerkleTree(rewardSubmissions)
 
 	for _, result := range rewardSubmissions {
 		existingAvs, found := om.Get(result.RewardSubmission.Avs)
