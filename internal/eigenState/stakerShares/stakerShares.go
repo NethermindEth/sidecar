@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"slices"
@@ -19,9 +18,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
-	"github.com/wealdtech/go-merkletree/v2"
-	"github.com/wealdtech/go-merkletree/v2/keccak256"
-	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -59,8 +55,6 @@ type StakerSharesModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[AccumulatedStateChange]
 	DB               *gorm.DB
-	Network          config.Network
-	Environment      config.Environment
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
@@ -71,16 +65,12 @@ type StakerSharesModel struct {
 func NewStakerSharesModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
-	network config.Network,
-	environment config.Environment,
 	logger *zap.Logger,
 	globalConfig *config.Config,
 ) (*StakerSharesModel, error) {
 	model := &StakerSharesModel{
 		BaseEigenState:   base.BaseEigenState{},
 		DB:               grm,
-		Network:          network,
-		Environment:      environment,
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
@@ -663,73 +653,28 @@ func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateR
 		return "", err
 	}
 
-	fullTree, err := ss.merkelizeState(blockNumber, diffs)
+	inputs := ss.sortValuesForMerkleTree(diffs)
+
+	fullTree, err := ss.MerkleizeState(blockNumber, inputs)
 	if err != nil {
 		return "", err
 	}
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (ss *StakerSharesModel) merkelizeState(blockNumber uint64, diffs []StakerSharesDiff) (*merkletree.MerkleTree, error) {
-	// Create a merkle tree with the structure:
-	// strategy: map[staker]: shares
-	om := orderedmap.New[string, *orderedmap.OrderedMap[string, string]]()
-
+func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []StakerSharesDiff) []*base.MerkleTreeInput {
+	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, diff := range diffs {
-		existingStrategy, found := om.Get(diff.Strategy)
-		if !found {
-			existingStrategy = orderedmap.New[string, string]()
-			om.Set(diff.Strategy, existingStrategy)
-
-			prev := om.GetPair(diff.Strategy).Prev()
-			if prev != nil && strings.Compare(prev.Key, diff.Strategy) >= 0 {
-				om.Delete(diff.Strategy)
-				return nil, errors.New("strategy not in order")
-			}
-		}
-		existingStrategy.Set(diff.Staker, diff.Shares.String())
-
-		prev := existingStrategy.GetPair(diff.Staker).Prev()
-		if prev != nil && strings.Compare(prev.Key, diff.Staker) >= 0 {
-			existingStrategy.Delete(diff.Staker)
-			return nil, errors.New("operator not in order")
-		}
+		inputs = append(inputs, &base.MerkleTreeInput{
+			SlotID: NewSlotID(diff.Staker, diff.Strategy),
+			Value:  diff.Shares.Bytes(),
+		})
 	}
+	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
+		return strings.Compare(string(i.SlotID), string(j.SlotID))
+	})
 
-	leaves := ss.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
-	for strat := om.Oldest(); strat != nil; strat = strat.Next() {
-		stakerLeaves := make([][]byte, 0)
-		for staker := strat.Value.Oldest(); staker != nil; staker = staker.Next() {
-			stakerAddr := staker.Key
-			shares := staker.Value
-			stakerLeaves = append(stakerLeaves, encodeStakerSharesLeaf(stakerAddr, shares))
-		}
-
-		stratTree, err := merkletree.NewTree(
-			merkletree.WithData(stakerLeaves),
-			merkletree.WithHashType(keccak256.New()),
-		)
-		if err != nil {
-			return nil, err
-		}
-		leaves = append(leaves, encodeStratTree(strat.Key, stratTree.Root()))
-	}
-	return merkletree.NewTree(
-		merkletree.WithData(leaves),
-		merkletree.WithHashType(keccak256.New()),
-	)
-}
-
-func encodeStakerSharesLeaf(staker string, shares string) []byte {
-	stakerBytes := []byte(staker)
-	sharesBytes := []byte(shares)
-
-	return append(stakerBytes, sharesBytes...)
-}
-
-func encodeStratTree(strategy string, stakerTreeRoot []byte) []byte {
-	strategyBytes := []byte(strategy)
-	return append(strategyBytes, stakerTreeRoot...)
+	return inputs
 }
 
 func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

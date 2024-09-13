@@ -467,7 +467,7 @@ func (rs *RewardSubmissionsModel) merkelizeState(blockNumber uint64, rewardSubmi
 				return nil, errors.New("avs not in order")
 			}
 		}
-		slotId := NewSlotID(result.RewardSubmission.RewardHash, result.RewardSubmission.Strategy)
+		slotID := NewSlotID(result.RewardSubmission.RewardHash, result.RewardSubmission.Strategy)
 		var state string
 		if result.IsNew {
 			state = "added"
@@ -476,11 +476,11 @@ func (rs *RewardSubmissionsModel) merkelizeState(blockNumber uint64, rewardSubmi
 		} else {
 			return nil, errors.New("invalid state change")
 		}
-		existingAvs.Set(slotId, state)
+		existingAvs.Set(slotID, state)
 
-		prev := existingAvs.GetPair(slotId).Prev()
-		if prev != nil && strings.Compare(string(prev.Key), string(slotId)) >= 0 {
-			existingAvs.Delete(slotId)
+		prev := existingAvs.GetPair(slotID).Prev()
+		if prev != nil && strings.Compare(string(prev.Key), string(slotID)) >= 0 {
+			existingAvs.Delete(slotID)
 			return nil, errors.New("operator not in order")
 		}
 	}

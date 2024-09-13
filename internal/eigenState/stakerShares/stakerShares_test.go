@@ -46,7 +46,6 @@ func teardown(model *StakerSharesModel) {
 		`delete from transaction_logs`,
 	}
 	for _, query := range queries {
-
 		model.DB.Raw(query)
 	}
 }
@@ -60,7 +59,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 	t.Run("Should create a new OperatorSharesState", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		model, err := NewStakerSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, model)
 	})
@@ -81,7 +80,7 @@ func Test_StakerSharesState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		model, err := NewStakerSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 
 		err = model.InitBlockProcessing(blockNumber)
 		assert.Nil(t, err)
@@ -118,7 +117,7 @@ func Test_StakerSharesState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		model, err := NewStakerSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 
 		err = model.InitBlockProcessing(blockNumber)
 		assert.Nil(t, err)
@@ -154,7 +153,7 @@ func Test_StakerSharesState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		model, err := NewStakerSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 
 		err = model.InitBlockProcessing(blockNumber)
 		assert.Nil(t, err)
@@ -190,7 +189,7 @@ func Test_StakerSharesState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		model, err := NewStakerSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 
 		err = model.InitBlockProcessing(blockNumber)
 		assert.Nil(t, err)
@@ -287,7 +286,7 @@ func Test_StakerSharesState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		model, err := NewStakerSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 
 		err = model.InitBlockProcessing(blockNumber)
 		assert.Nil(t, err)
@@ -324,7 +323,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 	t.Run("Should handle an M1 withdrawal and migration to M2 correctly", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		model, err := NewStakerSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		originBlockNumber := uint64(101)

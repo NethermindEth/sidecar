@@ -84,7 +84,7 @@ func main() {
 	if _, err := stakerDelegations.NewStakerDelegationsModel(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to create StakerDelegationsModel", zap.Error(err))
 	}
-	if _, err := stakerShares.NewStakerSharesModel(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
+	if _, err := stakerShares.NewStakerSharesModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to create StakerSharesModel", zap.Error(err))
 	}
 	if _, err := submittedDistributionRoots.NewSubmittedDistributionRootsModel(sm, grm, l, cfg); err != nil {

@@ -117,7 +117,7 @@ func (b *BaseEigenState) MerkleizeState(blockNumber uint64, inputs []*MerkleTree
 				return nil, errors.New("slotIDs are not in order")
 			}
 		} else {
-			return nil, errors.New(fmt.Sprintf("duplicate slotID %d", input.SlotID))
+			return nil, errors.New(fmt.Sprintf("duplicate slotID %s", input.SlotID))
 		}
 	}
 
@@ -132,5 +132,5 @@ func (b *BaseEigenState) MerkleizeState(blockNumber uint64, inputs []*MerkleTree
 }
 
 func encodeMerkleLeaf(slotID types.SlotID, value []byte) []byte {
-	return append([]byte(slotID), value[:]...)
+	return append([]byte(slotID), value...)
 }
