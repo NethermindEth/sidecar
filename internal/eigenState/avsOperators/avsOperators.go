@@ -47,11 +47,8 @@ type RegisteredAvsOperatorDiff struct {
 	Registered  bool
 }
 
-// SlotId represents a unique identifier for a slot.
-type SlotId string
-
-func NewSlotId(avs string, operator string) SlotId {
-	return SlotId(fmt.Sprintf("%s_%s", avs, operator))
+func NewSlotID(avs string, operator string) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%s", avs, operator))
 }
 
 // EigenState model for AVS operators that implements IEigenStateModel.
@@ -65,7 +62,7 @@ type AvsOperatorsModel struct {
 	globalConfig     *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[SlotId]*AccumulatedStateChange
+	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
 }
 
 // Create new instance of AvsOperatorsModel state model.
@@ -87,7 +84,7 @@ func NewAvsOperators(
 		logger:       logger,
 		globalConfig: globalConfig,
 
-		stateAccumulator: make(map[uint64]map[SlotId]*AccumulatedStateChange),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
 	}
 	esm.RegisterState(s, 0)
 	return s, nil
@@ -132,21 +129,21 @@ func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[Accumu
 			registered = uint64(val.(float64)) == 1
 		}
 
-		slotId := NewSlotId(avs, operator)
-		record, ok := a.stateAccumulator[log.BlockNumber][slotId]
+		slotID := NewSlotID(avs, operator)
+		record, ok := a.stateAccumulator[log.BlockNumber][slotID]
 		if !ok {
 			record = &AccumulatedStateChange{
 				Avs:         avs,
 				Operator:    operator,
 				BlockNumber: log.BlockNumber,
 			}
-			a.stateAccumulator[log.BlockNumber][slotId] = record
+			a.stateAccumulator[log.BlockNumber][slotID] = record
 		}
 		if registered == false && ok {
 			// In this situation, we've encountered a register and unregister in the same block
 			// which functionally results in no state change at all so we want to remove the record
 			// from the accumulated state.
-			delete(a.stateAccumulator[log.BlockNumber], slotId)
+			delete(a.stateAccumulator[log.BlockNumber], slotID)
 			return nil, nil
 		}
 		record.Registered = registered
@@ -184,7 +181,7 @@ func (a *AvsOperatorsModel) IsInterestingLog(log *storage.TransactionLog) bool {
 }
 
 func (a *AvsOperatorsModel) InitBlockProcessing(blockNumber uint64) error {
-	a.stateAccumulator[blockNumber] = make(map[SlotId]*AccumulatedStateChange)
+	a.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	return nil
 }
 

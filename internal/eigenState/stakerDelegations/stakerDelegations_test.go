@@ -37,8 +37,8 @@ func setup() (
 }
 
 func teardown(model *StakerDelegationsModel) {
-	model.Db.Exec("delete from staker_delegation_changes")
-	model.Db.Exec("delete from delegated_stakers")
+	model.DB.Exec("delete from staker_delegation_changes")
+	model.DB.Exec("delete from delegated_stakers")
 }
 
 func Test_DelegatedStakersState(t *testing.T) {
@@ -126,7 +126,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 		assert.Nil(t, err)
 
 		states := []DelegatedStakers{}
-		statesRes := model.Db.
+		statesRes := model.DB.
 			Model(&DelegatedStakers{}).
 			Raw("select * from delegated_stakers where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)
@@ -195,7 +195,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 			assert.Nil(t, err)
 
 			states := []DelegatedStakers{}
-			statesRes := model.Db.
+			statesRes := model.DB.
 				Model(&DelegatedStakers{}).
 				Raw("select * from delegated_stakers where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
 				Scan(&states)

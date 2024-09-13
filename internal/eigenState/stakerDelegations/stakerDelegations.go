@@ -39,24 +39,21 @@ type AccumulatedStateChange struct {
 	Delegated   bool
 }
 
-// SlotId represents a unique identifier for a staker/operator pair.
-type SlotId string
-
-func NewSlotId(staker string, operator string) SlotId {
-	return SlotId(fmt.Sprintf("%s_%s", staker, operator))
+func NewSlotID(staker string, operator string) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%s", staker, operator))
 }
 
 type StakerDelegationsModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	Db               *gorm.DB
+	DB               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[SlotId]*AccumulatedStateChange
+	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
 }
 
 type DelegatedStakersDiff struct {
@@ -78,12 +75,12 @@ func NewStakerDelegationsModel(
 		BaseEigenState: base.BaseEigenState{
 			Logger: logger,
 		},
-		Db:               grm,
+		DB:               grm,
 		Network:          Network,
 		Environment:      Environment,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[SlotId]*AccumulatedStateChange),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
 	}
 
 	esm.RegisterState(model, 2)
@@ -111,7 +108,7 @@ func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[A
 		staker := strings.ToLower(arguments[0].Value.(string))
 		operator := strings.ToLower(arguments[1].Value.(string))
 
-		slotId := NewSlotId(staker, operator)
+		slotId := NewSlotID(staker, operator)
 		record, ok := s.stateAccumulator[log.BlockNumber][slotId]
 		if !ok {
 			// if the record doesn't exist, create a new one
@@ -168,7 +165,7 @@ func (s *StakerDelegationsModel) IsInterestingLog(log *storage.TransactionLog) b
 
 // StartBlockProcessing Initialize state accumulator for the block.
 func (s *StakerDelegationsModel) InitBlockProcessing(blockNumber uint64) error {
-	s.stateAccumulator[blockNumber] = make(map[SlotId]*AccumulatedStateChange)
+	s.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	return nil
 }
 
@@ -202,7 +199,7 @@ func (s *StakerDelegationsModel) clonePreviousBlocksToNewBlock(blockNumber uint6
 			from delegated_stakers
 			where block_number = @previousBlock
 	`
-	res := s.Db.Exec(query,
+	res := s.DB.Exec(query,
 		sql.Named("currentBlock", blockNumber),
 		sql.Named("previousBlock", blockNumber-1),
 	)
@@ -258,7 +255,7 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 
 	// TODO(seanmcgary): should probably wrap the operations of this function in a db transaction
 	for _, record := range recordsToDelete {
-		res := s.Db.Delete(&DelegatedStakers{}, "staker = ? and operator = ? and block_number = ?", record.Staker, record.Operator, blockNumber)
+		res := s.DB.Delete(&DelegatedStakers{}, "staker = ? and operator = ? and block_number = ?", record.Staker, record.Operator, blockNumber)
 		if res.Error != nil {
 			s.logger.Sugar().Errorw("Failed to delete staker delegation",
 				zap.Error(res.Error),
@@ -270,7 +267,7 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 		}
 	}
 	if len(recordsToInsert) > 0 {
-		res := s.Db.Model(&DelegatedStakers{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
+		res := s.DB.Model(&DelegatedStakers{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
 		if res.Error != nil {
 			s.logger.Sugar().Errorw("Failed to insert staker delegations", zap.Error(res.Error))
 			return res.Error
@@ -382,5 +379,5 @@ func encodeOperatorLeaf(operator string, operatorStakersRoot []byte) []byte {
 }
 
 func (s *StakerDelegationsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return s.BaseEigenState.DeleteState("delegated_stakers", startBlockNumber, endBlockNumber, s.Db)
+	return s.BaseEigenState.DeleteState("delegated_stakers", startBlockNumber, endBlockNumber, s.DB)
 }

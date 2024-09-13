@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"slices"
 	"strings"
 
@@ -91,4 +92,11 @@ func (b *BaseEigenState) DeleteState(tableName string, startBlockNumber uint64, 
 		return res.Error
 	}
 	return nil
+}
+
+type MerkleTreeInput struct {
+	SlotID types.SlotID
+}
+
+func (b *BaseEigenState) MerkleizeState() {
 }

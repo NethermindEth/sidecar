@@ -47,7 +47,7 @@ func teardown(model *StakerSharesModel) {
 	}
 	for _, query := range queries {
 
-		model.Db.Raw(query)
+		model.DB.Raw(query)
 	}
 }
 
@@ -316,7 +316,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		query := `select * from staker_shares where block_number = ?`
 		results := []*StakerShares{}
-		res = model.Db.Raw(query, blockNumber).Scan(&results)
+		res = model.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, len(results))
 
@@ -384,7 +384,7 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", typedChange.Changes[0].Strategy)
 		assert.Equal(t, "-246393621132195985", typedChange.Changes[0].Shares.String())
 
-		slotId := NewSlotId(typedChange.Changes[0].Staker, typedChange.Changes[0].Strategy)
+		slotId := NewSlotID(typedChange.Changes[0].Staker, typedChange.Changes[0].Strategy)
 
 		accumulatedState, ok := model.stateAccumulator[originBlockNumber][slotId]
 		assert.True(t, ok)
@@ -423,7 +423,7 @@ func Test_StakerSharesState(t *testing.T) {
 		// verify the M1 withdrawal was processed correctly
 		query := `select * from staker_shares where block_number = ?`
 		results := []*StakerShares{}
-		res = model.Db.Raw(query, originBlockNumber).Scan(&results)
+		res = model.DB.Raw(query, originBlockNumber).Scan(&results)
 
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, len(results))
@@ -486,7 +486,7 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", typedChange.Changes[0].Strategy)
 		assert.Equal(t, "246393621132195985", typedChange.Changes[0].Shares.String())
 
-		slotId = NewSlotId(typedChange.Changes[0].Staker, typedChange.Changes[0].Strategy)
+		slotId = NewSlotID(typedChange.Changes[0].Staker, typedChange.Changes[0].Strategy)
 
 		accumulatedState, ok = model.stateAccumulator[blockNumber][slotId]
 		assert.True(t, ok)
@@ -504,7 +504,7 @@ func Test_StakerSharesState(t *testing.T) {
 			where block_number = ?
 		`
 		results = []*StakerShares{}
-		res = model.Db.Raw(query, blockNumber).Scan(&results)
+		res = model.DB.Raw(query, blockNumber).Scan(&results)
 		assert.Nil(t, res.Error)
 
 		assert.Equal(t, 1, len(results))

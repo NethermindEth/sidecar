@@ -38,7 +38,7 @@ func setup() (
 }
 
 func teardown(model *EigenStateManager) {
-	model.Db.Exec("delete from state_roots")
+	model.DB.Exec("delete from state_roots")
 }
 
 func Test_StateManager(t *testing.T) {

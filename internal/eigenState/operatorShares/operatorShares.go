@@ -3,6 +3,7 @@ package operatorShares
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"slices"
@@ -51,11 +52,8 @@ type OperatorSharesDiff struct {
 	IsNew       bool
 }
 
-// SlotId is a unique identifier for an operator's shares in a strategy.
-type SlotId string
-
-func NewSlotId(operator string, strategy string) SlotId {
-	return SlotId(fmt.Sprintf("%s_%s", operator, strategy))
+func NewSlotID(operator string, strategy string) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%s", operator, strategy))
 }
 
 // Implements IEigenStateModel.
@@ -69,7 +67,7 @@ type OperatorSharesModel struct {
 	globalConfig     *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[SlotId]*AccumulatedStateChange
+	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
 }
 
 func NewOperatorSharesModel(
@@ -89,7 +87,7 @@ func NewOperatorSharesModel(
 		Environment:      Environment,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[SlotId]*AccumulatedStateChange),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
 	}
 
 	esm.RegisterState(model, 1)
@@ -154,7 +152,7 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 			shares = shares.Mul(shares, big.NewInt(-1))
 		}
 
-		slotId := NewSlotId(operator, outputData.Strategy)
+		slotId := NewSlotID(operator, outputData.Strategy)
 		record, ok := osm.stateAccumulator[log.BlockNumber][slotId]
 		if !ok {
 			record = &AccumulatedStateChange{
@@ -200,7 +198,7 @@ func (osm *OperatorSharesModel) IsInterestingLog(log *storage.TransactionLog) bo
 }
 
 func (osm *OperatorSharesModel) InitBlockProcessing(blockNumber uint64) error {
-	osm.stateAccumulator[blockNumber] = make(map[SlotId]*AccumulatedStateChange)
+	osm.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	return nil
 }
 
@@ -258,7 +256,7 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 		return nil, err
 	}
 
-	slotIds := make([]SlotId, 0)
+	slotIds := make([]types.SlotID, 0)
 	for slotId := range accumulatedState {
 		slotIds = append(slotIds, slotId)
 	}
@@ -288,10 +286,10 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 	}
 
 	// Map the existing records to a map for easier lookup
-	mappedRecords := make(map[SlotId]OperatorShares)
+	mappedRecords := make(map[types.SlotID]OperatorShares)
 	for _, record := range existingRecords {
 		fmt.Printf("Existing OperatorShares %+v\n", record)
-		slotId := NewSlotId(record.Operator, record.Strategy)
+		slotId := NewSlotID(record.Operator, record.Strategy)
 		mappedRecords[slotId] = record
 	}
 
@@ -415,7 +413,7 @@ func (osm *OperatorSharesModel) merkelizeState(blockNumber uint64, diffs []Opera
 			prev := om.GetPair(diff.Strategy).Prev()
 			if prev != nil && strings.Compare(prev.Key, diff.Strategy) >= 0 {
 				om.Delete(diff.Strategy)
-				return nil, fmt.Errorf("strategy not in order")
+				return nil, errors.New("strategy not in order")
 			}
 		}
 		existingStrategy.Set(diff.Operator, diff.Shares.String())
@@ -423,7 +421,7 @@ func (osm *OperatorSharesModel) merkelizeState(blockNumber uint64, diffs []Opera
 		prev := existingStrategy.GetPair(diff.Operator).Prev()
 		if prev != nil && strings.Compare(prev.Key, diff.Operator) >= 0 {
 			existingStrategy.Delete(diff.Operator)
-			return nil, fmt.Errorf("operator not in order")
+			return nil, errors.New("operator not in order")
 		}
 	}
 

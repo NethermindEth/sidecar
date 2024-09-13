@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"slices"
@@ -50,23 +51,21 @@ type StakerSharesDiff struct {
 	IsNew       bool
 }
 
-type SlotId string
-
-func NewSlotId(staker string, strategy string) SlotId {
-	return SlotId(fmt.Sprintf("%s_%s", staker, strategy))
+func NewSlotID(staker string, strategy string) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%s", staker, strategy))
 }
 
 type StakerSharesModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	Db               *gorm.DB
+	DB               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[SlotId]*AccumulatedStateChange
+	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
 }
 
 func NewStakerSharesModel(
@@ -79,12 +78,12 @@ func NewStakerSharesModel(
 ) (*StakerSharesModel, error) {
 	model := &StakerSharesModel{
 		BaseEigenState:   base.BaseEigenState{},
-		Db:               grm,
+		DB:               grm,
 		Network:          network,
 		Environment:      environment,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[SlotId]*AccumulatedStateChange),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
 	}
 
 	esm.RegisterState(model, 3)
@@ -284,7 +283,7 @@ func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.Tran
 			and staker = (select staker from migration)
 	`
 	logs := make([]storage.TransactionLog, 0)
-	res := ss.Db.
+	res := ss.DB.
 		Raw(query,
 			sql.Named("strategyManagerAddress", ss.globalConfig.GetContractsMapForEnvAndNetwork().StrategyManager),
 			sql.Named("logBlockNumber", log.BlockNumber),
@@ -422,7 +421,7 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 			if parsedRecord == nil {
 				continue
 			}
-			slotId := NewSlotId(parsedRecord.Staker, parsedRecord.Strategy)
+			slotId := NewSlotID(parsedRecord.Staker, parsedRecord.Strategy)
 			record, ok := ss.stateAccumulator[log.BlockNumber][slotId]
 			if !ok {
 				record = parsedRecord
@@ -471,7 +470,7 @@ func (ss *StakerSharesModel) IsInterestingLog(log *storage.TransactionLog) bool 
 }
 
 func (ss *StakerSharesModel) InitBlockProcessing(blockNumber uint64) error {
-	ss.stateAccumulator[blockNumber] = make(map[SlotId]*AccumulatedStateChange)
+	ss.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	return nil
 }
 
@@ -506,7 +505,7 @@ func (ss *StakerSharesModel) clonePreviousBlocksToNewBlock(blockNumber uint64) e
 			from staker_shares
 			where block_number = @previousBlock
 	`
-	res := ss.Db.Exec(query,
+	res := ss.DB.Exec(query,
 		sql.Named("currentBlock", blockNumber),
 		sql.Named("previousBlock", blockNumber-1),
 	)
@@ -529,7 +528,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 		return nil, err
 	}
 
-	slotIds := make([]SlotId, 0)
+	slotIds := make([]types.SlotID, 0)
 	for slotId := range accumulatedState {
 		slotIds = append(slotIds, slotId)
 	}
@@ -546,7 +545,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 			and concat(staker, '_', strategy) in @slotIds
 	`
 	existingRecords := make([]StakerShares, 0)
-	res := ss.Db.Model(&StakerShares{}).
+	res := ss.DB.Model(&StakerShares{}).
 		Raw(query,
 			sql.Named("previousBlock", blockNumber-1),
 			sql.Named("slotIds", slotIds),
@@ -559,9 +558,9 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 	}
 
 	// Map the existing records to a map for easier lookup
-	mappedRecords := make(map[SlotId]StakerShares)
+	mappedRecords := make(map[types.SlotID]StakerShares)
 	for _, record := range existingRecords {
-		slotId := NewSlotId(record.Staker, record.Strategy)
+		slotId := NewSlotID(record.Staker, record.Strategy)
 		mappedRecords[slotId] = record
 	}
 
@@ -629,7 +628,7 @@ func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
 
 	// Batch insert new records
 	if len(newRecords) > 0 {
-		res := ss.Db.Model(&StakerShares{}).Clauses(clause.Returning{}).Create(&newRecords)
+		res := ss.DB.Model(&StakerShares{}).Clauses(clause.Returning{}).Create(&newRecords)
 		if res.Error != nil {
 			ss.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
 			return res.Error
@@ -638,7 +637,7 @@ func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
 	// Update existing records that were cloned from the previous block
 	if len(updateRecords) > 0 {
 		for _, record := range updateRecords {
-			res := ss.Db.Model(&StakerShares{}).
+			res := ss.DB.Model(&StakerShares{}).
 				Where("staker = ? and strategy = ? and block_number = ?", record.Staker, record.Strategy, record.BlockNumber).
 				Updates(map[string]interface{}{
 					"shares": record.Shares,
@@ -685,7 +684,7 @@ func (ss *StakerSharesModel) merkelizeState(blockNumber uint64, diffs []StakerSh
 			prev := om.GetPair(diff.Strategy).Prev()
 			if prev != nil && strings.Compare(prev.Key, diff.Strategy) >= 0 {
 				om.Delete(diff.Strategy)
-				return nil, fmt.Errorf("strategy not in order")
+				return nil, errors.New("strategy not in order")
 			}
 		}
 		existingStrategy.Set(diff.Staker, diff.Shares.String())
@@ -693,7 +692,7 @@ func (ss *StakerSharesModel) merkelizeState(blockNumber uint64, diffs []StakerSh
 		prev := existingStrategy.GetPair(diff.Staker).Prev()
 		if prev != nil && strings.Compare(prev.Key, diff.Staker) >= 0 {
 			existingStrategy.Delete(diff.Staker)
-			return nil, fmt.Errorf("operator not in order")
+			return nil, errors.New("operator not in order")
 		}
 	}
 
@@ -734,5 +733,5 @@ func encodeStratTree(strategy string, stakerTreeRoot []byte) []byte {
 }
 
 func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ss.BaseEigenState.DeleteState("staker_shares", startBlockNumber, endBlockNumber, ss.Db)
+	return ss.BaseEigenState.DeleteState("staker_shares", startBlockNumber, endBlockNumber, ss.DB)
 }

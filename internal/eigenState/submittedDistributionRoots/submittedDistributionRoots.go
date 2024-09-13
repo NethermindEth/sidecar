@@ -36,23 +36,21 @@ type SubmittedDistributionRoots struct {
 	CreatedAtBlockNumber      uint64
 }
 
-type SlotId string
-
-func NewSlotId(root string, rootIndex uint64) SlotId {
-	return SlotId(fmt.Sprintf("%s_%d", root, rootIndex))
+func NewSlotID(root string, rootIndex uint64) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%d", root, rootIndex))
 }
 
 type SubmittedDistributionRootsModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[SubmittedDistributionRoots]
-	Db               *gorm.DB
+	DB               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[SlotId]*SubmittedDistributionRoots
+	stateAccumulator map[uint64]map[types.SlotID]*SubmittedDistributionRoots
 }
 
 func NewSubmittedDistributionRootsModel(
@@ -67,12 +65,12 @@ func NewSubmittedDistributionRootsModel(
 		BaseEigenState: base.BaseEigenState{
 			Logger: logger,
 		},
-		Db:               grm,
+		DB:               grm,
 		Network:          Network,
 		Environment:      Environment,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[SlotId]*SubmittedDistributionRoots),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*SubmittedDistributionRoots),
 	}
 
 	esm.RegisterState(model, 4)
@@ -157,7 +155,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 
 		activatedAt := outputData.ActivatedAt
 
-		slotId := NewSlotId(root, rootIndex)
+		slotId := NewSlotID(root, rootIndex)
 		record, ok := sdr.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
@@ -208,7 +206,7 @@ func (sdr *SubmittedDistributionRootsModel) IsInterestingLog(log *storage.Transa
 }
 
 func (sdr *SubmittedDistributionRootsModel) InitBlockProcessing(blockNumber uint64) error {
-	sdr.stateAccumulator[blockNumber] = make(map[SlotId]*SubmittedDistributionRoots)
+	sdr.stateAccumulator[blockNumber] = make(map[types.SlotID]*SubmittedDistributionRoots)
 	return nil
 }
 
@@ -247,7 +245,7 @@ func (sdr *SubmittedDistributionRootsModel) clonePreviousBlocksToNewBlock(blockN
 			from submitted_distribution_roots
 			where block_number = @previousBlock
 	`
-	res := sdr.Db.Exec(query,
+	res := sdr.DB.Exec(query,
 		sql.Named("currentBlock", blockNumber),
 		sql.Named("previousBlock", blockNumber-1),
 	)
@@ -270,7 +268,7 @@ func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]
 		return nil, err
 	}
 
-	slotIds := make([]SlotId, 0)
+	slotIds := make([]types.SlotID, 0)
 	for slotId := range accumulatedState {
 		slotIds = append(slotIds, slotId)
 	}
@@ -291,7 +289,7 @@ func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]
 			and concat(root, '_', root_index) in @slotIds
 	`
 	existingRecords := make([]SubmittedDistributionRoots, 0)
-	res := sdr.Db.Model(&SubmittedDistributionRoots{}).
+	res := sdr.DB.Model(&SubmittedDistributionRoots{}).
 		Raw(query,
 			sql.Named("currentBlock", blockNumber),
 			sql.Named("slotIds", slotIds),
@@ -337,7 +335,7 @@ func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64)
 	}
 
 	if len(records) > 0 {
-		res := sdr.Db.Model(&SubmittedDistributionRoots{}).Clauses(clause.Returning{}).Create(&records)
+		res := sdr.DB.Model(&SubmittedDistributionRoots{}).Clauses(clause.Returning{}).Create(&records)
 		if res.Error != nil {
 			sdr.logger.Sugar().Errorw("Failed to create new submitted_distribution_roots records", zap.Error(res.Error))
 			return res.Error
@@ -401,5 +399,5 @@ func encodeRootIndexLeaf(rootIndex uint64, root string) []byte {
 }
 
 func (sdr *SubmittedDistributionRootsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return sdr.BaseEigenState.DeleteState("submitted_distribution_roots", startBlockNumber, endBlockNumber, sdr.Db)
+	return sdr.BaseEigenState.DeleteState("submitted_distribution_roots", startBlockNumber, endBlockNumber, sdr.DB)
 }
