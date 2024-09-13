@@ -1,10 +1,11 @@
 package etherscan
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand/v2"
+	"math/big"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -138,14 +139,18 @@ func (ec *EtherscanClient) makeRequestWithBackoff(values url.Values) (*Etherscan
 
 func (ec *EtherscanClient) selectApiKey() string {
 	maxNumber := len(ec.ApiKeys)
-	randInt := rand.IntN(maxNumber)
-
-	if randInt > maxNumber {
-		ec.logger.Sugar().Warnw("Random number is greater than the number of api keys", "randInt", randInt, "maxNumber", maxNumber)
-		randInt = 0
+	randInt, err := rand.Int(rand.Reader, big.NewInt(int64(maxNumber)))
+	if err != nil {
+		ec.logger.Sugar().Errorw("Failed to generate random number", zap.Error(err))
+		return ec.ApiKeys[0]
 	}
 
-	return ec.ApiKeys[randInt]
+	if randInt.Uint64() > uint64(maxNumber) {
+		ec.logger.Sugar().Warnw("Random number is greater than the number of api keys", "randInt", randInt, "maxNumber", maxNumber)
+		randInt = big.NewInt(int64(0))
+	}
+
+	return ec.ApiKeys[randInt.Int64()]
 }
 
 func (ec *EtherscanClient) buildBaseUrlParams(module string, action string) url.Values {

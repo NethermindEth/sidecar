@@ -14,9 +14,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
-	"github.com/wealdtech/go-merkletree/v2"
-	"github.com/wealdtech/go-merkletree/v2/keccak256"
-	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -39,24 +36,19 @@ type AccumulatedStateChange struct {
 	Delegated   bool
 }
 
-// SlotId represents a unique identifier for a staker/operator pair.
-type SlotId string
-
-func NewSlotId(staker string, operator string) SlotId {
-	return SlotId(fmt.Sprintf("%s_%s", staker, operator))
+func NewSlotID(staker string, operator string) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%s", staker, operator))
 }
 
 type StakerDelegationsModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	Db               *gorm.DB
-	Network          config.Network
-	Environment      config.Environment
+	DB               *gorm.DB
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[SlotId]*AccumulatedStateChange
+	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
 }
 
 type DelegatedStakersDiff struct {
@@ -69,8 +61,6 @@ type DelegatedStakersDiff struct {
 func NewStakerDelegationsModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
-	Network config.Network,
-	Environment config.Environment,
 	logger *zap.Logger,
 	globalConfig *config.Config,
 ) (*StakerDelegationsModel, error) {
@@ -78,12 +68,10 @@ func NewStakerDelegationsModel(
 		BaseEigenState: base.BaseEigenState{
 			Logger: logger,
 		},
-		Db:               grm,
-		Network:          Network,
-		Environment:      Environment,
+		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[SlotId]*AccumulatedStateChange),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
 	}
 
 	esm.RegisterState(model, 2)
@@ -111,8 +99,8 @@ func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[A
 		staker := strings.ToLower(arguments[0].Value.(string))
 		operator := strings.ToLower(arguments[1].Value.(string))
 
-		slotId := NewSlotId(staker, operator)
-		record, ok := s.stateAccumulator[log.BlockNumber][slotId]
+		slotID := NewSlotID(staker, operator)
+		record, ok := s.stateAccumulator[log.BlockNumber][slotID]
 		if !ok {
 			// if the record doesn't exist, create a new one
 			record = &AccumulatedStateChange{
@@ -120,15 +108,15 @@ func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[A
 				Operator:    operator,
 				BlockNumber: log.BlockNumber,
 			}
-			s.stateAccumulator[log.BlockNumber][slotId] = record
+			s.stateAccumulator[log.BlockNumber][slotID] = record
 		}
 		if log.EventName == "StakerUndelegated" {
 			if ok {
 				// In this situation, we've encountered a delegate and undelegate in the same block
 				// which functionally results in no state change at all so we want to remove the record
 				// from the accumulated state.
-				delete(s.stateAccumulator[log.BlockNumber], slotId)
-				return nil, nil
+				delete(s.stateAccumulator[log.BlockNumber], slotID)
+				return nil, nil //nolint:nilnil
 			}
 			record.Delegated = false
 		} else if log.EventName == "StakerDelegated" {
@@ -166,9 +154,9 @@ func (s *StakerDelegationsModel) IsInterestingLog(log *storage.TransactionLog) b
 	return s.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-// StartBlockProcessing Initialize state accumulator for the block.
+// InitBlockProcessing initialize state accumulator for the block.
 func (s *StakerDelegationsModel) InitBlockProcessing(blockNumber uint64) error {
-	s.stateAccumulator[blockNumber] = make(map[SlotId]*AccumulatedStateChange)
+	s.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	return nil
 }
 
@@ -189,7 +177,7 @@ func (s *StakerDelegationsModel) HandleStateChange(log *storage.TransactionLog) 
 			return change, nil
 		}
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (s *StakerDelegationsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
@@ -202,7 +190,7 @@ func (s *StakerDelegationsModel) clonePreviousBlocksToNewBlock(blockNumber uint6
 			from delegated_stakers
 			where block_number = @previousBlock
 	`
-	res := s.Db.Exec(query,
+	res := s.DB.Exec(query,
 		sql.Named("currentBlock", blockNumber),
 		sql.Named("previousBlock", blockNumber-1),
 	)
@@ -258,7 +246,7 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 
 	// TODO(seanmcgary): should probably wrap the operations of this function in a db transaction
 	for _, record := range recordsToDelete {
-		res := s.Db.Delete(&DelegatedStakers{}, "staker = ? and operator = ? and block_number = ?", record.Staker, record.Operator, blockNumber)
+		res := s.DB.Delete(&DelegatedStakers{}, "staker = ? and operator = ? and block_number = ?", record.Staker, record.Operator, blockNumber)
 		if res.Error != nil {
 			s.logger.Sugar().Errorw("Failed to delete staker delegation",
 				zap.Error(res.Error),
@@ -270,7 +258,7 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 		}
 	}
 	if len(recordsToInsert) > 0 {
-		res := s.Db.Model(&DelegatedStakers{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
+		res := s.DB.Model(&DelegatedStakers{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
 		if res.Error != nil {
 			s.logger.Sugar().Errorw("Failed to insert staker delegations", zap.Error(res.Error))
 			return res.Error
@@ -312,75 +300,29 @@ func (s *StakerDelegationsModel) GenerateStateRoot(blockNumber uint64) (types.St
 		})
 	}
 
-	fullTree, err := s.merkelizeState(blockNumber, combinedResults)
+	inputs := s.sortValuesForMerkleTree(combinedResults)
+
+	fullTree, err := s.MerkleizeState(blockNumber, inputs)
 	if err != nil {
 		return "", err
 	}
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-// merkelizeState generates a merkle tree for the given block number and delegated stakers.
-// Changes are stored in the following format:
-// Operator -> staker:delegated.
-func (s *StakerDelegationsModel) merkelizeState(blockNumber uint64, delegatedStakers []DelegatedStakersDiff) (*merkletree.MerkleTree, error) {
-	om := orderedmap.New[string, *orderedmap.OrderedMap[string, bool]]()
-
-	for _, result := range delegatedStakers {
-		existingOperator, found := om.Get(result.Operator)
-		if !found {
-			existingOperator = orderedmap.New[string, bool]()
-			om.Set(result.Operator, existingOperator)
-
-			prev := om.GetPair(result.Operator).Prev()
-			if prev != nil && strings.Compare(prev.Key, result.Operator) >= 0 {
-				om.Delete(result.Operator)
-				return nil, fmt.Errorf("operators not in order")
-			}
-		}
-		existingOperator.Set(result.Staker, result.Delegated)
-
-		prev := existingOperator.GetPair(result.Staker).Prev()
-		if prev != nil && strings.Compare(prev.Key, result.Staker) >= 0 {
-			existingOperator.Delete(result.Staker)
-			return nil, fmt.Errorf("stakers not in order")
-		}
+func (s *StakerDelegationsModel) sortValuesForMerkleTree(diffs []DelegatedStakersDiff) []*base.MerkleTreeInput {
+	inputs := make([]*base.MerkleTreeInput, 0)
+	for _, diff := range diffs {
+		inputs = append(inputs, &base.MerkleTreeInput{
+			SlotID: NewSlotID(diff.Staker, diff.Operator),
+			Value:  []byte(fmt.Sprintf("%t", diff.Delegated)),
+		})
 	}
-
-	operatorLeaves := s.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
-
-	for op := om.Oldest(); op != nil; op = op.Next() {
-		stakerLeafs := make([][]byte, 0)
-		for staker := op.Value.Oldest(); staker != nil; staker = staker.Next() {
-			operatorAddr := staker.Key
-			delegated := staker.Value
-			stakerLeafs = append(stakerLeafs, encodeStakerLeaf(operatorAddr, delegated))
-		}
-
-		avsTree, err := merkletree.NewTree(
-			merkletree.WithData(stakerLeafs),
-			merkletree.WithHashType(keccak256.New()),
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		operatorLeaves = append(operatorLeaves, encodeOperatorLeaf(op.Key, avsTree.Root()))
-	}
-
-	return merkletree.NewTree(
-		merkletree.WithData(operatorLeaves),
-		merkletree.WithHashType(keccak256.New()),
-	)
-}
-
-func encodeStakerLeaf(staker string, delegated bool) []byte {
-	return []byte(fmt.Sprintf("%s:%t", staker, delegated))
-}
-
-func encodeOperatorLeaf(operator string, operatorStakersRoot []byte) []byte {
-	return append([]byte(operator), operatorStakersRoot...)
+	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
+		return strings.Compare(string(i.SlotID), string(j.SlotID))
+	})
+	return inputs
 }
 
 func (s *StakerDelegationsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return s.BaseEigenState.DeleteState("delegated_stakers", startBlockNumber, endBlockNumber, s.Db)
+	return s.BaseEigenState.DeleteState("delegated_stakers", startBlockNumber, endBlockNumber, s.DB)
 }

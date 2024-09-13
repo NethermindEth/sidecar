@@ -26,14 +26,14 @@ type StateRoot struct {
 type EigenStateManager struct {
 	StateModels map[int]types.IEigenStateModel
 	logger      *zap.Logger
-	Db          *gorm.DB
+	DB          *gorm.DB
 }
 
 func NewEigenStateManager(logger *zap.Logger, grm *gorm.DB) *EigenStateManager {
 	return &EigenStateManager{
 		StateModels: make(map[int]types.IEigenStateModel),
 		logger:      logger,
-		Db:          grm,
+		DB:          grm,
 	}
 }
 
@@ -138,7 +138,7 @@ func (e *EigenStateManager) WriteStateRoot(
 		StateRoot:      string(stateroot),
 	}
 
-	result := e.Db.Model(&StateRoot{}).Clauses(clause.Returning{}).Create(&root)
+	result := e.DB.Model(&StateRoot{}).Clauses(clause.Returning{}).Create(&root)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -147,7 +147,7 @@ func (e *EigenStateManager) WriteStateRoot(
 
 func (e *EigenStateManager) GetStateRootForBlock(blockNumber uint64) (*StateRoot, error) {
 	root := &StateRoot{}
-	result := e.Db.Model(&StateRoot{}).Where("eth_block_number = ?", blockNumber).First(&root)
+	result := e.DB.Model(&StateRoot{}).Where("eth_block_number = ?", blockNumber).First(&root)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -173,10 +173,10 @@ func (e *EigenStateManager) GetSortedModelIndexes() []int {
 
 func (e *EigenStateManager) GetLatestStateRoot() (*StateRoot, error) {
 	root := &StateRoot{}
-	result := e.Db.Model(&StateRoot{}).Order("eth_block_number desc").First(&root)
+	result := e.DB.Model(&StateRoot{}).Order("eth_block_number desc").First(&root)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil
+			return root, nil
 		}
 		return nil, result.Error
 	}

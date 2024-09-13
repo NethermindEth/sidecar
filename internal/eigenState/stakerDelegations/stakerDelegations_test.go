@@ -37,8 +37,8 @@ func setup() (
 }
 
 func teardown(model *StakerDelegationsModel) {
-	model.Db.Exec("delete from staker_delegation_changes")
-	model.Db.Exec("delete from delegated_stakers")
+	model.DB.Exec("delete from staker_delegation_changes")
+	model.DB.Exec("delete from delegated_stakers")
 }
 
 func Test_DelegatedStakersState(t *testing.T) {
@@ -50,7 +50,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 
 	t.Run("Should create a new StakerDelegationsModel", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		model, err := NewStakerDelegationsModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewStakerDelegationsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, model)
 	})
@@ -71,7 +71,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		model, err := NewStakerDelegationsModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewStakerDelegationsModel(esm, grm, l, cfg)
 
 		assert.Equal(t, true, model.IsInterestingLog(&log))
 
@@ -106,7 +106,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		model, err := NewStakerDelegationsModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewStakerDelegationsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		assert.Equal(t, true, model.IsInterestingLog(&log))
@@ -126,7 +126,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 		assert.Nil(t, err)
 
 		states := []DelegatedStakers{}
-		statesRes := model.Db.
+		statesRes := model.DB.
 			Model(&DelegatedStakers{}).
 			Raw("select * from delegated_stakers where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)
@@ -178,7 +178,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 			},
 		}
 
-		model, err := NewStakerDelegationsModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewStakerDelegationsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		for _, log := range logs {
@@ -195,7 +195,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 			assert.Nil(t, err)
 
 			states := []DelegatedStakers{}
-			statesRes := model.Db.
+			statesRes := model.DB.
 				Model(&DelegatedStakers{}).
 				Raw("select * from delegated_stakers where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
 				Scan(&states)

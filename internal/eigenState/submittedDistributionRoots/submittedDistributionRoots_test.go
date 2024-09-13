@@ -41,7 +41,7 @@ func teardown(model *SubmittedDistributionRootsModel) {
 		`delete from submitted_distribution_roots`,
 	}
 	for _, query := range queries {
-		model.Db.Raw(query)
+		model.DB.Raw(query)
 	}
 }
 
@@ -53,7 +53,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 	}
 
 	esm := stateManager.NewEigenStateManager(l, grm)
-	model, err := NewSubmittedDistributionRootsModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+	model, err := NewSubmittedDistributionRootsModel(esm, grm, l, cfg)
 
 	insertedRoots := make([]*SubmittedDistributionRoots, 0)
 
@@ -99,7 +99,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 
 		query := `SELECT * FROM submitted_distribution_roots WHERE block_number = ?`
 		var roots []*SubmittedDistributionRoots
-		res := model.Db.Raw(query, blockNumber).Scan(&roots)
+		res := model.DB.Raw(query, blockNumber).Scan(&roots)
 
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, len(roots))
@@ -152,7 +152,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 
 		query := `SELECT * FROM submitted_distribution_roots WHERE block_number = ?`
 		var roots []*SubmittedDistributionRoots
-		res := model.Db.Raw(query, blockNumber).Scan(&roots)
+		res := model.DB.Raw(query, blockNumber).Scan(&roots)
 
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 2, len(roots))

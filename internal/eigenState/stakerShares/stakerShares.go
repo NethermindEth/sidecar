@@ -18,9 +18,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
-	"github.com/wealdtech/go-merkletree/v2"
-	"github.com/wealdtech/go-merkletree/v2/keccak256"
-	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -50,41 +47,33 @@ type StakerSharesDiff struct {
 	IsNew       bool
 }
 
-type SlotId string
-
-func NewSlotId(staker string, strategy string) SlotId {
-	return SlotId(fmt.Sprintf("%s_%s", staker, strategy))
+func NewSlotID(staker string, strategy string) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%s", staker, strategy))
 }
 
 type StakerSharesModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	Db               *gorm.DB
-	Network          config.Network
-	Environment      config.Environment
+	DB               *gorm.DB
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[SlotId]*AccumulatedStateChange
+	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
 }
 
 func NewStakerSharesModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
-	network config.Network,
-	environment config.Environment,
 	logger *zap.Logger,
 	globalConfig *config.Config,
 ) (*StakerSharesModel, error) {
 	model := &StakerSharesModel{
 		BaseEigenState:   base.BaseEigenState{},
-		Db:               grm,
-		Network:          network,
-		Environment:      environment,
+		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[SlotId]*AccumulatedStateChange),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
 	}
 
 	esm.RegisterState(model, 3)
@@ -284,7 +273,7 @@ func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.Tran
 			and staker = (select staker from migration)
 	`
 	logs := make([]storage.TransactionLog, 0)
-	res := ss.Db.
+	res := ss.DB.
 		Raw(query,
 			sql.Named("strategyManagerAddress", ss.globalConfig.GetContractsMapForEnvAndNetwork().StrategyManager),
 			sql.Named("logBlockNumber", log.BlockNumber),
@@ -422,7 +411,7 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 			if parsedRecord == nil {
 				continue
 			}
-			slotId := NewSlotId(parsedRecord.Staker, parsedRecord.Strategy)
+			slotId := NewSlotID(parsedRecord.Staker, parsedRecord.Strategy)
 			record, ok := ss.stateAccumulator[log.BlockNumber][slotId]
 			if !ok {
 				record = parsedRecord
@@ -471,7 +460,7 @@ func (ss *StakerSharesModel) IsInterestingLog(log *storage.TransactionLog) bool 
 }
 
 func (ss *StakerSharesModel) InitBlockProcessing(blockNumber uint64) error {
-	ss.stateAccumulator[blockNumber] = make(map[SlotId]*AccumulatedStateChange)
+	ss.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	return nil
 }
 
@@ -506,7 +495,7 @@ func (ss *StakerSharesModel) clonePreviousBlocksToNewBlock(blockNumber uint64) e
 			from staker_shares
 			where block_number = @previousBlock
 	`
-	res := ss.Db.Exec(query,
+	res := ss.DB.Exec(query,
 		sql.Named("currentBlock", blockNumber),
 		sql.Named("previousBlock", blockNumber-1),
 	)
@@ -529,7 +518,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 		return nil, err
 	}
 
-	slotIds := make([]SlotId, 0)
+	slotIds := make([]types.SlotID, 0)
 	for slotId := range accumulatedState {
 		slotIds = append(slotIds, slotId)
 	}
@@ -546,7 +535,7 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 			and concat(staker, '_', strategy) in @slotIds
 	`
 	existingRecords := make([]StakerShares, 0)
-	res := ss.Db.Model(&StakerShares{}).
+	res := ss.DB.Model(&StakerShares{}).
 		Raw(query,
 			sql.Named("previousBlock", blockNumber-1),
 			sql.Named("slotIds", slotIds),
@@ -559,9 +548,9 @@ func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]StakerSharesDif
 	}
 
 	// Map the existing records to a map for easier lookup
-	mappedRecords := make(map[SlotId]StakerShares)
+	mappedRecords := make(map[types.SlotID]StakerShares)
 	for _, record := range existingRecords {
-		slotId := NewSlotId(record.Staker, record.Strategy)
+		slotId := NewSlotID(record.Staker, record.Strategy)
 		mappedRecords[slotId] = record
 	}
 
@@ -629,7 +618,7 @@ func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
 
 	// Batch insert new records
 	if len(newRecords) > 0 {
-		res := ss.Db.Model(&StakerShares{}).Clauses(clause.Returning{}).Create(&newRecords)
+		res := ss.DB.Model(&StakerShares{}).Clauses(clause.Returning{}).Create(&newRecords)
 		if res.Error != nil {
 			ss.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
 			return res.Error
@@ -638,7 +627,7 @@ func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
 	// Update existing records that were cloned from the previous block
 	if len(updateRecords) > 0 {
 		for _, record := range updateRecords {
-			res := ss.Db.Model(&StakerShares{}).
+			res := ss.DB.Model(&StakerShares{}).
 				Where("staker = ? and strategy = ? and block_number = ?", record.Staker, record.Strategy, record.BlockNumber).
 				Updates(map[string]interface{}{
 					"shares": record.Shares,
@@ -664,75 +653,30 @@ func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateR
 		return "", err
 	}
 
-	fullTree, err := ss.merkelizeState(blockNumber, diffs)
+	inputs := ss.sortValuesForMerkleTree(diffs)
+
+	fullTree, err := ss.MerkleizeState(blockNumber, inputs)
 	if err != nil {
 		return "", err
 	}
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (ss *StakerSharesModel) merkelizeState(blockNumber uint64, diffs []StakerSharesDiff) (*merkletree.MerkleTree, error) {
-	// Create a merkle tree with the structure:
-	// strategy: map[staker]: shares
-	om := orderedmap.New[string, *orderedmap.OrderedMap[string, string]]()
-
+func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []StakerSharesDiff) []*base.MerkleTreeInput {
+	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, diff := range diffs {
-		existingStrategy, found := om.Get(diff.Strategy)
-		if !found {
-			existingStrategy = orderedmap.New[string, string]()
-			om.Set(diff.Strategy, existingStrategy)
-
-			prev := om.GetPair(diff.Strategy).Prev()
-			if prev != nil && strings.Compare(prev.Key, diff.Strategy) >= 0 {
-				om.Delete(diff.Strategy)
-				return nil, fmt.Errorf("strategy not in order")
-			}
-		}
-		existingStrategy.Set(diff.Staker, diff.Shares.String())
-
-		prev := existingStrategy.GetPair(diff.Staker).Prev()
-		if prev != nil && strings.Compare(prev.Key, diff.Staker) >= 0 {
-			existingStrategy.Delete(diff.Staker)
-			return nil, fmt.Errorf("operator not in order")
-		}
+		inputs = append(inputs, &base.MerkleTreeInput{
+			SlotID: NewSlotID(diff.Staker, diff.Strategy),
+			Value:  diff.Shares.Bytes(),
+		})
 	}
+	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
+		return strings.Compare(string(i.SlotID), string(j.SlotID))
+	})
 
-	leaves := ss.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
-	for strat := om.Oldest(); strat != nil; strat = strat.Next() {
-		stakerLeaves := make([][]byte, 0)
-		for staker := strat.Value.Oldest(); staker != nil; staker = staker.Next() {
-			stakerAddr := staker.Key
-			shares := staker.Value
-			stakerLeaves = append(stakerLeaves, encodeStakerSharesLeaf(stakerAddr, shares))
-		}
-
-		stratTree, err := merkletree.NewTree(
-			merkletree.WithData(stakerLeaves),
-			merkletree.WithHashType(keccak256.New()),
-		)
-		if err != nil {
-			return nil, err
-		}
-		leaves = append(leaves, encodeStratTree(strat.Key, stratTree.Root()))
-	}
-	return merkletree.NewTree(
-		merkletree.WithData(leaves),
-		merkletree.WithHashType(keccak256.New()),
-	)
-}
-
-func encodeStakerSharesLeaf(staker string, shares string) []byte {
-	stakerBytes := []byte(staker)
-	sharesBytes := []byte(shares)
-
-	return append(stakerBytes, sharesBytes...)
-}
-
-func encodeStratTree(strategy string, stakerTreeRoot []byte) []byte {
-	strategyBytes := []byte(strategy)
-	return append(strategyBytes, stakerTreeRoot...)
+	return inputs
 }
 
 func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ss.BaseEigenState.DeleteState("staker_shares", startBlockNumber, endBlockNumber, ss.Db)
+	return ss.BaseEigenState.DeleteState("staker_shares", startBlockNumber, endBlockNumber, ss.DB)
 }

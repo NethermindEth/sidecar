@@ -39,8 +39,8 @@ func setup() (
 }
 
 func teardown(model *OperatorSharesModel) {
-	model.Db.Exec("delete from operator_share_changes")
-	model.Db.Exec("delete from operator_shares")
+	model.DB.Exec("delete from operator_share_changes")
+	model.DB.Exec("delete from operator_shares")
 }
 
 func Test_OperatorSharesState(t *testing.T) {
@@ -52,7 +52,7 @@ func Test_OperatorSharesState(t *testing.T) {
 
 	t.Run("Should create a new OperatorSharesState", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		model, err := NewOperatorSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, model)
 	})
@@ -73,7 +73,7 @@ func Test_OperatorSharesState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		model, err := NewOperatorSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
 
 		err = model.InitBlockProcessing(blockNumber)
 		assert.Nil(t, err)
@@ -101,7 +101,7 @@ func Test_OperatorSharesState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		model, err := NewOperatorSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		err = model.InitBlockProcessing(blockNumber)
@@ -115,7 +115,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		assert.Nil(t, err)
 
 		states := []OperatorShares{}
-		statesRes := model.Db.
+		statesRes := model.DB.
 			Model(&OperatorShares{}).
 			Raw("select * from operator_shares where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)
@@ -150,7 +150,7 @@ func Test_OperatorSharesState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		model, err := NewOperatorSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		err = model.InitBlockProcessing(blockNumber)

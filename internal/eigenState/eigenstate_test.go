@@ -53,11 +53,11 @@ func Test_EigenStateManager(t *testing.T) {
 	})
 	t.Run("Should create a state root with states from models", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		avsOperatorsModel, err := avsOperators.NewAvsOperators(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		avsOperatorsModel, err := avsOperators.NewAvsOperators(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, avsOperatorsModel)
 
-		operatorSharesModel, err := operatorShares.NewOperatorSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		operatorSharesModel, err := operatorShares.NewOperatorSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, operatorSharesModel)
 

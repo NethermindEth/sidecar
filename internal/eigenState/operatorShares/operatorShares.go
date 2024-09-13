@@ -17,9 +17,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
-	"github.com/wealdtech/go-merkletree/v2"
-	"github.com/wealdtech/go-merkletree/v2/keccak256"
-	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -51,32 +48,25 @@ type OperatorSharesDiff struct {
 	IsNew       bool
 }
 
-// SlotId is a unique identifier for an operator's shares in a strategy.
-type SlotId string
-
-func NewSlotId(operator string, strategy string) SlotId {
-	return SlotId(fmt.Sprintf("%s_%s", operator, strategy))
+func NewSlotID(operator string, strategy string) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%s", operator, strategy))
 }
 
 // Implements IEigenStateModel.
 type OperatorSharesModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	Db               *gorm.DB
-	Network          config.Network
-	Environment      config.Environment
+	DB               *gorm.DB
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[SlotId]*AccumulatedStateChange
+	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
 }
 
 func NewOperatorSharesModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
-	Network config.Network,
-	Environment config.Environment,
 	logger *zap.Logger,
 	globalConfig *config.Config,
 ) (*OperatorSharesModel, error) {
@@ -84,12 +74,10 @@ func NewOperatorSharesModel(
 		BaseEigenState: base.BaseEigenState{
 			Logger: logger,
 		},
-		Db:               grm,
-		Network:          Network,
-		Environment:      Environment,
+		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[SlotId]*AccumulatedStateChange),
+		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
 	}
 
 	esm.RegisterState(model, 1)
@@ -154,8 +142,8 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 			shares = shares.Mul(shares, big.NewInt(-1))
 		}
 
-		slotId := NewSlotId(operator, outputData.Strategy)
-		record, ok := osm.stateAccumulator[log.BlockNumber][slotId]
+		slotID := NewSlotID(operator, outputData.Strategy)
+		record, ok := osm.stateAccumulator[log.BlockNumber][slotID]
 		if !ok {
 			record = &AccumulatedStateChange{
 				Operator:    operator,
@@ -163,7 +151,7 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 				Shares:      shares,
 				BlockNumber: log.BlockNumber,
 			}
-			osm.stateAccumulator[log.BlockNumber][slotId] = record
+			osm.stateAccumulator[log.BlockNumber][slotID] = record
 		} else {
 			record.Shares = record.Shares.Add(record.Shares, shares)
 		}
@@ -200,7 +188,7 @@ func (osm *OperatorSharesModel) IsInterestingLog(log *storage.TransactionLog) bo
 }
 
 func (osm *OperatorSharesModel) InitBlockProcessing(blockNumber uint64) error {
-	osm.stateAccumulator[blockNumber] = make(map[SlotId]*AccumulatedStateChange)
+	osm.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	return nil
 }
 
@@ -221,7 +209,7 @@ func (osm *OperatorSharesModel) HandleStateChange(log *storage.TransactionLog) (
 			return change, nil
 		}
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (osm *OperatorSharesModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
@@ -235,7 +223,7 @@ func (osm *OperatorSharesModel) clonePreviousBlocksToNewBlock(blockNumber uint64
 			from operator_shares
 			where block_number = @previousBlock
 	`
-	res := osm.Db.Exec(query,
+	res := osm.DB.Exec(query,
 		sql.Named("currentBlock", blockNumber),
 		sql.Named("previousBlock", blockNumber-1),
 	)
@@ -258,9 +246,9 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 		return nil, err
 	}
 
-	slotIds := make([]SlotId, 0)
-	for slotId := range accumulatedState {
-		slotIds = append(slotIds, slotId)
+	slotIds := make([]types.SlotID, 0)
+	for slotID := range accumulatedState {
+		slotIds = append(slotIds, slotID)
 	}
 
 	// Find only the records from the previous block, that are modified in this block
@@ -275,7 +263,7 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 			and concat(operator, '_', strategy) in @slotIds
 	`
 	existingRecords := make([]OperatorShares, 0)
-	res := osm.Db.Model(&OperatorShares{}).
+	res := osm.DB.Model(&OperatorShares{}).
 		Raw(query,
 			sql.Named("previousBlock", blockNumber-1),
 			sql.Named("slotIds", slotIds),
@@ -288,16 +276,16 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 	}
 
 	// Map the existing records to a map for easier lookup
-	mappedRecords := make(map[SlotId]OperatorShares)
+	mappedRecords := make(map[types.SlotID]OperatorShares)
 	for _, record := range existingRecords {
 		fmt.Printf("Existing OperatorShares %+v\n", record)
-		slotId := NewSlotId(record.Operator, record.Strategy)
-		mappedRecords[slotId] = record
+		slotID := NewSlotID(record.Operator, record.Strategy)
+		mappedRecords[slotID] = record
 	}
 
 	// Loop over our new state changes.
 	// If the record exists in the previous block, add the shares to the existing shares
-	for slotId, newState := range accumulatedState {
+	for slotID, newState := range accumulatedState {
 		prepared := OperatorSharesDiff{
 			Operator:    newState.Operator,
 			Strategy:    newState.Strategy,
@@ -306,7 +294,7 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 			IsNew:       false,
 		}
 
-		if existingRecord, ok := mappedRecords[slotId]; ok {
+		if existingRecord, ok := mappedRecords[slotID]; ok {
 			existingShares, success := numbers.NewBig257().SetString(existingRecord.Shares, 10)
 			if !success {
 				osm.logger.Sugar().Errorw("Failed to convert existing shares to big.Int",
@@ -359,7 +347,7 @@ func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
 
 	// Batch insert new records
 	if len(newRecords) > 0 {
-		res := osm.Db.Model(&OperatorShares{}).Clauses(clause.Returning{}).Create(&newRecords)
+		res := osm.DB.Model(&OperatorShares{}).Clauses(clause.Returning{}).Create(&newRecords)
 		if res.Error != nil {
 			osm.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
 			return res.Error
@@ -368,7 +356,7 @@ func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
 	// Update existing records that were cloned from the previous block
 	if len(updateRecords) > 0 {
 		for _, record := range updateRecords {
-			res := osm.Db.Model(&OperatorShares{}).
+			res := osm.DB.Model(&OperatorShares{}).
 				Where("operator = ? and strategy = ? and block_number = ?", record.Operator, record.Strategy, record.BlockNumber).
 				Updates(map[string]interface{}{
 					"shares": record.Shares,
@@ -394,75 +382,29 @@ func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (types.Sta
 		return "", err
 	}
 
-	fullTree, err := osm.merkelizeState(blockNumber, diffs)
+	inputs := osm.sortValuesForMerkleTree(diffs)
+
+	fullTree, err := osm.MerkleizeState(blockNumber, inputs)
 	if err != nil {
 		return "", err
 	}
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (osm *OperatorSharesModel) merkelizeState(blockNumber uint64, diffs []OperatorSharesDiff) (*merkletree.MerkleTree, error) {
-	// Create a merkle tree with the structure:
-	// strategy: map[operators]: shares
-	om := orderedmap.New[string, *orderedmap.OrderedMap[string, string]]()
-
+func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []OperatorSharesDiff) []*base.MerkleTreeInput {
+	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, diff := range diffs {
-		existingStrategy, found := om.Get(diff.Strategy)
-		if !found {
-			existingStrategy = orderedmap.New[string, string]()
-			om.Set(diff.Strategy, existingStrategy)
-
-			prev := om.GetPair(diff.Strategy).Prev()
-			if prev != nil && strings.Compare(prev.Key, diff.Strategy) >= 0 {
-				om.Delete(diff.Strategy)
-				return nil, fmt.Errorf("strategy not in order")
-			}
-		}
-		existingStrategy.Set(diff.Operator, diff.Shares.String())
-
-		prev := existingStrategy.GetPair(diff.Operator).Prev()
-		if prev != nil && strings.Compare(prev.Key, diff.Operator) >= 0 {
-			existingStrategy.Delete(diff.Operator)
-			return nil, fmt.Errorf("operator not in order")
-		}
+		inputs = append(inputs, &base.MerkleTreeInput{
+			SlotID: NewSlotID(diff.Operator, diff.Strategy),
+			Value:  diff.Shares.Bytes(),
+		})
 	}
-
-	leaves := osm.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
-	for strat := om.Oldest(); strat != nil; strat = strat.Next() {
-		operatorLeaves := make([][]byte, 0)
-		for operator := strat.Value.Oldest(); operator != nil; operator = operator.Next() {
-			operatorAddr := operator.Key
-			shares := operator.Value
-			operatorLeaves = append(operatorLeaves, encodeOperatorSharesLeaf(operatorAddr, shares))
-		}
-
-		stratTree, err := merkletree.NewTree(
-			merkletree.WithData(operatorLeaves),
-			merkletree.WithHashType(keccak256.New()),
-		)
-		if err != nil {
-			return nil, err
-		}
-		leaves = append(leaves, encodeStratTree(strat.Key, stratTree.Root()))
-	}
-	return merkletree.NewTree(
-		merkletree.WithData(leaves),
-		merkletree.WithHashType(keccak256.New()),
-	)
-}
-
-func encodeOperatorSharesLeaf(operator string, shares string) []byte {
-	operatorBytes := []byte(operator)
-	sharesBytes := []byte(shares)
-
-	return append(operatorBytes, sharesBytes...)
-}
-
-func encodeStratTree(strategy string, operatorTreeRoot []byte) []byte {
-	strategyBytes := []byte(strategy)
-	return append(strategyBytes, operatorTreeRoot...)
+	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
+		return strings.Compare(string(i.SlotID), string(j.SlotID))
+	})
+	return inputs
 }
 
 func (osm *OperatorSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return osm.BaseEigenState.DeleteState("operator_shares", startBlockNumber, endBlockNumber, osm.Db)
+	return osm.BaseEigenState.DeleteState("operator_shares", startBlockNumber, endBlockNumber, osm.DB)
 }
