@@ -14,9 +14,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
-	"github.com/wealdtech/go-merkletree/v2"
-	"github.com/wealdtech/go-merkletree/v2/keccak256"
-	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -55,9 +52,7 @@ func NewSlotID(avs string, operator string) types.SlotID {
 type AvsOperatorsModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	Db               *gorm.DB
-	Network          config.Network
-	Environment      config.Environment
+	DB               *gorm.DB
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
@@ -65,12 +60,10 @@ type AvsOperatorsModel struct {
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
 }
 
-// Create new instance of AvsOperatorsModel state model.
+// NewAvsOperators creates a new AvsOperatorsModel.
 func NewAvsOperators(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
-	Network config.Network,
-	Environment config.Environment,
 	logger *zap.Logger,
 	globalConfig *config.Config,
 ) (*AvsOperatorsModel, error) {
@@ -78,9 +71,7 @@ func NewAvsOperators(
 		BaseEigenState: base.BaseEigenState{
 			Logger: logger,
 		},
-		Db:           grm,
-		Network:      Network,
-		Environment:  Environment,
+		DB:           grm,
 		logger:       logger,
 		globalConfig: globalConfig,
 
@@ -219,7 +210,7 @@ func (a *AvsOperatorsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) er
 			from registered_avs_operators
 			where block_number = @previousBlock
 	`
-	res := a.Db.Exec(query,
+	res := a.DB.Exec(query,
 		sql.Named("currentBlock", blockNumber),
 		sql.Named("previousBlock", blockNumber-1),
 	)
@@ -271,7 +262,7 @@ func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64) error {
 	}
 
 	for _, record := range recordsToDelete {
-		res := a.Db.Delete(&RegisteredAvsOperators{}, "avs = ? and operator = ? and block_number = ?", record.Avs, record.Operator, record.BlockNumber)
+		res := a.DB.Delete(&RegisteredAvsOperators{}, "avs = ? and operator = ? and block_number = ?", record.Avs, record.Operator, record.BlockNumber)
 		if res.Error != nil {
 			a.logger.Sugar().Errorw("Failed to delete record",
 				zap.Error(res.Error),
@@ -283,7 +274,7 @@ func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64) error {
 		}
 	}
 	if len(recordsToInsert) > 0 {
-		res := a.Db.Model(&RegisteredAvsOperators{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
+		res := a.DB.Model(&RegisteredAvsOperators{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
 		if res.Error != nil {
 			a.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
 			return res.Error
@@ -304,9 +295,9 @@ func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRo
 		return "", err
 	}
 
-	combinedResults := make([]RegisteredAvsOperatorDiff, 0)
+	combinedResults := make([]*RegisteredAvsOperatorDiff, 0)
 	for _, record := range inserts {
-		combinedResults = append(combinedResults, RegisteredAvsOperatorDiff{
+		combinedResults = append(combinedResults, &RegisteredAvsOperatorDiff{
 			Avs:         record.Avs,
 			Operator:    record.Operator,
 			BlockNumber: record.BlockNumber,
@@ -314,7 +305,7 @@ func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRo
 		})
 	}
 	for _, record := range deletes {
-		combinedResults = append(combinedResults, RegisteredAvsOperatorDiff{
+		combinedResults = append(combinedResults, &RegisteredAvsOperatorDiff{
 			Avs:         record.Avs,
 			Operator:    record.Operator,
 			BlockNumber: record.BlockNumber,
@@ -322,73 +313,29 @@ func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRo
 		})
 	}
 
-	fullTree, err := a.merkelizeState(blockNumber, combinedResults)
+	inputs := a.sortValuesForMerkleTree(combinedResults)
+
+	fullTree, err := a.MerkleizeState(blockNumber, inputs)
 	if err != nil {
 		return "", err
 	}
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (a *AvsOperatorsModel) merkelizeState(blockNumber uint64, avsOperators []RegisteredAvsOperatorDiff) (*merkletree.MerkleTree, error) {
-	// Avs -> operator:registered
-	om := orderedmap.New[string, *orderedmap.OrderedMap[string, bool]]()
-
-	for _, result := range avsOperators {
-		existingAvs, found := om.Get(result.Avs)
-		if !found {
-			existingAvs = orderedmap.New[string, bool]()
-			om.Set(result.Avs, existingAvs)
-
-			prev := om.GetPair(result.Avs).Prev()
-			if prev != nil && strings.Compare(prev.Key, result.Avs) >= 0 {
-				om.Delete(result.Avs)
-				return nil, fmt.Errorf("avs not in order")
-			}
-		}
-		existingAvs.Set(result.Operator, result.Registered)
-
-		prev := existingAvs.GetPair(result.Operator).Prev()
-		if prev != nil && strings.Compare(prev.Key, result.Operator) >= 0 {
-			existingAvs.Delete(result.Operator)
-			return nil, fmt.Errorf("operator not in order")
-		}
+func (a *AvsOperatorsModel) sortValuesForMerkleTree(diffs []*RegisteredAvsOperatorDiff) []*base.MerkleTreeInput {
+	inputs := make([]*base.MerkleTreeInput, 0)
+	for _, diff := range diffs {
+		inputs = append(inputs, &base.MerkleTreeInput{
+			SlotID: types.SlotID(fmt.Sprintf("%s_%s", diff.Avs, diff.Operator)),
+			Value:  []byte(fmt.Sprintf("%t", diff.Registered)),
+		})
 	}
-
-	avsLeaves := a.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
-
-	for avs := om.Oldest(); avs != nil; avs = avs.Next() {
-		operatorLeafs := make([][]byte, 0)
-		for operator := avs.Value.Oldest(); operator != nil; operator = operator.Next() {
-			operatorAddr := operator.Key
-			registered := operator.Value
-			operatorLeafs = append(operatorLeafs, encodeOperatorLeaf(operatorAddr, registered))
-		}
-
-		avsTree, err := merkletree.NewTree(
-			merkletree.WithData(operatorLeafs),
-			merkletree.WithHashType(keccak256.New()),
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		avsLeaves = append(avsLeaves, encodeAvsLeaf(avs.Key, avsTree.Root()))
-	}
-
-	return merkletree.NewTree(
-		merkletree.WithData(avsLeaves),
-		merkletree.WithHashType(keccak256.New()),
-	)
+	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
+		return strings.Compare(string(i.SlotID), string(j.SlotID))
+	})
+	return inputs
 }
 
 func (a *AvsOperatorsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return a.BaseEigenState.DeleteState("registered_avs_operators", startBlockNumber, endBlockNumber, a.Db)
-}
-
-func encodeOperatorLeaf(operator string, registered bool) []byte {
-	return []byte(fmt.Sprintf("%s:%t", operator, registered))
-}
-
-func encodeAvsLeaf(avs string, avsOperatorRoot []byte) []byte {
-	return append([]byte(avs), avsOperatorRoot...)
+	return a.BaseEigenState.DeleteState("registered_avs_operators", startBlockNumber, endBlockNumber, a.DB)
 }

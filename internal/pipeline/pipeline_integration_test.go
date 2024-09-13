@@ -98,7 +98,7 @@ func setup() (
 
 	sm := stateManager.NewEigenStateManager(l, grm)
 
-	if _, err := avsOperators.NewAvsOperators(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
+	if _, err := avsOperators.NewAvsOperators(sm, grm, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to create AvsOperatorsModel", zap.Error(err))
 	}
 	if _, err := operatorShares.NewOperatorSharesModel(sm, grm, l, cfg); err != nil {

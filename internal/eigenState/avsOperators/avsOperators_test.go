@@ -37,8 +37,8 @@ func setup() (
 }
 
 func teardown(model *AvsOperatorsModel) {
-	model.Db.Exec("delete from avs_operator_changes")
-	model.Db.Exec("delete from registered_avs_operators")
+	model.DB.Exec("delete from avs_operator_changes")
+	model.DB.Exec("delete from registered_avs_operators")
 }
 
 func Test_AvsOperatorState(t *testing.T) {
@@ -50,7 +50,7 @@ func Test_AvsOperatorState(t *testing.T) {
 
 	t.Run("Should create a new AvsOperatorState", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		avsOperatorState, err := NewAvsOperators(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, avsOperatorState)
 	})
@@ -71,7 +71,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		avsOperatorState, err := NewAvsOperators(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
 
@@ -102,7 +102,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		avsOperatorState, err := NewAvsOperators(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
@@ -118,7 +118,7 @@ func Test_AvsOperatorState(t *testing.T) {
 		assert.Nil(t, err)
 
 		states := []RegisteredAvsOperators{}
-		statesRes := avsOperatorState.Db.
+		statesRes := avsOperatorState.DB.
 			Model(&RegisteredAvsOperators{}).
 			Raw("select * from registered_avs_operators where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)
@@ -170,7 +170,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			},
 		}
 
-		avsOperatorState, err := NewAvsOperators(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		for _, log := range logs {
@@ -187,7 +187,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			assert.Nil(t, err)
 
 			states := []RegisteredAvsOperators{}
-			statesRes := avsOperatorState.Db.
+			statesRes := avsOperatorState.DB.
 				Model(&RegisteredAvsOperators{}).
 				Raw("select * from registered_avs_operators where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
 				Scan(&states)
