@@ -326,7 +326,7 @@ func (a *AvsOperatorsModel) sortValuesForMerkleTree(diffs []*RegisteredAvsOperat
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, diff := range diffs {
 		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: types.SlotID(fmt.Sprintf("%s_%s", diff.Avs, diff.Operator)),
+			SlotID: NewSlotID(diff.Avs, diff.Operator),
 			Value:  []byte(fmt.Sprintf("%t", diff.Registered)),
 		})
 	}
