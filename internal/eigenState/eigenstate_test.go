@@ -57,7 +57,7 @@ func Test_EigenStateManager(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, avsOperatorsModel)
 
-		operatorSharesModel, err := operatorShares.NewOperatorSharesModel(esm, grm, cfg.Network, cfg.Environment, l, cfg)
+		operatorSharesModel, err := operatorShares.NewOperatorSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, operatorSharesModel)
 

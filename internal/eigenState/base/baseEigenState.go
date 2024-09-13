@@ -76,7 +76,7 @@ func (b *BaseEigenState) DeleteState(tableName string, startBlockNumber uint64, 
 			zap.Uint64("startBlockNumber", startBlockNumber),
 			zap.Uint64("endBlockNumber", endBlockNumber),
 		)
-		return fmt.Errorf("Invalid block range; endBlockNumber must be greater than or equal to startBlockNumber")
+		return errors.New("Invalid block range; endBlockNumber must be greater than or equal to startBlockNumber")
 	}
 
 	// tokenizing the table name apparently doesnt work, so we need to use Sprintf to include it.
@@ -103,6 +103,9 @@ type MerkleTreeInput struct {
 	Value  []byte
 }
 
+// MerkleizeState creates a merkle tree from the given inputs.
+//
+// Each input includes a SlotID and a byte representation of the state that changed
 func (b *BaseEigenState) MerkleizeState(blockNumber uint64, inputs []*MerkleTreeInput) (*merkletree.MerkleTree, error) {
 	om := orderedmap.New[types.SlotID, []byte]()
 

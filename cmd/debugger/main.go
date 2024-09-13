@@ -74,10 +74,10 @@ func main() {
 	if _, err := avsOperators.NewAvsOperators(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to create AvsOperatorsModel", zap.Error(err))
 	}
-	if _, err := operatorShares.NewOperatorSharesModel(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
+	if _, err := operatorShares.NewOperatorSharesModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to create OperatorSharesModel", zap.Error(err))
 	}
-	if _, err := stakerDelegations.NewStakerDelegationsModel(sm, grm, cfg.Network, cfg.Environment, l, cfg); err != nil {
+	if _, err := stakerDelegations.NewStakerDelegationsModel(sm, grm, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to create StakerDelegationsModel", zap.Error(err))
 	}
 	if _, err := stakerShares.NewStakerSharesModel(sm, grm, l, cfg); err != nil {
