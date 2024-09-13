@@ -44,7 +44,6 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 	f.Logger.Sugar().Debugf("Fetching '%d' transactions from block '%d'", len(block.Transactions), blockNumber)
 
 	for i, tx := range block.Transactions {
-		tx = tx
 		txReceiptRequests = append(txReceiptRequests, ethereum.GetTransactionReceiptRequest(tx.Hash.Value(), uint(i)))
 	}
 

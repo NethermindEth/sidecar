@@ -36,6 +36,9 @@ func main() {
 	fmt.Printf("Got block: %+v\n", block.Transactions()[0])
 
 	tx, _, err := client.TransactionByHash(context.Background(), block.Transactions()[0].Hash())
+	if err != nil {
+		log.Fatalln("Failed to fetch transaction", err)
+	}
 
 	jsonTx, _ := json.MarshalIndent(tx, "", "\t")
 	fmt.Printf("Transaction: %+v\n", string(jsonTx))

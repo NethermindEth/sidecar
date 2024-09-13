@@ -1,1 +1,11 @@
+.idea
+*.sw*
+*.terraform
+*.terraform*
+/bin
+/scripts/runLocal
+sidecar.db*
+*.db*
+/sqlite
 /sqlite*
+go-sidecar

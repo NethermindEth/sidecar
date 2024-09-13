@@ -145,6 +145,7 @@ func (s *Sidecar) WithRpcServer(
 		Addr:    fmt.Sprintf(":%d", httpPort),
 		Handler: cors.AllowAll().Handler(HttpLoggerMiddleware(mux, s.Logger)),
 		BaseContext: func(listener net.Listener) context.Context {
+			//nolint:staticcheck
 			ctx = context.WithValue(ctx, "httpServer", listener.Addr().String())
 			return ctx
 		},
@@ -171,12 +172,12 @@ func (s *Sidecar) WithRpcServer(
 	}()
 
 	go func() {
-		for {
-			select {
-			case <-gracefulShutdown:
-				s.Logger.Sugar().Info("Shutting down servers")
-				grpcServer.GracefulStop()
-				httpServer.Shutdown(ctx)
+		for range gracefulShutdown {
+			s.Logger.Sugar().Info("Shutting down servers")
+			grpcServer.GracefulStop()
+			err = httpServer.Shutdown(ctx)
+			if err != nil {
+				s.Logger.Sugar().Errorw("Failed to shutdown http server", zap.Error(err))
 			}
 		}
 	}()

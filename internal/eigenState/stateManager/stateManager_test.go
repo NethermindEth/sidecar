@@ -1,6 +1,8 @@
 package stateManager
 
 import (
+	"testing"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
@@ -9,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"testing"
 )
 
 func setup() (
@@ -37,8 +38,8 @@ func setup() (
 	return cfg, db, l, err
 }
 
-func teardown(model *EigenStateManager) {
-	model.DB.Exec("delete from state_roots")
+func teardown(grm *gorm.DB) {
+	grm.Exec("delete from state_roots")
 }
 
 func Test_StateManager(t *testing.T) {
@@ -80,4 +81,6 @@ func Test_StateManager(t *testing.T) {
 		assert.Equal(t, insertedStateRoots[0].EthBlockHash, root.EthBlockHash)
 		assert.Equal(t, insertedStateRoots[0].StateRoot, root.StateRoot)
 	})
+
+	teardown(grm)
 }

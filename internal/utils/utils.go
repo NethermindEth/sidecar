@@ -12,7 +12,7 @@ var (
 )
 
 func AreAddressesEqual(a, b string) bool {
-	return strings.ToLower(a) == strings.ToLower(b)
+	return strings.EqualFold(a, b)
 }
 
 func ConvertBytesToString(b []byte) string {

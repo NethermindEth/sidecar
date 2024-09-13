@@ -72,6 +72,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 		}
 
 		model, err := NewStakerDelegationsModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
 
 		assert.Equal(t, true, model.IsInterestingLog(&log))
 

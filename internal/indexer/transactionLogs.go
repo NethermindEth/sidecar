@@ -36,7 +36,7 @@ func (idx *Indexer) getAbi(json string) (*abi.ABI, error) {
 			}
 		}
 		// Ignore really common compilation error
-		if foundMatch != true {
+		if !foundMatch {
 			idx.Logger.Sugar().Warnw("Error unmarshaling abi json", zap.Error(err))
 		}
 	}
@@ -113,7 +113,7 @@ func (idx *Indexer) ParseTransactionLogs(
 				idx.Logger.Sugar().Errorw("Failed to decode signature")
 			}
 
-			if decodedSig != nil && len(decodedSig) > 0 {
+			if len(decodedSig) > 0 {
 				method, err = a.MethodById(decodedSig)
 				if err != nil {
 					idx.Logger.Sugar().Debugw(fmt.Sprintf("Failed to find method by ID '%s'", common.BytesToHash(decodedSig).String()))
@@ -362,8 +362,6 @@ func ParseLogValueForType(argument abi.Argument, value string) (interface{}, err
 		// return value as-is; hex encoded string
 		return value, nil
 	default:
-		return value, nil
-		// return value as-is
 		return value, nil
 	}
 }

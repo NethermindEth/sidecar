@@ -107,12 +107,9 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	// Spin up a goroutine that listens on a channel for a shutdown signal.
 	// When the signal is received, set shouldShutdown to true and return.
 	go func() {
-		for {
-			select {
-			case <-s.ShutdownChan:
-				s.Logger.Sugar().Infow("Received shutdown signal")
-				shouldShutdown = true
-			}
+		for range s.ShutdownChan {
+			s.Logger.Sugar().Infow("Received shutdown signal")
+			shouldShutdown = true
 		}
 	}()
 

@@ -1,21 +1,31 @@
-FROM golang:1.22-bullseye as build
+FROM golang:1.22-bullseye AS build
 
 RUN apt-get update
 RUN apt-get install -y make
 
-RUN mkdir /build
+RUN useradd --create-home -s /bin/bash gobuild
+RUN usermod -a -G sudo gobuild
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-COPY . /build
+ARG PROJECT=go-sidecar
+RUN mkdir -p /workspaces/${PROJECT}
+WORKDIR /workspaces/${PROJECT}
+COPY --chown=gobuild:gobuild . .
 
-WORKDIR /build
-
+# system and linux dependencies
 RUN make deps-linux
+RUN chown -R gobuild:gobuild /go
 
-RUN make build
+# local dependencies
+ENV USER=gobuild
+ENV GOBIN=/go/bin
+ENV PATH=$PATH:${GOBIN}
+USER gobuild
 
-FROM debian:stable-slim as run
+RUN git config --global --add safe.directory /workspaces/${PROJECT}
 
-RUN apt-get update
-RUN apt-get install -y ca-certificates
-
-COPY --from=build /build /build
+RUN make yamlfmt
+RUN make fmtcheck
+RUN make vet
+RUN make lint
+RUN make test
