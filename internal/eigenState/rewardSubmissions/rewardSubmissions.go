@@ -3,7 +3,6 @@ package rewardSubmissions
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -17,9 +16,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/Layr-Labs/go-sidecar/internal/utils"
-	"github.com/wealdtech/go-merkletree/v2"
-	"github.com/wealdtech/go-merkletree/v2/keccak256"
-	orderedmap "github.com/wk8/go-ordered-map/v2"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -58,7 +54,7 @@ func NewSlotID(rewardHash string, strategy string) types.SlotID {
 type RewardSubmissionsModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[RewardSubmission]
-	Db               *gorm.DB
+	DB               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
 	logger           *zap.Logger
@@ -71,8 +67,6 @@ type RewardSubmissionsModel struct {
 func NewRewardSubmissionsModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
-	Network config.Network,
-	Environment config.Environment,
 	logger *zap.Logger,
 	globalConfig *config.Config,
 ) (*RewardSubmissionsModel, error) {
@@ -80,9 +74,7 @@ func NewRewardSubmissionsModel(
 		BaseEigenState: base.BaseEigenState{
 			Logger: logger,
 		},
-		Db:               grm,
-		Network:          Network,
-		Environment:      Environment,
+		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*RewardSubmission),
@@ -277,7 +269,7 @@ func (rs *RewardSubmissionsModel) clonePreviousBlocksToNewBlock(blockNumber uint
 			from reward_submissions
 			where block_number = @previousBlock
 	`
-	res := rs.Db.Exec(query,
+	res := rs.DB.Exec(query,
 		sql.Named("currentBlock", blockNumber),
 		sql.Named("previousBlock", blockNumber-1),
 	)
@@ -299,7 +291,7 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 	}
 
 	currentBlock := &storage.Block{}
-	err := rs.Db.Where("number = ?", blockNumber).First(currentBlock).Error
+	err := rs.DB.Where("number = ?", blockNumber).First(currentBlock).Error
 	if err != nil {
 		rs.logger.Sugar().Errorw("Failed to fetch block", zap.Error(err), zap.Uint64("blockNumber", blockNumber))
 		return nil, nil, err
@@ -327,7 +319,7 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 			block_number = @previousBlock
 			and end_timestamp <= @blockTime
 	`
-	res := rs.Db.
+	res := rs.DB.
 		Model(&RewardSubmission{}).
 		Raw(query,
 			sql.Named("previousBlock", blockNumber-1),
@@ -363,7 +355,7 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 	}
 
 	for _, record := range recordsToDelete {
-		res := rs.Db.Delete(&RewardSubmission{}, "reward_hash = ? and strategy = ? and block_number = ?", record.RewardSubmission.RewardHash, record.RewardSubmission.Strategy, blockNumber)
+		res := rs.DB.Delete(&RewardSubmission{}, "reward_hash = ? and strategy = ? and block_number = ?", record.RewardSubmission.RewardHash, record.RewardSubmission.Strategy, blockNumber)
 		if res.Error != nil {
 			rs.logger.Sugar().Errorw("Failed to delete record",
 				zap.Error(res.Error),
@@ -377,7 +369,7 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 	if len(recordsToInsert) > 0 {
 		// records := make([]RewardSubmission, 0)
 		for _, record := range recordsToInsert {
-			res := rs.Db.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&record.RewardSubmission)
+			res := rs.DB.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&record.RewardSubmission)
 			if res.Error != nil {
 				rs.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
 				fmt.Printf("\n\n%+v\n\n", record.RewardSubmission)
@@ -408,118 +400,36 @@ func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.S
 		combinedResults = append(combinedResults, record)
 	}
 
-	fullTree, err := rs.merkelizeState(blockNumber, combinedResults)
+	inputs := rs.sortValuesForMerkleTree(combinedResults)
+
+	fullTree, err := rs.MerkleizeState(blockNumber, inputs)
 	if err != nil {
 		return "", err
 	}
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardSubmissionDiff) []*RewardSubmissionDiff {
-	mappedByAvs := make(map[string][]*RewardSubmissionDiff)
+func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardSubmissionDiff) []*base.MerkleTreeInput {
+	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, submission := range submissions {
-		if _, ok := mappedByAvs[submission.RewardSubmission.Avs]; !ok {
-			mappedByAvs[submission.RewardSubmission.Avs] = make([]*RewardSubmissionDiff, 0)
+		slotID := NewSlotID(submission.RewardSubmission.RewardHash, submission.RewardSubmission.Strategy)
+		value := "added"
+		if submission.IsNoLongerActive {
+			value = "removed"
 		}
-		mappedByAvs[submission.RewardSubmission.Avs] = append(mappedByAvs[submission.RewardSubmission.Avs], submission)
-	}
-
-	for _, sub := range mappedByAvs {
-		slices.SortFunc(sub, func(i, j *RewardSubmissionDiff) int {
-			iSlotID := NewSlotID(i.RewardSubmission.RewardHash, i.RewardSubmission.Strategy)
-			jSlotID := NewSlotID(j.RewardSubmission.RewardHash, j.RewardSubmission.Strategy)
-
-			return strings.Compare(string(iSlotID), string(jSlotID))
+		inputs = append(inputs, &base.MerkleTreeInput{
+			SlotID: slotID,
+			Value:  []byte(value),
 		})
 	}
 
-	avsAddresses := make([]string, 0)
-	for key := range mappedByAvs {
-		avsAddresses = append(avsAddresses, key)
-	}
-
-	sort.Slice(avsAddresses, func(i, j int) bool {
-		return avsAddresses[i] < avsAddresses[j]
+	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
+		return strings.Compare(string(i.SlotID), string(j.SlotID))
 	})
 
-	sorted := make([]*RewardSubmissionDiff, 0)
-	for _, avs := range avsAddresses {
-		sorted = append(sorted, mappedByAvs[avs]...)
-	}
-	return sorted
-}
-
-func (rs *RewardSubmissionsModel) merkelizeState(blockNumber uint64, rewardSubmissions []*RewardSubmissionDiff) (*merkletree.MerkleTree, error) {
-	// Avs -> slot_id -> string (added/removed)
-	om := orderedmap.New[string, *orderedmap.OrderedMap[types.SlotID, string]]()
-
-	rewardSubmissions = rs.sortValuesForMerkleTree(rewardSubmissions)
-
-	for _, result := range rewardSubmissions {
-		existingAvs, found := om.Get(result.RewardSubmission.Avs)
-		if !found {
-			existingAvs = orderedmap.New[types.SlotID, string]()
-			om.Set(result.RewardSubmission.Avs, existingAvs)
-
-			prev := om.GetPair(result.RewardSubmission.Avs).Prev()
-			if prev != nil && strings.Compare(prev.Key, result.RewardSubmission.Avs) >= 0 {
-				om.Delete(result.RewardSubmission.Avs)
-				return nil, errors.New("avs not in order")
-			}
-		}
-		slotID := NewSlotID(result.RewardSubmission.RewardHash, result.RewardSubmission.Strategy)
-		var state string
-		if result.IsNew {
-			state = "added"
-		} else if result.IsNoLongerActive {
-			state = "removed"
-		} else {
-			return nil, errors.New("invalid state change")
-		}
-		existingAvs.Set(slotID, state)
-
-		prev := existingAvs.GetPair(slotID).Prev()
-		if prev != nil && strings.Compare(string(prev.Key), string(slotID)) >= 0 {
-			existingAvs.Delete(slotID)
-			return nil, errors.New("operator not in order")
-		}
-	}
-
-	avsLeaves := rs.InitializeMerkleTreeBaseStateWithBlock(blockNumber)
-
-	for avs := om.Oldest(); avs != nil; avs = avs.Next() {
-		submissionLeafs := make([][]byte, 0)
-		for submission := avs.Value.Oldest(); submission != nil; submission = submission.Next() {
-			slotID := submission.Key
-			state := submission.Value
-			submissionLeafs = append(submissionLeafs, encodeSubmissionLeaf(slotID, state))
-		}
-
-		avsTree, err := merkletree.NewTree(
-			merkletree.WithData(submissionLeafs),
-			merkletree.WithHashType(keccak256.New()),
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		avsLeaves = append(avsLeaves, encodeAvsLeaf(avs.Key, avsTree.Root()))
-	}
-
-	return merkletree.NewTree(
-		merkletree.WithData(avsLeaves),
-		merkletree.WithHashType(keccak256.New()),
-	)
-}
-
-func encodeSubmissionLeaf(slotId types.SlotID, state string) []byte {
-	return []byte(fmt.Sprintf("%s:%s", slotId, state))
-}
-
-func encodeAvsLeaf(avs string, avsSubmissionRoot []byte) []byte {
-	return append([]byte(avs), avsSubmissionRoot...)
+	return inputs
 }
 
 func (rs *RewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return rs.BaseEigenState.DeleteState("registered_avs_operators", startBlockNumber, endBlockNumber, rs.Db)
+	return rs.BaseEigenState.DeleteState("registered_avs_operators", startBlockNumber, endBlockNumber, rs.DB)
 }
