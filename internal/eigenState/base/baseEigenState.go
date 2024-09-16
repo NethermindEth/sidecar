@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
+
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/types"
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
-	"slices"
-	"strings"
 
 	"github.com/Layr-Labs/go-sidecar/internal/parser"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
@@ -120,7 +121,7 @@ func (b *BaseEigenState) MerkleizeState(blockNumber uint64, inputs []*MerkleTree
 				return nil, errors.New("slotIDs are not in order")
 			}
 		} else {
-			return nil, errors.New(fmt.Sprintf("duplicate slotID %s", input.SlotID))
+			return nil, fmt.Errorf("duplicate slotID %s", input.SlotID)
 		}
 	}
 

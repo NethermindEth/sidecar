@@ -115,7 +115,16 @@ func (idx *Indexer) getRestakedStrategiesWorker(
 	defer wg.Done()
 
 	for avsOperator := range jobs {
-		idx.getRestakedStrategiesForAvsOperator(ctx, avsDirectoryAddress, avsOperator, block)
+		err := idx.getRestakedStrategiesForAvsOperator(ctx, avsDirectoryAddress, avsOperator, block)
+		if err != nil {
+			idx.Logger.Sugar().Errorw("Failed to get restaked strategies for operator",
+				zap.Error(err),
+				zap.String("operator", avsOperator.Operator),
+				zap.String("avs", avsOperator.Avs),
+				zap.String("avsDirectoryAddress", avsDirectoryAddress),
+				zap.Uint64("blockNumber", block.Number),
+			)
+		}
 	}
 }
 

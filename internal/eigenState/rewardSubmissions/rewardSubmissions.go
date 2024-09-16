@@ -393,12 +393,8 @@ func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.S
 	}
 
 	combinedResults := make([]*RewardSubmissionDiff, 0)
-	for _, record := range inserts {
-		combinedResults = append(combinedResults, record)
-	}
-	for _, record := range deletes {
-		combinedResults = append(combinedResults, record)
-	}
+	combinedResults = append(combinedResults, inserts...)
+	combinedResults = append(combinedResults, deletes...)
 
 	inputs := rs.sortValuesForMerkleTree(combinedResults)
 

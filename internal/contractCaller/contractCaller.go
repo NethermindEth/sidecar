@@ -176,7 +176,6 @@ func NewRecociledContractCaller(ec []*ethereum.Client, l *zap.Logger) (*Reconcil
 func (rcc *ReconciledContractCaller) GetOperatorRestakedStrategies(ctx context.Context, avs string, operator string, blockNumber uint64) ([]common.Address, error) {
 	allResults := make([][]common.Address, 0)
 	for i, ec := range rcc.EthereumClients {
-		ec = ec
 		results, err := getOperatorRestakedStrategies(ctx, avs, operator, blockNumber, ec, rcc.Logger)
 		if err != nil {
 			rcc.Logger.Sugar().Errorw("Error fetching results for client", zap.Error(err), zap.Int("clientIndex", i))

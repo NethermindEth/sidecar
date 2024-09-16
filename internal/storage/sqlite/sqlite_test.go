@@ -2,6 +2,10 @@ package sqlite
 
 import (
 	"encoding/json"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/parser"
@@ -11,14 +15,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"strings"
-	"testing"
-	"time"
 )
 
 func setup() (*gorm.DB, *zap.Logger, *config.Config) {
 	cfg := config.NewConfig()
-	l, err := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
 	db, err := tests.GetSqliteDatabaseConnection()
 	if err != nil {
 		panic(err)
@@ -221,4 +222,5 @@ func Test_SqliteBlockstore(t *testing.T) {
 			assert.Contains(t, err.Error(), "UNIQUE constraint failed")
 		})
 	})
+	teardown(db, l)
 }

@@ -147,14 +147,14 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 		activatedAt := outputData.ActivatedAt
 
 		slotId := NewSlotID(root, rootIndex)
-		record, ok := sdr.stateAccumulator[log.BlockNumber][slotId]
+		_, ok := sdr.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
 			sdr.logger.Sugar().Errorw("Duplicate distribution root submitted", zap.Error(err))
 			return nil, err
 		}
 
-		record = &SubmittedDistributionRoots{
+		record := &SubmittedDistributionRoots{
 			Root:                      root,
 			BlockNumber:               log.BlockNumber,
 			RootIndex:                 rootIndex,

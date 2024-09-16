@@ -114,16 +114,15 @@ func (c *Client) ListenForNewBlocks(
 		case err := <-sub.Err():
 			c.Logger.Sugar().Errorw("Received error", zap.Error(err))
 		case header := <-ch:
-			recvBlockHandler(header)
+			err = recvBlockHandler(header)
+			if err != nil {
+				c.Logger.Sugar().Errorw("Failed to handle block on exit", zap.Error(err))
+			}
 		case <-quitChan:
 			c.Logger.Sugar().Infow("Received quit")
 			return nil
 		}
 	}
-}
-
-func (c *Client) buildUrlWithPath(path string) string {
-	return fmt.Sprintf("%s%s", c.BaseURL, path)
 }
 
 func (c *Client) GetBlockNumber(ctx context.Context) (string, error) {
@@ -251,7 +250,7 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 	}
 	requestBody, err := json.Marshal(requests)
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to marshal requests", err)
+		return nil, xerrors.Errorf("Failed to marshal requests: %s", err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second*20)
@@ -259,7 +258,7 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL, bytes.NewReader(requestBody))
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to make request", err)
+		return nil, xerrors.Errorf("Failed to make request: %s", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -284,13 +283,13 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 	if strings.HasPrefix(string(responseBody), "{") {
 		errorResponse := RPCResponse{}
 		if err := json.Unmarshal(responseBody, &errorResponse); err != nil {
-			return nil, xerrors.Errorf("failed to unmarshal error response", err)
+			return nil, xerrors.Errorf("failed to unmarshal error response: %s", err)
 		}
 		c.Logger.Sugar().Debugw("Error payload returned from batch call",
 			zap.String("error", string(responseBody)),
 		)
 		if errorResponse.Error.Message != "empty batch" {
-			return nil, xerrors.Errorf("Error payload returned from batch call", string(responseBody))
+			return nil, xerrors.Errorf("Error payload returned from batch call: %s", string(responseBody))
 		}
 	} else {
 		if err := json.Unmarshal(responseBody, &destination); err != nil {
@@ -298,7 +297,7 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 				zap.Error(err),
 				zap.String("response", string(responseBody)),
 			)
-			return nil, xerrors.Errorf("failed to unmarshal response", err)
+			return nil, xerrors.Errorf("failed to unmarshal response: %s", err)
 		}
 	}
 	response.Body.Close()
@@ -312,7 +311,7 @@ func (c *Client) BatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 	batches := [][]*RPCRequest{}
 
 	currentIndex := 0
-	for true {
+	for {
 		endIndex := currentIndex + batchSize
 		if endIndex >= len(requests) {
 			endIndex = len(requests)
@@ -340,9 +339,7 @@ func (c *Client) BatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 				return
 			}
 			c.Logger.Sugar().Debugw(fmt.Sprintf("[batch %d] Received '%d' results", i, len(res)))
-			for _, r := range res {
-				results = append(results, r)
-			}
+			results = append(results, res...)
 		}(batch)
 	}
 	wg.Wait()
@@ -363,7 +360,7 @@ func (c *Client) call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL, bytes.NewReader(requestBody))
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to make request", err)
+		return nil, xerrors.Errorf("Failed to make request %s", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -371,12 +368,12 @@ func (c *Client) call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		return nil, xerrors.Errorf("Request failed", err)
+		return nil, xerrors.Errorf("Request failed %s", err)
 	}
 
 	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to read body", err)
+		return nil, xerrors.Errorf("Failed to read body %s", err)
 	}
 	if response.StatusCode != http.StatusOK {
 		return nil, xerrors.Errorf("received http error code %+v", response.StatusCode)
@@ -384,7 +381,7 @@ func (c *Client) call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse
 
 	destination := &RPCResponse{}
 	if err := json.Unmarshal(responseBody, destination); err != nil {
-		return nil, xerrors.Errorf("failed to unmarshal response", err)
+		return nil, xerrors.Errorf("failed to unmarshal response: %s", err)
 	}
 
 	if destination.Error != nil {

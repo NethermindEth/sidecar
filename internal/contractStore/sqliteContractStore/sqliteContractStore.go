@@ -276,7 +276,7 @@ func (s *SqliteContractStore) loadContractData() (*contractStore.CoreContractsDa
 	case config.Environment_PreProd:
 		filename = "preprod.json"
 	default:
-		return nil, xerrors.Errorf("Unknown environment: %s", s.globalConfig.Environment)
+		return nil, xerrors.Errorf("Unknown environment.")
 	}
 	jsonData, err := contractStore.CoreContracts.ReadFile(fmt.Sprintf("coreContracts/%s", filename))
 	if err != nil {

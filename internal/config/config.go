@@ -71,10 +71,6 @@ func getPrefixedEnvVar(key string) string {
 	return os.Getenv(ENV_VAR_PREFIX + "_" + key)
 }
 
-func getScopedEnvVar(scope EnvScope, key string) string {
-	return getPrefixedEnvVar(fmt.Sprintf("%s_%s", scope, key))
-}
-
 func parseListEnvVar(envVar string) []string {
 	if envVar == "" {
 		return []string{}

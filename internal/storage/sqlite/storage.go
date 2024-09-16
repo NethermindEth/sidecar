@@ -22,7 +22,8 @@ type SqliteBlockStoreConfig struct {
 }
 
 type SqliteBlockStore struct {
-	Db           *gorm.DB
+	Db *gorm.DB
+	//nolint:unused
 	migrated     bool
 	Logger       *zap.Logger
 	GlobalConfig *config.Config
@@ -99,8 +100,7 @@ func (s *SqliteBlockStore) InsertTransactionLog(
 		s.Logger.Sugar().Errorw("Failed to marshal arguments", zap.Error(err))
 	}
 
-	outputDataJson := []byte{}
-	outputDataJson, err = json.Marshal(outputData)
+	outputDataJson, err := json.Marshal(outputData)
 	if err != nil {
 		s.Logger.Sugar().Errorw("Failed to marshal output data", zap.Error(err))
 	}

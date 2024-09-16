@@ -1,7 +1,5 @@
 name: build-container
-
 on: push
-
 jobs:
   test:
     runs-on: ubuntu-24.04
@@ -12,10 +10,12 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.22
+      - name: Install dependencies
+        run: make deps-linux
       - name: Run tests
         run: make ci-test
   build:
-    # needs: test
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

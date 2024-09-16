@@ -2,6 +2,11 @@ package operatorShares
 
 import (
 	"database/sql"
+	"math/big"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
@@ -11,10 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"math/big"
-	"strings"
-	"testing"
-	"time"
 )
 
 func setup() (
@@ -74,6 +75,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		}
 
 		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
 
 		err = model.InitBlockProcessing(blockNumber)
 		assert.Nil(t, err)

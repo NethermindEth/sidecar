@@ -130,7 +130,7 @@ func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[Accumu
 			}
 			a.stateAccumulator[log.BlockNumber][slotID] = record
 		}
-		if registered == false && ok {
+		if !registered && ok {
 			// In this situation, we've encountered a register and unregister in the same block
 			// which functionally results in no state change at all so we want to remove the record
 			// from the accumulated state.

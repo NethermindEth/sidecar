@@ -2,6 +2,9 @@ package avsOperators
 
 import (
 	"database/sql"
+	"testing"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
@@ -11,8 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"testing"
-	"time"
 )
 
 func setup() (
@@ -72,6 +73,7 @@ func Test_AvsOperatorState(t *testing.T) {
 		}
 
 		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
+		assert.Nil(t, err)
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
 

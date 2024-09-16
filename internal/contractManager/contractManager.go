@@ -106,7 +106,7 @@ func (cm *ContractManager) CreateContract(
 	}
 
 	// Record the contract in the contracts table
-	contract, _, err := cm.ContractStore.FindOrCreateContract(
+	_, _, err := cm.ContractStore.FindOrCreateContract(
 		contractAddress,
 		"",
 		false,
@@ -123,7 +123,7 @@ func (cm *ContractManager) CreateContract(
 		cm.Logger.Sugar().Debugf(fmt.Sprintf("Created new contract '%s'", contractAddress))
 	}
 
-	contract = cm.FindAndSetContractAbi(contractAddress)
+	contract := cm.FindAndSetContractAbi(contractAddress)
 
 	cm.FindAndSetLookalikeContract(contractAddress, bytecodeHash)
 
@@ -168,15 +168,20 @@ func (cm *ContractManager) FindAndSetLookalikeContract(
 
 func (cm *ContractManager) FindAndSetContractAbi(contractAddress string) *contractStore.Contract {
 	// Attempt to find the ABI for the contract on Etherscan
-	cm.Statsd.Incr(metrics.Etherscan_ContractAbi, nil, 1)
+	err := cm.Statsd.Incr(metrics.Etherscan_ContractAbi, nil, 1)
+	if err != nil {
+		cm.Logger.Sugar().Warnw("Failed to increment metric",
+			zap.Error(err),
+			zap.String("metric", metrics.Etherscan_ContractAbi),
+		)
+	}
+
 	abi, err := cm.EtherscanClient.ContractABI(contractAddress)
-	if err == nil && abi != "" {
-		if err != nil {
-			cm.Logger.Sugar().Errorw("Failed to update contract ABI",
-				zap.Error(err),
-				zap.String("contractAddress", contractAddress),
-			)
-		}
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to update contract ABI",
+			zap.Error(err),
+			zap.String("contractAddress", contractAddress),
+		)
 	}
 
 	if err != nil {
@@ -290,5 +295,12 @@ func (cm *ContractManager) HandleProxyContractCreation(
 		return
 	}
 
-	cm.CreateProxyContract(contractAddress, proxyContractAddress, blockNumber, reindexContract)
+	_, err := cm.CreateProxyContract(contractAddress, proxyContractAddress, blockNumber, reindexContract)
+	if err != nil {
+		cm.Logger.Sugar().Errorw("Failed to create proxy contract",
+			zap.Error(err),
+			zap.String("contractAddress", contractAddress),
+			zap.String("proxyContractAddress", proxyContractAddress),
+		)
+	}
 }
