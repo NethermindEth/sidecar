@@ -43,6 +43,7 @@ clean:
 .PHONY: build/cmd/sidecar
 build/cmd/sidecar:
 	go build -ldflags="-s -w" -o bin/cmd/sidecar cmd/sidecar/main.go
+	strip bin/cmd/sidecar
 
 .PHONY: build
 build: build/cmd/sidecar
