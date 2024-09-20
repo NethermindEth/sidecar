@@ -173,7 +173,7 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 }
 
 func (osm *OperatorSharesModel) getContractAddressesForEnvironment() map[string][]string {
-	contracts := osm.globalConfig.GetContractsMapForEnvAndNetwork()
+	contracts := osm.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.DelegationManager: {
 			"OperatorSharesIncreased",

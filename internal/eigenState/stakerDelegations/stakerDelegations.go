@@ -140,7 +140,7 @@ func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[A
 }
 
 func (s *StakerDelegationsModel) getContractAddressesForEnvironment() map[string][]string {
-	contracts := s.globalConfig.GetContractsMapForEnvAndNetwork()
+	contracts := s.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.DelegationManager: {
 			"StakerUndelegated",

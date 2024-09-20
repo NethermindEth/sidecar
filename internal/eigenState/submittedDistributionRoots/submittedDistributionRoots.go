@@ -183,7 +183,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 }
 
 func (sdr *SubmittedDistributionRootsModel) getContractAddressesForEnvironment() map[string][]string {
-	contracts := sdr.globalConfig.GetContractsMapForEnvAndNetwork()
+	contracts := sdr.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.RewardsCoordinator: {
 			"DistributionRootSubmitted",

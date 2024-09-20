@@ -104,7 +104,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 			BlockTime: time.Unix(1726063248, 0),
 		}
 
-		contracts := cfg.GetContractsMapForEnvAndNetwork()
+		contracts := cfg.GetContractsMapForChain()
 
 		avsOperator := &storage.ActiveAvsOperator{
 			Avs:      avs,
@@ -135,7 +135,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 			BlockTime: time.Unix(1726063248, 0),
 		}
 
-		contracts := cfg.GetContractsMapForEnvAndNetwork()
+		contracts := cfg.GetContractsMapForChain()
 
 		avsOperator := &storage.ActiveAvsOperator{
 			Avs:      avs,

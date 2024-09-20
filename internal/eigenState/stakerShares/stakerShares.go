@@ -275,7 +275,7 @@ func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.Tran
 	logs := make([]storage.TransactionLog, 0)
 	res := ss.DB.
 		Raw(query,
-			sql.Named("strategyManagerAddress", ss.globalConfig.GetContractsMapForEnvAndNetwork().StrategyManager),
+			sql.Named("strategyManagerAddress", ss.globalConfig.GetContractsMapForChain().StrategyManager),
 			sql.Named("logBlockNumber", log.BlockNumber),
 			sql.Named("oldWithdrawalRoot", outputData.OldWithdrawalRootString),
 		).
@@ -360,7 +360,7 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 		var parsedRecords []*AccumulatedStateChange
 		var err error
 
-		contractAddresses := ss.globalConfig.GetContractsMapForEnvAndNetwork()
+		contractAddresses := ss.globalConfig.GetContractsMapForChain()
 
 		// Staker shares is a bit more complex and has 4 possible contract/event combinations
 		// that we need to handle
@@ -438,7 +438,7 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 }
 
 func (ss *StakerSharesModel) getContractAddressesForEnvironment() map[string][]string {
-	contracts := ss.globalConfig.GetContractsMapForEnvAndNetwork()
+	contracts := ss.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.DelegationManager: {
 			"WithdrawalMigrated",

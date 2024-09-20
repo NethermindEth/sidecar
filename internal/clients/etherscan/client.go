@@ -44,8 +44,8 @@ type EtherscanResponse struct {
 func NewEtherscanClient(cfg *config.Config, l *zap.Logger) *EtherscanClient {
 	var network string
 
-	switch cfg.Network {
-	case config.Network_Ethereum:
+	switch cfg.Chain {
+	case config.Chain_Mainnet:
 		network = "api"
 	default:
 		network = "api-holesky"
