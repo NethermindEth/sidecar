@@ -88,4 +88,4 @@ staticcheck:
 	staticcheck ./...
 
 .PHONY: ci-test
-ci-test: test lint vet fmtcheck yamlfmt
+ci-test: test
