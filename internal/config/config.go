@@ -50,6 +50,7 @@ type Config struct {
 	SqliteConfig      SqliteConfig
 	RpcConfig         RpcConfig
 	Chain             Chain
+	DataDir           string
 }
 
 type EthereumRpcConfig struct {
@@ -71,11 +72,11 @@ type RpcConfig struct {
 	HttpPort int
 }
 
-func (s *SqliteConfig) GetSqlitePath() string {
-	if s.InMemory {
+func (c *Config) GetSqlitePath() string {
+	if c.SqliteConfig.InMemory {
 		return "file::memory:?cache=shared"
 	}
-	return s.DbFilePath
+	return fmt.Sprintf("%s/db/%s", c.DataDir, "sidecar.db")
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -86,7 +87,6 @@ func StringWithDefault(value, defaultValue string) string {
 }
 
 func NewConfig() *Config {
-	fmt.Printf("gprc: %+v\n", viper.GetInt64(normalizeFlagName("rpc.grpc-port")))
 	return &Config{
 		Debug:     viper.GetBool(normalizeFlagName("debug")),
 		Chain:     Chain(StringWithDefault(viper.GetString(normalizeFlagName("chain")), "holesky")),
@@ -102,14 +102,15 @@ func NewConfig() *Config {
 		},
 
 		SqliteConfig: SqliteConfig{
-			InMemory:   viper.GetBool(normalizeFlagName("sqlite.in_memory")),
-			DbFilePath: viper.GetString(normalizeFlagName("sqlite.db_file_path")),
+			InMemory: viper.GetBool(normalizeFlagName("sqlite.in_memory")),
 		},
 
 		RpcConfig: RpcConfig{
 			GrpcPort: viper.GetInt(normalizeFlagName("rpc.grpc_port")),
 			HttpPort: viper.GetInt(normalizeFlagName("rpc.http_port")),
 		},
+
+		DataDir: viper.GetString(normalizeFlagName("datadir")),
 	}
 }
 

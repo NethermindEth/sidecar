@@ -9,14 +9,15 @@
 
 ```bash
 # Create the directory to hold the sqlite database
-mkdir ./sqlite || true
+mkdir ./sidecar-data || true
 
 go run main.go run \
     --ethereum.rpc-url="http://34.229.43.36:8545" \
     --chain="holesky" \
     --etherscan.api-keys="<your etherscan key>" \
     --statsd.url="localhost:8125" \
-    --sqlite.db-file-path="./sqlite/sidecar.db"
+    --datadir="./sidecar-data"
+
 ```
 
 ### Using the public Docker container
@@ -30,8 +31,8 @@ docker run -it --rm \
   -e SIDECAR_CHAIN="holesky" \
   -e SIDECAR_ETHERSCAN_API_KEYS="<your etherscan key>" \
   -e SIDECAR_STATSD_URL="localhost:8125" \
-  -e SIDECAR_SQLITE_DB_FILE_PATH="/sqlite/sidecar.db" \
-  -v "$(pwd)/sqlite:/sqlite" \
+  -e SIDECAR_DATADIR="/sidecar" \
+  -v "$(pwd)/sqlite:/sidecar" \
   --tty -i \
   public.ecr.aws/z6g0f8n7/go-sidecar:latest run
 ```
@@ -49,8 +50,8 @@ docker run \
   -e "SIDECAR_CHAIN=holesky" \
   -e "SIDECAR_ETHERSCAN_API_KEYS='<your etherscan key>'" \
   -e "SIDECAR_STATSD_URL=localhost:8125" \
-  -e "SIDECAR_SQLITE_DB_FILE_PATH=/sqlite/sidecar.db" \
-  -v "$(pwd)/sqlite:/sqlite" \
+  -e SIDECAR_DATADIR="/sidecar" \
+  -v "$(pwd)/sqlite:/sidecar" \
   --tty -i \
   go-sidecar:latest run
 ```

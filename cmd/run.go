@@ -52,7 +52,14 @@ var runCmd = &cobra.Command{
 		etherscanClient := etherscan.NewEtherscanClient(cfg, l)
 		client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
 
-		db := sqlite.NewSqlite(cfg.SqliteConfig.GetSqlitePath())
+		if !cfg.SqliteConfig.InMemory {
+			if err := sqlite.InitSqliteDir(cfg.GetSqlitePath()); err != nil {
+				l.Error("Failed to initialize sqlite directory", zap.Error(err))
+				panic(err)
+			}
+		}
+
+		db := sqlite.NewSqlite(cfg.GetSqlitePath())
 
 		grm, err := sqlite.NewGormSqliteFromSqlite(db)
 		if err != nil {
