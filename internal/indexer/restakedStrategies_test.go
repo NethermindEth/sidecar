@@ -39,7 +39,6 @@ func setup() (
 		"SIDECAR_DEBUG":              "true",
 	}, &previousEnv)
 	cfg := tests.GetConfig()
-	fmt.Printf("Config: %+v\n", cfg)
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
 	db, err := tests.GetSqliteDatabaseConnection()
