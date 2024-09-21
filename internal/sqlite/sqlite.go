@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 
 	goSqlite "github.com/mattn/go-sqlite3"
@@ -24,6 +26,20 @@ func bytesToHex(jsonByteArray string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(jsonBytes), nil
+}
+
+func InitSqliteDir(path string) error {
+	// strip the db file from the path and check if the directory already exists
+	basePath := filepath.Dir(path)
+
+	// check if the directory already exists
+	if _, err := os.Stat(basePath); os.IsNotExist(err) {
+		// create the directory
+		if err := os.MkdirAll(basePath, os.ModePerm); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func NewSqlite(path string) gorm.Dialector {

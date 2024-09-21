@@ -20,6 +20,6 @@ RUN make build
 
 FROM debian:stable-slim
 
-COPY --from=builder /build/bin/cmd/sidecar /usr/local/bin/sidecar
+COPY --from=builder /build/bin/sidecar /usr/local/bin/sidecar
 
 ENTRYPOINT ["/usr/local/bin/sidecar"]

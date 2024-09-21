@@ -209,7 +209,7 @@ func (rs *RewardSubmissionsModel) GetStateTransitions() (types.StateTransitions[
 }
 
 func (rs *RewardSubmissionsModel) getContractAddressesForEnvironment() map[string][]string {
-	contracts := rs.globalConfig.GetContractsMapForEnvAndNetwork()
+	contracts := rs.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.RewardsCoordinator: {
 			"RangePaymentForAllCreated",

@@ -157,7 +157,7 @@ func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[Accumu
 
 // Returns a map of contract addresses to event names that are interesting to the state model.
 func (a *AvsOperatorsModel) getContractAddressesForEnvironment() map[string][]string {
-	contracts := a.globalConfig.GetContractsMapForEnvAndNetwork()
+	contracts := a.globalConfig.GetContractsMapForChain()
 	return map[string][]string{
 		contracts.AvsDirectory: {
 			"OperatorAVSRegistrationStatusUpdated",

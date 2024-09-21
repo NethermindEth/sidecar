@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
+	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/internal/contractManager"
 	"github.com/Layr-Labs/go-sidecar/internal/contractStore/sqliteContractStore"
@@ -28,35 +29,8 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"log"
-	"os"
 	"testing"
 )
-
-var (
-	previousEnv = make(map[string]string)
-)
-
-func replaceEnv() {
-	newEnvValues := map[string]string{
-		"SIDECAR_ENVIRONMENT":           "testnet",
-		"SIDECAR_NETWORK":               "holesky",
-		"SIDECAR_ETHEREUM_RPC_BASE_URL": "http://54.198.82.217:8545",
-		"SIDECAR_ETHERSCAN_API_KEYS":    "QIPXW3YCXPR5NQ9GXTRQ3TSXB9EKMGDE34",
-		"SIDECAR_STATSD_URL":            "localhost:8125",
-		"SIDECAR_DEBUG":                 "true",
-	}
-
-	for k, v := range newEnvValues {
-		previousEnv[k] = os.Getenv(k)
-		os.Setenv(k, v)
-	}
-}
-
-func restoreEnv() {
-	for k, v := range previousEnv {
-		os.Setenv(k, v)
-	}
-}
 
 func setup() (
 	*fetcher.Fetcher,
@@ -66,16 +40,26 @@ func setup() (
 	*zap.Logger,
 	*gorm.DB,
 ) {
+	const (
+		rpcUrl           = "http://54.198.82.217:8545"
+		statsdUrl        = "localhost:8125"
+		etherscanApiKeys = "SOME KEY"
+	)
 	cfg := tests.GetConfig()
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: false})
 
-	sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
+	sdc, err := metrics.InitStatsdClient(statsdUrl)
 	if err != nil {
 		l.Sugar().Fatal("Failed to setup statsd client", zap.Error(err))
 	}
 
-	etherscanClient := etherscan.NewEtherscanClient(cfg, l)
-	client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
+	etherscanClient := etherscan.NewEtherscanClient(&config.Config{
+		EtherscanConfig: config.EtherscanConfig{
+			ApiKeys: []string{etherscanApiKeys},
+		},
+		Chain: "holesky",
+	}, l)
+	client := ethereum.NewClient(rpcUrl, l)
 
 	// database
 	grm, err := tests.GetSqliteDatabaseConnection()
@@ -127,8 +111,6 @@ func setup() (
 }
 
 func Test_Pipeline_Integration(t *testing.T) {
-	replaceEnv()
-
 	fetchr, idxr, mds, sm, l, grm := setup()
 	t.Run("Should create a new Pipeline", func(t *testing.T) {
 		p := NewPipeline(fetchr, idxr, mds, sm, l)
@@ -153,9 +135,5 @@ func Test_Pipeline_Integration(t *testing.T) {
 		assert.Nil(t, res.Error)
 
 		assert.Equal(t, 1, len(delegatedStakers))
-	})
-
-	t.Cleanup(func() {
-		restoreEnv()
 	})
 }

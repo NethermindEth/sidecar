@@ -268,12 +268,12 @@ func (s *SqliteContractStore) SetContractMatchingContractAddress(address string,
 
 func (s *SqliteContractStore) loadContractData() (*contractStore.CoreContractsData, error) {
 	var filename string
-	switch s.globalConfig.Environment {
-	case config.Environment_Mainnet:
+	switch s.globalConfig.Chain {
+	case config.Chain_Mainnet:
 		filename = "mainnet.json"
-	case config.Environment_Testnet:
+	case config.Chain_Holesky:
 		filename = "testnet.json"
-	case config.Environment_PreProd:
+	case config.Chain_Preprod:
 		filename = "preprod.json"
 	default:
 		return nil, xerrors.Errorf("Unknown environment.")

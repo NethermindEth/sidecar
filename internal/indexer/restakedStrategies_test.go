@@ -33,12 +33,10 @@ func setup() (
 	error,
 ) {
 	tests.ReplaceEnv(map[string]string{
-		"SIDECAR_ENVIRONMENT":           "testnet",
-		"SIDECAR_NETWORK":               "holesky",
-		"SIDECAR_ETHEREUM_RPC_BASE_URL": "http://34.229.43.36:8545",
-		"SIDECAR_ETHERSCAN_API_KEYS":    "QIPXW3YCXPR5NQ9GXTRQ3TSXB9EKMGDE34",
-		"SIDECAR_STATSD_URL":            "localhost:8125",
-		"SIDECAR_DEBUG":                 "true",
+		"SIDECAR_CHAIN":              "holesky",
+		"SIDECAR_ETHERSCAN_API_KEYS": "SOME API KEY",
+		"SIDECAR_STATSD_URL":         "localhost:8125",
+		"SIDECAR_DEBUG":              "true",
 	}, &previousEnv)
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
@@ -74,7 +72,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
+	client := ethereum.NewClient("http://34.229.43.36:8545", l)
 	sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
 
 	contractStore := sqliteContractStore.NewSqliteContractStore(grm, l, cfg)
@@ -104,7 +102,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 			BlockTime: time.Unix(1726063248, 0),
 		}
 
-		contracts := cfg.GetContractsMapForEnvAndNetwork()
+		contracts := cfg.GetContractsMapForChain()
 
 		avsOperator := &storage.ActiveAvsOperator{
 			Avs:      avs,
@@ -135,7 +133,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 			BlockTime: time.Unix(1726063248, 0),
 		}
 
-		contracts := cfg.GetContractsMapForEnvAndNetwork()
+		contracts := cfg.GetContractsMapForChain()
 
 		avsOperator := &storage.ActiveAvsOperator{
 			Avs:      avs,

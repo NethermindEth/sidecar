@@ -27,11 +27,11 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlock(ctx context.Context, block
 
 	addresses := make([]string, 0)
 
-	if idx.Config.Environment == config.Environment_PreProd || idx.Config.Environment == config.Environment_Testnet {
-		addresses = append(addresses, config.AVSDirectoryAddresses[config.Environment_PreProd][config.Network_Holesky])
-		addresses = append(addresses, config.AVSDirectoryAddresses[config.Environment_Testnet][config.Network_Holesky])
+	if idx.Config.Chain == config.Chain_Preprod || idx.Config.Chain == config.Chain_Holesky {
+		addresses = append(addresses, config.AVSDirectoryAddresses[config.Chain_Preprod])
+		addresses = append(addresses, config.AVSDirectoryAddresses[config.Chain_Holesky])
 	} else {
-		addresses = append(addresses, config.AVSDirectoryAddresses[config.Environment_Mainnet][config.Network_Ethereum])
+		addresses = append(addresses, config.AVSDirectoryAddresses[config.Chain_Mainnet])
 	}
 
 	for _, avsDirectoryAddress := range addresses {
