@@ -78,11 +78,18 @@ func (s *SqliteConfig) GetSqlitePath() string {
 	return s.DbFilePath
 }
 
+func StringWithDefault(value, defaultValue string) string {
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
 func NewConfig() *Config {
 	fmt.Printf("gprc: %+v\n", viper.GetInt64(normalizeFlagName("rpc.grpc-port")))
 	return &Config{
 		Debug:     viper.GetBool(normalizeFlagName("debug")),
-		Chain:     Chain(viper.GetString(normalizeFlagName("chain"))),
+		Chain:     Chain(StringWithDefault(viper.GetString(normalizeFlagName("chain")), "holesky")),
 		StatsdUrl: viper.GetString(normalizeFlagName("statsd.url")),
 
 		EthereumRpcConfig: EthereumRpcConfig{
@@ -190,7 +197,7 @@ func (c *Config) GetEigenLayerGenesisBlockHeight() (uint64, error) {
 	case Chain_Mainnet:
 		return 1, nil
 	default:
-		return 0, fmt.Errorf("unsupported chain %d", c.Chain)
+		return 0, fmt.Errorf("unsupported chain %s", c.Chain)
 	}
 }
 

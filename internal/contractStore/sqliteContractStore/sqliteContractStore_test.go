@@ -35,7 +35,7 @@ func setup() (
 }
 
 func Test_SqliteContractStore(t *testing.T) {
-	os.Setenv("SIDECAR_ENVIRONMENT", "testnet")
+	os.Setenv("SIDECAR_CHAIN", "holesky")
 	cfg := config.NewConfig()
 	_, db, l, err := setup()
 
