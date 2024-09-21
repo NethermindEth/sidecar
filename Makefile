@@ -42,8 +42,7 @@ clean:
 
 .PHONY: build/cmd/sidecar
 build/cmd/sidecar:
-	go build -ldflags="-s -w" -o bin/cmd/sidecar cmd/sidecar/main.go
-	strip bin/cmd/sidecar
+	CGO_ENABLED=1 go build -o bin/sidecar main.go
 
 .PHONY: build
 build: build/cmd/sidecar
