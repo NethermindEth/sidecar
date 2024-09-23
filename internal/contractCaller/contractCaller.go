@@ -5,15 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"reflect"
 	"strings"
 
 	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
-	"github.com/Layr-Labs/go-sidecar/pkg/multicall"
 	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	multicall "github.com/jbrower95/multicall-go"
 	"go.uber.org/zap"
 )
 
@@ -43,13 +42,13 @@ func NewContractCaller(ec *ethereum.Client, l *zap.Logger) *ContractCaller {
 func getOperatorRestakedStrategies(ctx context.Context, avs string, operator string, blockNumber uint64, client *ethereum.Client, l *zap.Logger) ([]common.Address, error) {
 	a, err := abi.JSON(strings.NewReader(serviceManagerAbi))
 	if err != nil {
-		l.Sugar().Errorw("GetOperatorRestakedStrategies - failed to parse abi", zap.Error(err))
+		l.Sugar().Errorw("getOperatorRestakedStrategies - failed to parse abi", zap.Error(err))
 		return nil, err
 	}
 
 	callerClient, err := client.GetEthereumContractCaller()
 	if err != nil {
-		l.Sugar().Errorw("GetOperatorRestakedStrategies - failed to get contract caller", zap.Error(err))
+		l.Sugar().Errorw("getOperatorRestakedStrategies - failed to get contract caller", zap.Error(err))
 		return nil, err
 	}
 
@@ -61,7 +60,7 @@ func getOperatorRestakedStrategies(ctx context.Context, avs string, operator str
 
 	err = contract.Call(&bind.CallOpts{BlockNumber: bigBlockNumber, Context: ctx}, &results, "getOperatorRestakedStrategies", common.HexToAddress(operator))
 	if err != nil {
-		l.Sugar().Errorw("GetOperatorRestakedStrategies - failed to call contract method", zap.Error(err))
+		l.Sugar().Errorw("getOperatorRestakedStrategies - failed to call contract method", zap.Error(err))
 		return nil, err
 	}
 
@@ -79,7 +78,7 @@ func (cc *ContractCaller) GetOperatorRestakedStrategiesMulticall(
 ) ([]*OperatorRestakedStrategy, error) {
 	a, err := abi.JSON(strings.NewReader(serviceManagerAbi))
 	if err != nil {
-		cc.Logger.Sugar().Errorw("GetOperatorRestakedStrategies - failed to parse abi", zap.Error(err))
+		cc.Logger.Sugar().Errorw("getOperatorRestakedStrategies - failed to parse abi", zap.Error(err))
 		return nil, err
 	}
 
@@ -89,20 +88,7 @@ func (cc *ContractCaller) GetOperatorRestakedStrategiesMulticall(
 	}
 
 	requests := utils.Map(operatorRestakedStrategies, func(ors *OperatorRestakedStrategy, index uint64) *MulticallAndError {
-		mc, err := multicall.MultiCall(common.HexToAddress(ors.Avs), a, func(data []byte) ([]common.Address, error) {
-			res, err := a.Unpack("getOperatorRestakedStrategies", data)
-			if err != nil {
-				return nil, err
-			}
-
-			responseType := reflect.TypeOf(res[0])
-			switch responseType.Kind() {
-			case reflect.Slice:
-				return res[0].([]common.Address), nil
-			default:
-				return nil, fmt.Errorf("Unexpected response type: %v", responseType)
-			}
-		}, "getOperatorRestakedStrategies", common.HexToAddress(ors.Operator))
+		mc, err := multicall.Describe[[]common.Address](common.HexToAddress(ors.Avs), a, "getOperatorRestakedStrategies", common.HexToAddress(ors.Operator))
 		return &MulticallAndError{
 			Multicall: mc,
 			Error:     err,
@@ -117,7 +103,7 @@ func (cc *ContractCaller) GetOperatorRestakedStrategiesMulticall(
 	}
 
 	if len(errs) > 0 {
-		return nil, fmt.Errorf("Failed to create multicalls: %v", errors.Join(errs...))
+		return nil, fmt.Errorf("failed to create multicalls: %v", errors.Join(errs...))
 	}
 
 	allMultiCalls := utils.Map(requests, func(mc *MulticallAndError, index uint64) *multicall.MultiCallMetaData[[]common.Address] {
@@ -126,7 +112,7 @@ func (cc *ContractCaller) GetOperatorRestakedStrategiesMulticall(
 
 	client, err := cc.EthereumClient.GetEthereumContractCaller()
 	if err != nil {
-		cc.Logger.Sugar().Errorw("GetOperatorRestakedStrategiesMulticall - failed to get contract caller", zap.Error(err))
+		cc.Logger.Sugar().Errorw("getOperatorRestakedStrategiesMulticall - failed to get contract caller", zap.Error(err))
 		return nil, err
 	}
 
@@ -137,23 +123,23 @@ func (cc *ContractCaller) GetOperatorRestakedStrategiesMulticall(
 		},
 	})
 	if err != nil {
-		cc.Logger.Sugar().Errorw("GetOperatorRestakedStrategiesMulticall - failed to create multicall client", zap.Error(err))
+		cc.Logger.Sugar().Errorw("getOperatorRestakedStrategiesMulticall - failed to create multicall client", zap.Error(err))
 		return nil, err
 	}
 
-	results, err := multicall.DoMultiCallMany(*multicallInstance, allMultiCalls...)
+	results, err := multicall.DoMany(multicallInstance, allMultiCalls...)
 	if err != nil {
-		cc.Logger.Sugar().Errorw("GetOperatorRestakedStrategiesMulticall - failed to execute multicalls", zap.Error(err))
+		cc.Logger.Sugar().Errorw("getOperatorRestakedStrategiesMulticall - failed to execute multicalls", zap.Error(err))
 		return nil, err
 	}
 
 	if results == nil {
-		return nil, fmt.Errorf("Results are nil")
+		return nil, errors.New("results are nil")
 	}
 
-	return utils.Map(*results, func(result []common.Address, i uint64) *OperatorRestakedStrategy {
+	return utils.Map(*results, func(result *[]common.Address, i uint64) *OperatorRestakedStrategy {
 		oas := operatorRestakedStrategies[i]
-		oas.Results = result
+		oas.Results = *result
 		return oas
 	}), nil
 }
@@ -165,7 +151,7 @@ type ReconciledContractCaller struct {
 
 func NewRecociledContractCaller(ec []*ethereum.Client, l *zap.Logger) (*ReconciledContractCaller, error) {
 	if len(ec) == 0 {
-		return nil, fmt.Errorf("No ethereum clients provided")
+		return nil, errors.New("no ethereum clients provided")
 	}
 	return &ReconciledContractCaller{
 		EthereumClients: ec,
@@ -178,7 +164,7 @@ func (rcc *ReconciledContractCaller) GetOperatorRestakedStrategies(ctx context.C
 	for i, ec := range rcc.EthereumClients {
 		results, err := getOperatorRestakedStrategies(ctx, avs, operator, blockNumber, ec, rcc.Logger)
 		if err != nil {
-			rcc.Logger.Sugar().Errorw("Error fetching results for client", zap.Error(err), zap.Int("clientIndex", i))
+			rcc.Logger.Sugar().Errorw("error fetching results for client", zap.Error(err), zap.Int("clientIndex", i))
 		} else {
 			allResults = append(allResults, results)
 		}
@@ -186,7 +172,7 @@ func (rcc *ReconciledContractCaller) GetOperatorRestakedStrategies(ctx context.C
 
 	// make sure the number of total results is equal to the number of clients
 	if len(allResults) != len(rcc.EthereumClients) {
-		return nil, fmt.Errorf("Failed to fetch results for all clients")
+		return nil, errors.New("failed to fetch results for all clients")
 	}
 
 	if len(allResults) == 1 {
@@ -197,7 +183,7 @@ func (rcc *ReconciledContractCaller) GetOperatorRestakedStrategies(ctx context.C
 	expectedLength := len(allResults[0])
 	for i := 1; i < len(allResults); i++ {
 		if len(allResults[i]) != expectedLength {
-			return nil, fmt.Errorf("Client %d returned unexpected number of results", i)
+			return nil, fmt.Errorf("client %d returned unexpected number of results", i)
 		}
 	}
 
@@ -205,7 +191,7 @@ func (rcc *ReconciledContractCaller) GetOperatorRestakedStrategies(ctx context.C
 	for _, clientResult := range allResults[1:] {
 		for i, item := range clientResult {
 			if allResults[0][i] != item {
-				return nil, fmt.Errorf("Client results do not match")
+				return nil, errors.New("client results do not match")
 			}
 		}
 	}
