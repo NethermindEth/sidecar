@@ -69,8 +69,9 @@ type EtherscanConfig struct {
 }
 
 type SqliteConfig struct {
-	InMemory   bool
-	DbFilePath string
+	InMemory       bool
+	DbFilePath     string
+	ExtensionsPath []string
 }
 
 type RpcConfig struct {
@@ -108,7 +109,8 @@ func NewConfig() *Config {
 		},
 
 		SqliteConfig: SqliteConfig{
-			InMemory: viper.GetBool(normalizeFlagName("sqlite.in_memory")),
+			InMemory:       viper.GetBool(normalizeFlagName("sqlite.in_memory")),
+			ExtensionsPath: parseListEnvVar(viper.GetString(normalizeFlagName("sqlite.extensions_path"))),
 		},
 
 		RpcConfig: RpcConfig{

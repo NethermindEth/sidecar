@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -23,7 +24,7 @@ func setupStakerDelegationSnapshot() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := tests.GetFileBasedSqliteDatabaseConnection(l)
+	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}
@@ -76,10 +77,13 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	snapshotDate := "2024-09-01"
+	snapshotDate, err := getSnapshotDate()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
-		if err := hydrateAllBlocksTable(grm, l); err != nil {
+		if _, err := hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
 		}
 		if err := hydrateStakerDelegations(grm, l); err != nil {

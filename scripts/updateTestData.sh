@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+NETWORK=$1
+if [[ -z $NETWORK ]]; then
+    echo "Usage: $0 <network>"
+    exit 1
+fi
+
 bucketName="eigenlayer-sidecar-testdata"
 testdataVersionFile="./.testdataVersion"
 
@@ -27,7 +33,16 @@ echo "New version: $newVersion"
 
 tar -cvf "${newVersion}.tar" internal/tests/testdata
 
-aws s3 cp "${newVersion}.tar" "s3://${bucketName}/"
+bucketPath="s3://${bucketName}/"
+
+if [[ $NETWORK == "mainnet-reduced" ]]; then
+    bucketPath="${bucketPath}mainnet-reduced/"
+fi
+if [[ $NETWORK == "testnet-reduced" ]]; then
+    bucketPath="${bucketPath}testnet-reduced/"
+fi
+
+aws s3 cp "${newVersion}.tar" $bucketPath
 
 rm "${newVersion}.tar"
 

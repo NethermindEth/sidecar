@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -21,12 +22,22 @@ func setupOperatorAvsStrategyWindows() (
 	*zap.Logger,
 	error,
 ) {
+	testContext := getRewardsTestContext()
 	cfg := tests.GetConfig()
-	cfg.Chain = config.Chain_Holesky
+	switch testContext {
+	case "testnet":
+		cfg.Chain = config.Chain_Holesky
+	case "testnet-reduced":
+		cfg.Chain = config.Chain_Holesky
+	case "mainnet-reduced":
+		cfg.Chain = config.Chain_Mainnet
+	default:
+		return "", nil, nil, nil, fmt.Errorf("Unknown test context")
+	}
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := tests.GetFileBasedSqliteDatabaseConnection(l)
+	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}
@@ -71,6 +82,12 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 
 	projectRoot := getProjectRootPath()
 	dbFileName, cfg, grm, l, err := setupOperatorAvsStrategyWindows()
+	testContext := getRewardsTestContext()
+
+	snapshotDate, err := getSnapshotDate()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if err != nil {
 		t.Fatal(err)
@@ -88,14 +105,24 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 		res := grm.Raw(query).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, 3144978, count)
+
+		switch testContext {
+		case "testnet":
+			assert.Equal(t, 3144978, count)
+		case "testnet-reduced":
+			assert.Equal(t, 1591921, count)
+		case "mainnet-reduced":
+			assert.Equal(t, 2317332, count)
+		default:
+			t.Fatal("Unknown test context")
+		}
 	})
 
 	t.Run("Should calculate correct operatorAvsStrategy windows", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
 		t.Log("Generating snapshots")
-		windows, err := rewards.GenerateOperatorAvsStrategySnapshots("2024-09-01")
+		windows, err := rewards.GenerateOperatorAvsStrategySnapshots(snapshotDate)
 		assert.Nil(t, err)
 
 		t.Log("Getting expected results")
@@ -134,12 +161,6 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 			}
 		}
 		assert.Equal(t, 0, len(lacksExpectedResult))
-
-		//if len(lacksExpectedResult) > 0 {
-		//	for i, window := range lacksExpectedResult {
-		//		fmt.Printf("%d - Snapshot: %+v\n", i, window)
-		//	}
-		//}
 	})
 	t.Cleanup(func() {
 		teardownOperatorAvsStrategyWindows(grm)

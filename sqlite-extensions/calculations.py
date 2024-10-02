@@ -72,3 +72,5 @@ def nileOperatorTokenRewards(totalStakerOperatorTokens:str) -> str:
     rounded = operatorTokens.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
     return "{}".format(rounded)
 
+def bigGt(a:str, b:str) -> bool:
+    return Decimal(a) > Decimal(b)

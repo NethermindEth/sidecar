@@ -159,14 +159,21 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(sn
 }
 
 func (r *RewardsCalculator) CreateOperatorAvsRegistrationSnapshotsTable() error {
-	res := r.grm.Exec(`CREATE TABLE IF NOT EXISTS operator_avs_registration_snapshots (
-		avs TEXT,
-		operator TEXT,
-		snapshot TEXT
-	)`)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to create operator_avs_registration_snapshots table", "error", res.Error)
-		return res.Error
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS operator_avs_registration_snapshots (
+			avs TEXT,
+			operator TEXT,
+			snapshot TEXT
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_operator_avs_registration_snapshots_avs_snapshot ON operator_avs_registration_snapshots (avs, snapshot)`,
 	}
+	for _, query := range queries {
+		res := r.grm.Exec(query)
+		if res.Error != nil {
+			r.logger.Sugar().Errorw("Failed to create operator_avs_registration_snapshots table", "error", res.Error)
+			return res.Error
+		}
+	}
+
 	return nil
 }

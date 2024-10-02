@@ -71,7 +71,6 @@ func CalcRawTokensPerDay(amountStr string, duration uint64) (string, error) {
 // PostNileTokensPerDay calculates the tokens per day for post-nile rewards
 // Simply truncates the decimal portion of the of the raw tokens per day
 func PostNileTokensPerDay(tokensPerDay string) (string, error) {
-	fmt.Printf("PostNileTokensPerDay: %s\n", tokensPerDay)
 	tpd, err := decimal.NewFromString(tokensPerDay)
 	if err != nil {
 		fmt.Printf("PostNileTokensPerDay Error: %s\n", err)

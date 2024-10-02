@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -22,7 +23,7 @@ func setupOperatorShareSnapshot() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := tests.GetFileBasedSqliteDatabaseConnection(l)
+	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}
@@ -75,10 +76,13 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	snapshotDate := "2024-09-01"
+	snapshotDate, err := getSnapshotDate()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
-		if err = hydrateAllBlocksTable(grm, l); err != nil {
+		if _, err = hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
 		}
 		if err = hydrateOperatorShares(grm, l); err != nil {
@@ -122,12 +126,12 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 					continue
 				}
 				if found != snapshot.Shares {
-					t.Logf("Expected: %s, Got: %s for %+v", found, snapshot.Shares, snapshot)
+					// t.Logf("Expected: %s, Got: %s for %+v", found, snapshot.Shares, snapshot)
 					lacksExpectedResult = append(lacksExpectedResult, snapshot)
 				}
 			}
 			assert.Equal(t, 0, len(lacksExpectedResult))
-
+			return
 			if len(lacksExpectedResult) > 0 {
 				for i, window := range lacksExpectedResult {
 					fmt.Printf("%d - Snapshot: %+v\n", i, window)

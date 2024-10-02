@@ -3,11 +3,7 @@ package tests
 import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
-	sqlite2 "github.com/Layr-Labs/go-sidecar/internal/sqlite"
 	"github.com/gocarina/gocsv"
-	"github.com/google/uuid"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,31 +13,12 @@ func GetConfig() *config.Config {
 	return config.NewConfig()
 }
 
-func GetInMemorySqliteDatabaseConnection(l *zap.Logger) (*gorm.DB, error) {
-	db, err := sqlite2.NewGormSqliteFromSqlite(sqlite2.NewSqlite(sqlite2.SqliteInMemoryPath, l))
-	if err != nil {
-		panic(err)
-	}
-	return db, nil
+func GetProjectRoot() string {
+	return os.Getenv("PROJECT_ROOT")
 }
 
-func GetFileBasedSqliteDatabaseConnection(l *zap.Logger) (string, *gorm.DB, error) {
-	fileName, err := uuid.NewRandom()
-	if err != nil {
-		panic(err)
-	}
-	basePath := fmt.Sprintf("%s%s", os.TempDir(), fileName)
-	if err := os.MkdirAll(basePath, os.ModePerm); err != nil {
-		return "", nil, err
-	}
-
-	filePath := fmt.Sprintf("%s/test.db", basePath)
-	fmt.Printf("File path: %s\n", filePath)
-	db, err := sqlite2.NewGormSqliteFromSqlite(sqlite2.NewSqlite(filePath, l))
-	if err != nil {
-		panic(err)
-	}
-	return filePath, db, nil
+func GetSqliteExtensionsPath() string {
+	return fmt.Sprintf("%s/sqlite-extensions/build/lib/libcalculations", GetProjectRoot())
 }
 
 func DeleteTestSqliteDB(filePath string) {

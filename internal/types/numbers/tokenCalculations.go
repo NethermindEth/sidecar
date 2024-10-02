@@ -1,15 +1,11 @@
 package numbers
 
 import (
-	"errors"
 	"fmt"
 	"github.com/shopspring/decimal"
 )
 
 /*
-#cgo darwin CFLAGS: -I/opt/homebrew/opt/python@3.12/Frameworks/Python.framework/Versions/3.12/include/python3.12 -I/Users/seanmcgary/Code/sidecar/sqlite-extensions
-#cgo darwin LDFLAGS: -L/opt/homebrew/opt/python@3.12/Frameworks/Python.framework/Versions/3.12/lib -lpython3.12 -L/Users/seanmcgary/Code/sidecar/sqlite-extensions -lcalculations
-#cgo darwin LDFLAGS: -Wl,-rpath,/Users/seanmcgary/Code/sidecar/sqlite-extensions
 #include <stdlib.h>
 #include "calculations.h"
 */
@@ -17,14 +13,14 @@ import "C"
 import "unsafe"
 
 func InitPython() error {
-	if C.init_python() == 0 {
-		return errors.New("failed to initialize python")
-	}
+	// if C.init_python() == 0 {
+	// 	return errors.New("failed to initialize python")
+	// }
 	return nil
 }
 
 func FinalizePython() {
-	C.finalize_python()
+	// C.finalize_python()
 }
 
 // CalculateAmazonStakerTokenRewards calculates the Amazon token rewards for a given staker proportion and tokens per day
@@ -124,4 +120,14 @@ func PreNileTokensPerDay(tokensPerDay string) (string, error) {
 	resultStr := C.GoString(result)
 	fmt.Printf("PreNileTokensPerDay Result: %+v\n", resultStr)
 	return resultStr, nil
+}
+
+func BigGt(a, b string) (bool, error) {
+	aVal := C.CString(a)
+	defer C.free(unsafe.Pointer(aVal))
+	bVal := C.CString(b)
+	defer C.free(unsafe.Pointer(bVal))
+
+	result := C._big_gt(aVal, bVal)
+	return result == 1, nil
 }

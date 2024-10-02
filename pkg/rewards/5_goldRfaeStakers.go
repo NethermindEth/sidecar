@@ -34,8 +34,8 @@ staker_delegated_operators AS (
   FROM reward_snapshot_operators rso
   JOIN staker_delegation_snapshots sds
   ON
-    rso.operator = sds.operator AND
-    rso.snapshot = sds.snapshot
+    rso.operator = sds.operator
+    and rso.snapshot = sds.snapshot
 ),
 -- Get the shares of each strategy the staker has delegated to the operator
 staker_strategy_shares AS (
@@ -45,17 +45,31 @@ staker_strategy_shares AS (
   FROM staker_delegated_operators sdo
   JOIN staker_share_snapshots sss
   ON
-    sdo.staker = sss.staker AND
-    sdo.snapshot = sss.snapshot AND
-    sdo.strategy = sss.strategy
+    sdo.staker = sss.staker
+    and sdo.snapshot = sss.snapshot
+    and sdo.strategy = sss.strategy
   -- Parse out negative shares and zero multiplier so there is no division by zero case
-  WHERE big_gt(sss.shares, "0") and sdo.multiplier != "0"
+  WHERE big_gt(sss.shares, '0') and sdo.multiplier != '0'
 ),
 -- Calculate the weight of a staker
+staker_weights_grouped as (
+	SELECT
+		staker,
+		reward_hash,
+		snapshot,
+		sum_big(numeric_multiply(multiplier, shares)) as staker_weight
+	from staker_strategy_shares
+),
 staker_weights AS (
-  SELECT *,
-    big_sum(numeric_multiply(multiplier, shares)) OVER (PARTITION BY staker, reward_hash, snapshot) AS staker_weight
-  FROM staker_strategy_shares
+  SELECT
+      sss.*,
+      swg.staker_weight
+  FROM staker_strategy_shares as sss
+  join staker_weights_grouped as swg on (
+	sss.staker = swg.staker
+	and sss.reward_hash = swg.reward_hash
+   	and sss.snapshot = swg.snapshot
+  )
 ),
 -- Get distinct stakers since their weights are already calculated
 distinct_stakers AS (
@@ -71,10 +85,23 @@ distinct_stakers AS (
   ORDER BY reward_hash, snapshot, staker
 ),
 -- Calculate sum of all staker weights for each reward and snapshot
+staker_weight_sum_groups as (
+	SELECT
+		reward_hash,
+		snapshot,
+		sum_big(staker_weight) as total_weight
+	FROM distinct_stakers
+	GROUP BY reward_hash, snapshot
+),
 staker_weight_sum AS (
-  SELECT *,
-    big_sum(staker_weight) OVER (PARTITION BY reward_hash, snapshot) as total_weight
-  FROM distinct_stakers
+  SELECT
+      ds.*,
+      swsg.total_weight
+  FROM distinct_stakers as ds
+  JOIN staker_weight_sum_groups as swsg on (
+      ds.reward_hash = swsg.reward_hash
+      and ds.snapshot = swsg.snapshot
+  )
 ),
 -- Calculate staker proportion of tokens for each reward and snapshot
 staker_proportion AS (
@@ -85,13 +112,13 @@ staker_proportion AS (
 -- Calculate total tokens to the (staker, operator) pair
 staker_operator_total_tokens AS (
   SELECT *,
-    post_nile_token_rewards(staker_proportion, tokens_per_day_decimal) as total_staker_operator_payout
+    staker_token_rewards(staker_proportion, tokens_per_day_decimal) as total_staker_operator_payout
   FROM staker_proportion
 ),
 -- Calculate the token breakdown for each (staker, operator) pair
 token_breakdowns AS (
   SELECT *,
-    floor(total_staker_operator_payout * 0.10) as operator_tokens,
+    post_nile_operator_tokens(total_staker_operator_payout) as operator_tokens,
     subtract_big(total_staker_operator_payout, post_nile_operator_tokens(total_staker_operator_payout)) as staker_tokens
   FROM staker_operator_total_tokens
 )
@@ -99,10 +126,10 @@ SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
 `
 
-func (rc *RewardsCalculator) GenerateGoldRfaeStakersTable() error {
+func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable() error {
 	res := rc.grm.Exec(_5_goldRfaeStakersQuery)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_rfae_stakers", "error", res.Error)
+		rc.logger.Sugar().Errorw("Failed to generate gold_rfae_stakers", "error", res.Error)
 		return res.Error
 	}
 	return nil

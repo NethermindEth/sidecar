@@ -856,4 +856,23 @@ func Test_Numbers(t *testing.T) {
 			}
 		})
 	})
+	t.Run("Should use the C implementation of big_gt", func(t *testing.T) {
+		t.Run("A should be greater than B", func(t *testing.T) {
+			a := "10"
+			b := "5"
+
+			result, err := BigGt(a, b)
+			assert.Nil(t, err)
+			assert.True(t, result)
+		})
+		t.Run("A should be less than B", func(t *testing.T) {
+			a := "5"
+			b := "10"
+
+			result, err := BigGt(a, b)
+			assert.Nil(t, err)
+			assert.False(t, result)
+		})
+
+	})
 }

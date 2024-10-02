@@ -1,7 +1,7 @@
 package rewards
 
 const _7_goldStagingQuery = `
-insert into gold_7_staging as
+insert into gold_7_staging
 WITH staker_rewards AS (
   -- We can select DISTINCT here because the staker's tokens are the same for each strategy in the reward hash
   SELECT DISTINCT
@@ -67,7 +67,7 @@ deduped_earners AS (
     snapshot,
     reward_hash,
     token,
-    big_sum(amount) as amount
+    sum_big(amount) as amount
   FROM combined_rewards
   GROUP BY
     earner,
@@ -79,7 +79,7 @@ SELECT *
 FROM deduped_earners
 `
 
-func (rc *RewardsCalculator) GenerateGoldStagingTable() error {
+func (rc *RewardsCalculator) GenerateGold7StagingTable() error {
 	res := rc.grm.Exec(_7_goldStagingQuery)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staging", "error", res.Error)

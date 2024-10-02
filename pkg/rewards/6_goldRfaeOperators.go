@@ -1,20 +1,33 @@
 package rewards
 
 const _6_goldRfaeOperatorsQuery = `
-insert into gold_6_rfae_operators as
-WITH operator_token_sums AS (
+insert into gold_6_rfae_operators
+with operator_token_sums_grouped as (
+    select
+    	operator,
+    	reward_hash,
+    	snapshot,
+    	sum_big(operator_tokens) AS operator_tokens
+    from gold_5_rfae_stakers
+    group by operator, reward_hash, snapshot
+),
+operator_token_sums AS (
   SELECT
-    reward_hash,
-    snapshot,
-    token,
-    tokens_per_day_decimal,
-    avs,
-    strategy,
-    multiplier,
-    reward_type,
-    operator,
-    big_sum(operator_tokens) OVER (PARTITION BY operator, reward_hash, snapshot) AS operator_tokens
-  FROM gold_5_rfae_stakers
+    g.reward_hash,
+    g.snapshot,
+    g.token,
+    g.avs,
+    g.strategy,
+    g.multiplier,
+    g.reward_type,
+    g.operator,
+    otg.operator_tokens
+  FROM gold_5_rfae_stakers as g
+  join operator_token_sums_grouped as otg on (
+	g.operator = otg.operator
+   	and g.reward_hash = otg.reward_hash
+   	and g.snapshot = otg.snapshot
+  )
 ),
 -- Dedupe the operator tokens across strategies for each operator, reward hash, and snapshot
 distinct_operators AS (
@@ -31,7 +44,7 @@ distinct_operators AS (
 SELECT * FROM distinct_operators
 `
 
-func (rc *RewardsCalculator) GenerateGoldRfaeOperatorsTable() error {
+func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable() error {
 	res := rc.grm.Exec(_6_goldRfaeOperatorsQuery)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_rfae_operators", "error", res.Error)
@@ -46,7 +59,6 @@ func (rc *RewardsCalculator) CreateGold6RfaeOperatorsTable() error {
 			reward_hash TEXT NOT NULL,
 			snapshot DATE NOT NULL,
 			token TEXT NOT NULL,
-			tokens_per_day_decimal TEXT NOT NULL,
 			avs TEXT NOT NULL,
 			strategy TEXT NOT NULL,
 			multiplier TEXT NOT NULL,

@@ -111,17 +111,23 @@ func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(snapshotDate s
 }
 
 func (r *RewardsCalculator) CreateStakerShareSnapshotsTable() error {
-	res := r.grm.Exec(`
-		CREATE TABLE IF NOT EXISTS staker_share_snapshots (
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS staker_share_snapshots (
 			staker TEXT,
 			strategy TEXT,
 			shares TEXT,
 			snapshot TEXT
 		)
-	`)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to create staker share snapshots table", "error", res.Error)
-		return res.Error
+		`,
+		`create index idx_staker_share_snapshots_staker_strategy_snapshot on staker_share_snapshots (staker, strategy, snapshot)`,
+		`create index idx_staker_share_snapshots_strategy_snapshot on staker_share_snapshots (strategy, snapshot)`,
+	}
+	for _, query := range queries {
+		res := r.grm.Exec(query)
+		if res.Error != nil {
+			r.logger.Sugar().Errorw("Failed to create staker share snapshots table", "error", res.Error)
+			return res.Error
+		}
 	}
 	return nil
 }

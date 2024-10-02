@@ -11,7 +11,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/parser"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
-	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -20,7 +19,7 @@ import (
 func setup() (*gorm.DB, *zap.Logger, *config.Config) {
 	cfg := config.NewConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
-	db, err := tests.GetInMemorySqliteDatabaseConnection(l)
+	db, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}

@@ -2,18 +2,22 @@ package rewards
 
 import (
 	"database/sql"
-	"fmt"
 )
 
 var _1_goldActiveRewardsQuery = `
--- insert into gold_1_active_rewards
+insert into gold_1_active_rewards
 WITH active_rewards_modified as (
 	SELECT
 		*,
 		calc_raw_tokens_per_day(amount, duration) as tokens_per_day,
 		DATETIME(@cutoffDate) as global_end_inclusive -- Inclusive means we DO USE this day as a snapshot
 	FROM combined_rewards
-	WHERE end_timestamp >= DATETIME(@rewardsStart) and start_timestamp <= DATETIME(@cutoffDate)
+	WHERE
+	    end_timestamp >= DATETIME(@rewardsStart)
+	  	and start_timestamp <= DATETIME(@cutoffDate)
+	  	-- since we cant do backfills, each run will need to be incremental and use the 
+	    -- block_date as an upper bound
+		and block_date <= DATETIME(@cutoffDate)
 ),
 -- Cut each reward's start and end windows to handle the global range
 active_rewards_updated_end_timestamps as (
@@ -38,7 +42,7 @@ active_rewards_updated_end_timestamps as (
 active_rewards_updated_start_timestamps as (
 	SELECT
 		ap.avs,
-		ap.reward_start_exclusive as reward_start_exclusive,
+		coalesce(MAX(DATE(g.snapshot)), DATE(ap.reward_start_exclusive)) as reward_start_exclusive,
 		ap.reward_end_inclusive,
 		ap.token,
 		post_nile_tokens_per_day(ap.tokens_per_day) as tokens_per_day_decimal,
@@ -124,21 +128,17 @@ type ResultRow struct {
 	TokensPerDayDecimal string
 }
 
-// GenerateActiveRewards generates active rewards for the gold_1_active_rewards table
+// Generate1ActiveRewards generates active rewards for the gold_1_active_rewards table
 //
 // @param snapshotDate: The upper bound of when to calculate rewards to
 // @param startDate: The lower bound of when to calculate rewards from. If we're running rewards for the first time,
 // this will be "1970-01-01". If this is a subsequent run, this will be the last snapshot date.
-func (r *RewardsCalculator) GenerateActiveRewards(cutoffDate string, startDate string) error {
+func (r *RewardsCalculator) Generate1ActiveRewards(cutoffDate string, startDate string) error {
 	r.logger.Sugar().Infow("Generating active rewards", "cutoffDate", cutoffDate, "startDate", startDate)
-	rows := make([]ResultRow, 0)
-	res := r.grm.Raw(_1_goldActiveRewardsQuery,
+	res := r.grm.Exec(_1_goldActiveRewardsQuery,
 		sql.Named("cutoffDate", cutoffDate),
 		sql.Named("rewardsStart", startDate),
-	).Scan(&rows)
-	fmt.Printf("Rows: %+v\n", rows)
-	r.logger.Sugar().Infof("Rows affected: %+v", res.RowsAffected)
-	r.logger.Sugar().Infow("Executed active rewards query")
+	)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate active rewards", "error", res.Error)
 		return res.Error

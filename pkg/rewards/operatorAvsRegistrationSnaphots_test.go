@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -23,7 +24,7 @@ func setupOperatorAvsRegistrationSnapshot() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := tests.GetFileBasedSqliteDatabaseConnection(l)
+	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}
@@ -71,15 +72,19 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 
 	projectRoot := getProjectRootPath()
 	dbFileName, cfg, grm, l, err := setupOperatorAvsRegistrationSnapshot()
+	testContext := getRewardsTestContext()
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	snapshotDate := "2024-09-01"
+	snapshotDate, err := getSnapshotDate()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("Should hydrate blocks and operatorAvsStateChanges tables", func(t *testing.T) {
-		err := hydrateAllBlocksTable(grm, l)
+		totalBlockCount, err := hydrateAllBlocksTable(grm, l)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -88,7 +93,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		var count int
 		res := grm.Raw(query).Scan(&count)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, TOTAL_BLOCK_COUNT, count)
+		assert.Equal(t, totalBlockCount, count)
 
 		err = hydrateOperatorAvsStateChangesTable(grm, l)
 		if err != nil {
@@ -98,7 +103,16 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		query = "select count(*) from avs_operator_state_changes"
 		res = grm.Raw(query).Scan(&count)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, 20442, count)
+		switch testContext {
+		case "testnet":
+			assert.Equal(t, 20442, count)
+		case "testnet-reduced":
+			assert.Equal(t, 16042, count)
+		case "mainnet-reduced":
+			assert.Equal(t, 1752, count)
+		default:
+			t.Fatal("Unknown test context")
+		}
 	})
 	t.Run("Should generate the proper operatorAvsRegistrationWindows", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)

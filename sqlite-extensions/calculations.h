@@ -3,9 +3,10 @@
 
 #include <sqlite3ext.h>
 
-int init_python();
+int ensure_python_initialized();
 void finalize_python();
 char* call_python_func(const char* func_name, const char* arg1, const char* arg2);
+int call_bool_python_func(const char* func_name, const char* arg1, const char* arg2);
 
 char* _pre_nile_tokens_per_day(const char* tokens);
 void pre_nile_tokens_per_day(sqlite3_context *context, int argc, sqlite3_value **argv);
@@ -24,5 +25,10 @@ void amazon_operator_token_rewards(sqlite3_context *context, int argc, sqlite3_v
 
 char* _nile_operator_token_rewards(const char* totalStakerOperatorTokens);
 void nile_operator_token_rewards(sqlite3_context *context, int argc, sqlite3_value **argv);
+
+int _big_gt(const char* a, const char* b);
+void big_gt(sqlite3_context *context, int argc, sqlite3_value **argv);
+
+void sqlite3_calculations_shutdown(void);
 
 #endif // CALCULATIONS_H

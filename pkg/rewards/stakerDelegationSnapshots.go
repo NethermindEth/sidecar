@@ -109,16 +109,23 @@ func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(snapshotD
 }
 
 func (r *RewardsCalculator) CreateStakerDelegationSnapshotsTable() error {
-	res := r.grm.Exec(`
-		CREATE TABLE IF NOT EXISTS staker_delegation_snapshots (
-			staker TEXT,
-			operator TEXT,
-			snapshot TEXT
-		)
-	`)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to create staker delegation snapshots table", "error", res.Error)
-		return res.Error
+	queries := []string{
+		`
+			CREATE TABLE IF NOT EXISTS staker_delegation_snapshots (
+				staker TEXT,
+				operator TEXT,
+				snapshot TEXT
+			)
+		`,
+		`create index idx_staker_delegation_snapshots_operator_snapshot on staker_delegation_snapshots (operator, snapshot)`,
+	}
+
+	for _, query := range queries {
+		res := r.grm.Exec(query)
+		if res.Error != nil {
+			r.logger.Sugar().Errorw("Failed to create staker delegation snapshots table", "error", res.Error)
+			return res.Error
+		}
 	}
 	return nil
 }

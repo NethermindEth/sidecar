@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -22,7 +23,7 @@ func setupCombinedRewards() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbName, db, err := tests.GetFileBasedSqliteDatabaseConnection(l)
+	dbName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}
@@ -70,12 +71,14 @@ func Test_CombinedRewards(t *testing.T) {
 
 	dbFileName, cfg, grm, l, err := setupCombinedRewards()
 
+	testContext := getRewardsTestContext()
+
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Run("Should hydrate blocks and reward_submissions tables", func(t *testing.T) {
-		err := hydrateAllBlocksTable(grm, l)
+		totalBlockCount, err := hydrateAllBlocksTable(grm, l)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -84,7 +87,7 @@ func Test_CombinedRewards(t *testing.T) {
 		var count int
 		res := grm.Raw(query).Scan(&count)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, TOTAL_BLOCK_COUNT, count)
+		assert.Equal(t, totalBlockCount, count)
 
 		err = hydrateRewardSubmissionsTable(grm, l)
 		if err != nil {
@@ -94,7 +97,16 @@ func Test_CombinedRewards(t *testing.T) {
 		query = "select count(*) from reward_submissions"
 		res = grm.Raw(query).Scan(&count)
 		assert.Nil(t, res.Error)
-		assert.Equal(t, 192, count)
+		switch testContext {
+		case "testnet":
+			assert.Equal(t, 192, count)
+		case "testnet-reduced":
+			assert.Equal(t, 24, count)
+		case "mainnet-reduced":
+			assert.Equal(t, 16, count)
+		default:
+			t.Fatal("Unknown test context")
+		}
 	})
 	t.Run("Should generate the proper combinedRewards", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
@@ -105,7 +117,17 @@ func Test_CombinedRewards(t *testing.T) {
 
 		t.Logf("Generated %d combinedRewards", len(combinedRewards))
 
-		assert.Equal(t, 192, len(combinedRewards))
+		switch testContext {
+		case "testnet":
+			assert.Equal(t, 192, len(combinedRewards))
+		case "testnet-reduced":
+			assert.Equal(t, 24, len(combinedRewards))
+		case "mainnet-reduced":
+			assert.Equal(t, 16, len(combinedRewards))
+		default:
+			t.Fatal("Unknown test context")
+		}
+
 	})
 	t.Cleanup(func() {
 		tests.DeleteTestSqliteDB(dbFileName)

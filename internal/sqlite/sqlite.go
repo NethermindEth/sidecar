@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
+	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"os"
@@ -66,26 +67,42 @@ func (s *SumBigNumbers) Done() (string, error) {
 	return s.total.String(), nil
 }
 
+func SumBigWindowed(values ...any) (string, error) {
+	total := decimal.NewFromInt(0)
+
+	// Iterate over the values and sum them
+	for _, value := range values {
+		bigValue, err := decimal.NewFromString(value.(string))
+		if err != nil {
+			return "", errors.Errorf("failed to parse value - %s", err)
+		}
+		total = total.Add(bigValue)
+	}
+
+	return total.String(), nil
+}
+
 var hasRegisteredExtensions = false
 
 const SqliteInMemoryPath = "file::memory:?cache=shared"
 
-func NewInMemorySqlite(l *zap.Logger) gorm.Dialector {
-	return NewSqlite(SqliteInMemoryPath, l)
+type SqliteConfig struct {
+	Path           string
+	ExtensionsPath []string
 }
 
-func NewInMemorySqliteWithName(name string, l *zap.Logger) gorm.Dialector {
-	path := fmt.Sprintf("file:%s?mode=memory&cache=shared", name)
-	return NewSqlite(path, l)
-}
-
-func NewSqlite(path string, l *zap.Logger) gorm.Dialector {
+func NewSqlite(cfg *SqliteConfig, l *zap.Logger) gorm.Dialector {
 	if !hasRegisteredExtensions {
 		sql.Register("sqlite3_with_extensions", &goSqlite.SQLiteDriver{
+			Extensions: cfg.ExtensionsPath,
 			ConnectHook: func(conn *goSqlite.SQLiteConn) error {
 				// Generic functions
 				if err := conn.RegisterAggregator("sum_big", NewSumBigNumbers, true); err != nil {
 					l.Sugar().Errorw("Failed to register aggregator sum_big", "error", err)
+					return err
+				}
+				if err := conn.RegisterFunc("sum_big_windowed", SumBigWindowed, true); err != nil {
+					l.Sugar().Errorw("Failed to register aggregator sum_big_windowed", "error", err)
 					return err
 				}
 				if err := conn.RegisterFunc("subtract_big", numbers.SubtractBig, true); err != nil {
@@ -96,11 +113,10 @@ func NewSqlite(path string, l *zap.Logger) gorm.Dialector {
 					l.Sugar().Errorw("Failed to register function NumericMultiply", "error", err)
 					return err
 				}
-				if err := conn.RegisterFunc("big_gt", numbers.BigGreaterThan, true); err != nil {
-					l.Sugar().Errorw("Failed to register function BigGreaterThan", "error", err)
-					return err
-				}
-
+				// if err := conn.RegisterFunc("big_gt", numbers.BigGreaterThan, true); err != nil {
+				// 	l.Sugar().Errorw("Failed to register function BigGreaterThan", "error", err)
+				// 	return err
+				// }
 				if err := conn.RegisterFunc("bytes_to_hex", bytesToHex, true); err != nil {
 					l.Sugar().Errorw("Failed to register function bytes_to_hex", "error", err)
 					return err
@@ -115,39 +131,12 @@ func NewSqlite(path string, l *zap.Logger) gorm.Dialector {
 					l.Sugar().Errorw("Failed to register function PostNileTokensPerDay", "error", err)
 					return err
 				}
-				if err := conn.RegisterFunc("pre_nile_tokens_per_day", numbers.PreNileTokensPerDay, true); err != nil {
-					l.Sugar().Errorw("Failed to register function PreNileTokensPerDay", "error", err)
-					return err
-				}
-				// Staker proportion and weight
 				if err := conn.RegisterFunc("calc_staker_proportion", numbers.CalculateStakerProportion, true); err != nil {
 					l.Sugar().Errorw("Failed to register function CalculateStakerProportion", "error", err)
 					return err
 				}
 				if err := conn.RegisterFunc("calc_staker_weight", numbers.CalculateStakerWeight, true); err != nil {
 					l.Sugar().Errorw("Failed to register function CalculateStakerWeight", "error", err)
-					return err
-				}
-				// Forked rewards for stakers
-				if err := conn.RegisterFunc("amazon_token_rewards", numbers.CalculateAmazonStakerTokenRewards, true); err != nil {
-					l.Sugar().Errorw("Failed to register function CalculateAmazonStakerTokenRewards", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("nile_token_rewards", numbers.CalculateNileStakerTokenRewards, true); err != nil {
-					l.Sugar().Errorw("Failed to register function CalculateNileStakerTokenRewards", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("post_nile_token_rewards", numbers.CalculatePostNileStakerTokenRewards, true); err != nil {
-					l.Sugar().Errorw("Failed to register function CalculatePostNileStakerTokenRewards", "error", err)
-					return err
-				}
-				// Operator tokens
-				if err := conn.RegisterFunc("amazon_operator_tokens", numbers.CalculateAmazonOperatorTokens, true); err != nil {
-					l.Sugar().Errorw("Failed to register function CalculateAmazonOperatorTokens", "error", err)
-					return err
-				}
-				if err := conn.RegisterFunc("nile_operator_tokens", numbers.CalculateNileOperatorTokens, true); err != nil {
-					l.Sugar().Errorw("Failed to register function CalculateNileOperatorTokens", "error", err)
 					return err
 				}
 				if err := conn.RegisterFunc("post_nile_operator_tokens", numbers.CalculatePostNileOperatorTokens, true); err != nil {
@@ -162,7 +151,7 @@ func NewSqlite(path string, l *zap.Logger) gorm.Dialector {
 
 	return &sqlite.Dialector{
 		DriverName: "sqlite3_with_extensions",
-		DSN:        path,
+		DSN:        cfg.Path,
 	}
 }
 
@@ -180,6 +169,7 @@ func NewGormSqliteFromSqlite(sqlite gorm.Dialector) (*gorm.DB, error) {
 		`PRAGMA journal_mode = WAL;`,
 		`PRAGMA synchronous = normal;`,
 		`pragma mmap_size = 30000000000;`,
+		`PRAGMA cache_size = -2000000;`, // Set cache size to 2GB
 	}
 
 	for _, pragma := range pragmas {

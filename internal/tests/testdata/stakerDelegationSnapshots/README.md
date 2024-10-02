@@ -1,5 +1,6 @@
 ## Source
 
+Testnet
 ```sql
 SELECT
     staker,
@@ -13,7 +14,38 @@ FROM (
          SELECT *, 'delegations' AS src FROM dbt_testnet_holesky_rewards.staker_delegations
      ) as delegations_combined
 where block_time < '2024-09-17'
+```
 
+Testnet reduced
+```sql
+SELECT
+    staker,
+    operator,
+    log_index,
+    block_number,
+    case when src = 'undelegations' THEN false ELSE true END AS delegated
+FROM (
+         SELECT *, 'undelegations' AS src FROM dbt_testnet_holesky_rewards.staker_undelegations
+         UNION ALL
+         SELECT *, 'delegations' AS src FROM dbt_testnet_holesky_rewards.staker_delegations
+     ) as delegations_combined
+where block_time < '2024-07-25'
+```
+
+Mainnet reduced
+```sql
+SELECT
+    staker,
+    operator,
+    log_index,
+    block_number,
+    case when src = 'undelegations' THEN false ELSE true END AS delegated
+FROM (
+         SELECT *, 'undelegations' AS src FROM dbt_mainnet_ethereum_rewards.staker_undelegations
+         UNION ALL
+         SELECT *, 'delegations' AS src FROM dbt_mainnet_ethereum_rewards.staker_delegations
+     ) as delegations_combined
+where block_time < '2024-08-13'
 ```
 
 

@@ -1,7 +1,7 @@
 package rewards
 
 const _8_goldFinalQuery = `
-insert into gold_final
+insert into gold_table
 SELECT
     earner,
     snapshot,
@@ -11,7 +11,7 @@ SELECT
 FROM gold_7_staging
 `
 
-func (rc *RewardsCalculator) GenerateGoldFinalTable() error {
+func (rc *RewardsCalculator) GenerateGold8FinalTable() error {
 	res := rc.grm.Exec(_8_goldFinalQuery)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_final", "error", res.Error)
