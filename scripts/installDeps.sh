@@ -3,9 +3,22 @@
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -a | tr '[:upper:]' '[:lower:]')
 
+command_exists() {
+    command -v "$@" > /dev/null 2>&1
+}
+
+apt_update_and_install() {
+    if command_exists sudo; then
+        sudo apt-get update
+        sudo apt-get install "$@"
+    else
+        apt-get update
+        apt-get install "$@"
+    fi
+}
+
 if [[ "$OS" == "linux" ]]; then
-    apt-get update
-    apt-get install -y \
+    apt_update_and_install -y \
         make \
         curl \
         git \
