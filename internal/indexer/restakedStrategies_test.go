@@ -16,6 +16,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	sqliteBlockStore "github.com/Layr-Labs/go-sidecar/internal/storage/sqlite"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -41,7 +42,7 @@ func setup() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	db, err := tests.GetSqliteDatabaseConnection()
+	db, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}

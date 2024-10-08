@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	pkgUtils "github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"math/big"
 	"slices"
 	"sort"
@@ -212,32 +213,9 @@ func (osm *OperatorSharesModel) HandleStateChange(log *storage.TransactionLog) (
 	return nil, nil //nolint:nilnil
 }
 
-func (osm *OperatorSharesModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
-	query := `
-		insert into operator_shares (operator, strategy, shares, block_number)
-			select
-				operator,
-				strategy,
-				shares,
-				@currentBlock as block_number
-			from operator_shares
-			where block_number = @previousBlock
-	`
-	res := osm.DB.Exec(query,
-		sql.Named("currentBlock", blockNumber),
-		sql.Named("previousBlock", blockNumber-1),
-	)
-
-	if res.Error != nil {
-		osm.logger.Sugar().Errorw("Failed to clone previous block state to new block", zap.Error(res.Error))
-		return res.Error
-	}
-	return nil
-}
-
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorSharesDiff, error) {
-	preparedState := make([]OperatorSharesDiff, 0)
+func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]*OperatorSharesDiff, error) {
+	preparedState := make([]*OperatorSharesDiff, 0)
 
 	accumulatedState, ok := osm.stateAccumulator[blockNumber]
 	if !ok {
@@ -253,19 +231,28 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 
 	// Find only the records from the previous block, that are modified in this block
 	query := `
+		with ranked_rows as (
+			select
+				operator,
+				strategy,
+				shares,
+				block_number,
+				ROW_NUMBER() OVER (PARTITION BY operator, strategy ORDER BY block_number desc) as rn
+			from operator_shares
+			where
+				concat(operator, '_', strategy) in @slotIds
+		)
 		select
-			operator,
-			strategy,
-			shares
-		from operator_shares
-		where
-			block_number = @previousBlock
-			and concat(operator, '_', strategy) in @slotIds
+			lb.operator,
+			lb.strategy,
+			lb.shares,
+			lb.block_number
+		from ranked_rows as lb
+		where rn = 1
 	`
-	existingRecords := make([]OperatorShares, 0)
+	existingRecords := make([]*OperatorShares, 0)
 	res := osm.DB.Model(&OperatorShares{}).
 		Raw(query,
-			sql.Named("previousBlock", blockNumber-1),
 			sql.Named("slotIds", slotIds),
 		).
 		Scan(&existingRecords)
@@ -276,9 +263,8 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 	}
 
 	// Map the existing records to a map for easier lookup
-	mappedRecords := make(map[types.SlotID]OperatorShares)
+	mappedRecords := make(map[types.SlotID]*OperatorShares)
 	for _, record := range existingRecords {
-		fmt.Printf("Existing OperatorShares %+v\n", record)
 		slotID := NewSlotID(record.Operator, record.Strategy)
 		mappedRecords[slotID] = record
 	}
@@ -286,7 +272,7 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 	// Loop over our new state changes.
 	// If the record exists in the previous block, add the shares to the existing shares
 	for slotID, newState := range accumulatedState {
-		prepared := OperatorSharesDiff{
+		prepared := &OperatorSharesDiff{
 			Operator:    newState.Operator,
 			Strategy:    newState.Strategy,
 			Shares:      newState.Shares,
@@ -317,54 +303,25 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]OperatorShar
 }
 
 func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
-	// Clone the previous block state to give us a reference point.
-	err := osm.clonePreviousBlocksToNewBlock(blockNumber)
-	if err != nil {
-		return err
-	}
-
 	records, err := osm.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	newRecords := make([]OperatorShares, 0)
-	updateRecords := make([]OperatorShares, 0)
-
-	for _, record := range records {
-		r := &OperatorShares{
-			Operator:    record.Operator,
-			Strategy:    record.Strategy,
-			Shares:      record.Shares.String(),
-			BlockNumber: record.BlockNumber,
+	recordToInsert := pkgUtils.Map(records, func(r *OperatorSharesDiff, i uint64) *OperatorShares {
+		return &OperatorShares{
+			Operator:    r.Operator,
+			Strategy:    r.Strategy,
+			Shares:      r.Shares.String(),
+			BlockNumber: blockNumber,
 		}
-		if record.IsNew {
-			newRecords = append(newRecords, *r)
-		} else {
-			updateRecords = append(updateRecords, *r)
-		}
-	}
+	})
 
-	// Batch insert new records
-	if len(newRecords) > 0 {
-		res := osm.DB.Model(&OperatorShares{}).Clauses(clause.Returning{}).Create(&newRecords)
+	if len(recordToInsert) > 0 {
+		res := osm.DB.Model(&OperatorShares{}).Clauses(clause.Returning{}).Create(&recordToInsert)
 		if res.Error != nil {
 			osm.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
 			return res.Error
-		}
-	}
-	// Update existing records that were cloned from the previous block
-	if len(updateRecords) > 0 {
-		for _, record := range updateRecords {
-			res := osm.DB.Model(&OperatorShares{}).
-				Where("operator = ? and strategy = ? and block_number = ?", record.Operator, record.Strategy, record.BlockNumber).
-				Updates(map[string]interface{}{
-					"shares": record.Shares,
-				})
-			if res.Error != nil {
-				osm.logger.Sugar().Errorw("Failed to update operator_shares record", zap.Error(res.Error))
-				return res.Error
-			}
 		}
 	}
 
@@ -391,7 +348,7 @@ func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (types.Sta
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []OperatorSharesDiff) []*base.MerkleTreeInput {
+func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []*OperatorSharesDiff) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, diff := range diffs {
 		inputs = append(inputs, &base.MerkleTreeInput{

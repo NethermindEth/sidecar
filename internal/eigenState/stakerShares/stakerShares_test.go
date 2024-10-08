@@ -12,6 +12,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -27,7 +28,7 @@ func setup() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	db, err := tests.GetSqliteDatabaseConnection()
+	db, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}
@@ -312,9 +313,6 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", preparedChange[0].Staker)
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", preparedChange[0].Strategy)
 		assert.Equal(t, "246393621132195985", preparedChange[0].Shares.String())
-
-		err = model.clonePreviousBlocksToNewBlock(blockNumber)
-		assert.Nil(t, err)
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)

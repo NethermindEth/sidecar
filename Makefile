@@ -1,38 +1,49 @@
 .PHONY: deps proto
 
+PROJECT_ROOT = $(shell pwd)
+CGO_CFLAGS = "-I$(PROJECT_ROOT)/sqlite-extensions"
+CGO_LDFLAGS = "-L$(PROJECT_ROOT)/sqlite-extensions/build/lib -lcalculations -Wl,-rpath,$(PROJECT_ROOT)/sqlite-extensions/build/lib"
+PYTHONPATH = $(PROJECT_ROOT)/sqlite-extensions
+CGO_ENABLED = 1
+GO=$(shell which go)
+ALL_FLAGS=CGO_CFLAGS=$(CGO_CFLAGS) CGO_LDFLAGS=$(CGO_LDFLAGS) PYTHONPATH=$(PYTHONPATH) CGO_ENABLED=$(CGO_ENABLED)
+
+PROTO_OPTS=--proto_path=protos --go_out=paths=source_relative:protos
+
 deps/dev:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
-	go install honnef.co/go/tools/cmd/staticcheck@latest
-	go install github.com/google/yamlfmt/cmd/yamlfmt@latest
+	${GO} install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+	${GO} install honnef.co/go/tools/cmd/staticcheck@latest
+	${GO} install github.com/google/yamlfmt/cmd/yamlfmt@latest
 
 deps/go:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
-	go get \
+	${GO} install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
+	${GO} install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+	${GO} get \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
 		google.golang.org/protobuf/cmd/protoc-gen-go \
 		google.golang.org/grpc/cmd/protoc-gen-go-grpc
-	go install \
+	${GO} install \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
 		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
 		google.golang.org/protobuf/cmd/protoc-gen-go \
 		google.golang.org/grpc/cmd/protoc-gen-go-grpc
-	go mod tidy
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.61.0
+	${GO} mod tidy
 
 
-deps-linux: deps/go deps/dev
+deps-buf:
     GOROOT=$(go env GOROOT)
     BIN="${GOROOT}/bin" VERSION="1.32.2" && \
     curl -sSL "https://github.com/bufbuild/buf/releases/download/v${VERSION}/buf-$(uname -s)-$(uname -m)" -o "${BIN}/buf" && \
     chmod +x "${BIN}/buf"
 
-deps: deps/go
-	brew install bufbuild/buf/buf
+deps-system:
+	./scripts/installDeps.sh
 
-PROTO_OPTS=--proto_path=protos --go_out=paths=source_relative:protos
+deps: deps-system deps-buf deps/go deps/dev
 
+
+# Build targets
 proto:
 	buf generate protos
 
@@ -42,11 +53,13 @@ clean:
 
 .PHONY: build/cmd/sidecar
 build/cmd/sidecar:
-	CGO_ENABLED=1 go build -o bin/sidecar main.go
+	cd sqlite-extensions && make all && cd -
+	$(ALL_FLAGS) $(GO) build -o bin/sidecar main.go
 
 .PHONY: build
 build: build/cmd/sidecar
 
+# Docker build steps
 docker-buildx-self:
 	docker buildx build -t go-sidecar:latest -t go-sidecar:latest .
 
@@ -72,19 +85,22 @@ fmtcheck:
 	fi
 .PHONY: vet
 vet:
-	go vet ./...
+	$(ALL_FLAGS) $(GO) vet ./...
 
 .PHONY: lint
 lint:
-	golangci-lint run
+	$(ALL_FLAGS) golangci-lint run
 
 .PHONY: test
 test:
-	TESTING=true go test -v -p 1 -parallel 1 ./...
+	./scripts/goTest.sh -v -p 1 -parallel 1 ./...
 
 .PHONY: staticcheck
 staticcheck:
 	staticcheck ./...
 
 .PHONY: ci-test
-ci-test: test
+ci-test: build test
+
+test-rewards:
+	TEST_REWARDS=true TESTING=true ${GO} test ./pkg/rewards -v -p 1

@@ -1,25 +1,22 @@
-FROM golang:1.22-bullseye AS builder
+FROM debian:testing-slim AS builder
 
 ARG TARGETARCH
 
-RUN export DEBIAN_FRONTEND=noninteractive && \
-    apt update && \
-    apt install -y -q --no-install-recommends \
-    build-essential gcc musl-dev linux-headers-${TARGETARCH} && \
-    apt clean && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt update && \
+    apt install -y make curl git
 
 WORKDIR /build
 
 COPY . .
 
 # system and linux dependencies
-RUN make deps-linux
+RUN make deps
 
 RUN make build
 
-FROM debian:stable-slim
+RUN mv /build/bin/sidecar /usr/local/bin/sidecar
 
-COPY --from=builder /build/bin/sidecar /usr/local/bin/sidecar
+RUN  apt clean && \
+    rm -rf /var/lib/apt/lists/*
 
 ENTRYPOINT ["/usr/local/bin/sidecar"]

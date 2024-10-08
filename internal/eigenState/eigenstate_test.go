@@ -8,6 +8,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -23,7 +24,7 @@ func setup() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	db, err := tests.GetSqliteDatabaseConnection()
+	db, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}

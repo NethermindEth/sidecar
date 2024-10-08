@@ -11,6 +11,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -25,7 +26,7 @@ func setup() (
 	cfg := tests.GetConfig()
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	db, err := tests.GetSqliteDatabaseConnection()
+	db, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
 	if err != nil {
 		panic(err)
 	}
@@ -40,6 +41,21 @@ func setup() (
 func teardown(model *AvsOperatorsModel) {
 	model.DB.Exec("delete from avs_operator_changes")
 	model.DB.Exec("delete from registered_avs_operators")
+	model.DB.Exec("delete from avs_operator_state_changes")
+}
+
+func getInsertedDeltaRecordsForBlock(blockNumber uint64, model *AvsOperatorsModel) ([]*AvsOperatorStateChange, error) {
+	results := []*AvsOperatorStateChange{}
+
+	res := model.DB.Model(&AvsOperatorStateChange{}).Where("block_number = ?", blockNumber).Find(&results)
+	return results, res.Error
+}
+
+func getInsertedDeltaRecords(model *AvsOperatorsModel) ([]*AvsOperatorStateChange, error) {
+	results := []*AvsOperatorStateChange{}
+
+	res := model.DB.Model(&AvsOperatorStateChange{}).Order("block_number asc").Find(&results)
+	return results, res.Error
 }
 
 func Test_AvsOperatorState(t *testing.T) {
@@ -84,7 +100,22 @@ func Test_AvsOperatorState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
 
-		teardown(avsOperatorState)
+		err = avsOperatorState.CommitFinalState(blockNumber)
+		assert.Nil(t, err)
+
+		inserted, err := getInsertedDeltaRecordsForBlock(blockNumber, avsOperatorState)
+		assert.Nil(t, err)
+		assert.Equal(t, 1, len(inserted))
+
+		assert.Equal(t, "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e", inserted[0].Avs)
+		assert.Equal(t, "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0", inserted[0].Operator)
+		assert.Equal(t, true, inserted[0].Registered)
+		assert.Equal(t, blockNumber, inserted[0].BlockNumber)
+		assert.Equal(t, uint64(400), inserted[0].LogIndex)
+
+		t.Cleanup(func() {
+			teardown(avsOperatorState)
+		})
 	})
 	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
@@ -134,7 +165,9 @@ func Test_AvsOperatorState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.True(t, len(stateRoot) > 0)
 
-		teardown(avsOperatorState)
+		t.Cleanup(func() {
+			teardown(avsOperatorState)
+		})
 	})
 	t.Run("Should correctly generate state across multiple blocks", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
@@ -217,6 +250,12 @@ func Test_AvsOperatorState(t *testing.T) {
 			assert.True(t, len(stateRoot) > 0)
 		}
 
-		teardown(avsOperatorState)
+		inserted, err := getInsertedDeltaRecords(avsOperatorState)
+		assert.Nil(t, err)
+		assert.Equal(t, len(logs), len(inserted))
+
+		t.Cleanup(func() {
+			teardown(avsOperatorState)
+		})
 	})
 }

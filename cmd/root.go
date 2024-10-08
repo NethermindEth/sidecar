@@ -36,6 +36,7 @@ func init() {
 
 	rootCmd.PersistentFlags().Bool("sqlite.in-memory", false, `"true" or "false"`)
 	rootCmd.PersistentFlags().String("sqlite.db-file-path", "", `e.g. "/tmp/sidecar.db"`)
+	rootCmd.PersistentFlags().StringArray("sqlite.extensions-path", []string{}, `e.g. "./sqlite-extensions"`)
 
 	rootCmd.PersistentFlags().Int("rpc.grpc-port", 7100, `e.g. 7100`)
 	rootCmd.PersistentFlags().Int("rpc.http-port", 7101, `e.g. 7101`)

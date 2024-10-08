@@ -59,7 +59,10 @@ var runCmd = &cobra.Command{
 			}
 		}
 
-		db := sqlite.NewSqlite(cfg.GetSqlitePath())
+		db := sqlite.NewSqlite(&sqlite.SqliteConfig{
+			Path:           cfg.GetSqlitePath(),
+			ExtensionsPath: cfg.SqliteConfig.ExtensionsPath,
+		}, l)
 
 		grm, err := sqlite.NewGormSqliteFromSqlite(db)
 		if err != nil {
