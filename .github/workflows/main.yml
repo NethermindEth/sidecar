@@ -15,12 +15,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install dependencies
-        run: make deps
-      - name: Update path
-        run: export PATH=$PATH:$(go env GOPATH)/bin
-      - name: Run tests
-        run: echo $PATH && make lint
+      - name: Run linter
+        run: |
+          make deps
+          go env GOPATH
+          export PATH=$PATH:$(go env GOPATH)/bin
+          echo $PATH
+          make lint
   build:
     runs-on: ubuntu-latest
     steps:
