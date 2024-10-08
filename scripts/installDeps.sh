@@ -16,10 +16,11 @@ if [[ "$OS" == "linux" ]]; then
         libsqlite3-0 \
         libsqlite3-dev \
         python3-dev
+
     which go
     if [[ $? != 0 ]]; then
         echo "Installing Go 1.22"
-        apt-get install go
+        apt-get install -y golang
     fi
 elif [[ "$OS" == "darwin" ]]; then
     hasBrew=$(which brew)

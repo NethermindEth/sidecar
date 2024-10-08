@@ -54,6 +54,7 @@ clean:
 
 .PHONY: build/cmd/sidecar
 build/cmd/sidecar:
+	cd sqlite-extensions && make all && cd -
 	$(ALL_FLAGS) $(GO) build -o bin/sidecar main.go
 
 .PHONY: build
@@ -100,7 +101,7 @@ staticcheck:
 	staticcheck ./...
 
 .PHONY: ci-test
-ci-test: test
+ci-test: build test
 
 test-rewards:
 	TEST_REWARDS=true TESTING=true ${GO} test ./pkg/rewards -v -p 1

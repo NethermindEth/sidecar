@@ -6,12 +6,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Go 1.22
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.22
       - name: Install dependencies
-        run: make deps-linux
+        run: make deps
       - name: Run tests
         run: make ci-test
   lint:
@@ -19,12 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Go 1.22
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.22
       - name: Install dependencies
-        run: make deps-linux
+        run: make deps
       - name: Run tests
         run: make lint
   build:

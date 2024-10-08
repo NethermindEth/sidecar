@@ -1,14 +1,9 @@
-FROM debian:stable-slim AS builder
+FROM debian:testing-slim AS builder
 
 ARG TARGETARCH
 
-RUN export DEBIAN_FRONTEND=noninteractive && \
-    apt update && \
-    apt install -y -q --no-install-recommends \
-        make \
-        linux-headers-${TARGETARCH} && \
-    apt clean && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt update && \
+    apt install -y make curl git
 
 WORKDIR /build
 
@@ -18,5 +13,10 @@ COPY . .
 RUN make deps
 
 RUN make build
+
+RUN mv /build/bin/sidecar /usr/local/bin/sidecar
+
+RUN  apt clean && \
+    rm -rf /var/lib/apt/lists/*
 
 ENTRYPOINT ["/usr/local/bin/sidecar"]
