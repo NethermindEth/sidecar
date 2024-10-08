@@ -17,6 +17,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Install dependencies
         run: make deps
+      - name: Update path
+        run: export PATH=$PATH:$(go env GOPATH)/bin"
       - name: Run tests
         run: make lint
   build:

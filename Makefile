@@ -11,7 +11,7 @@ ALL_FLAGS=CGO_CFLAGS=$(CGO_CFLAGS) CGO_LDFLAGS=$(CGO_LDFLAGS) PYTHONPATH=$(PYTHO
 PROTO_OPTS=--proto_path=protos --go_out=paths=source_relative:protos
 
 deps/dev:
-	${GO} install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.61.0
 	${GO} install honnef.co/go/tools/cmd/staticcheck@latest
 	${GO} install github.com/google/yamlfmt/cmd/yamlfmt@latest
 
@@ -29,7 +29,6 @@ deps/go:
 		google.golang.org/protobuf/cmd/protoc-gen-go \
 		google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	${GO} mod tidy
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.61.0
 
 
 deps-buf:
