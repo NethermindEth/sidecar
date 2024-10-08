@@ -18,9 +18,9 @@ jobs:
       - name: Install dependencies
         run: make deps
       - name: Update path
-        run: export PATH=$PATH:$(go env GOPATH)/bin"
+        run: export PATH=$PATH:$(go env GOPATH)/bin
       - name: Run tests
-        run: make lint
+        run: echo $PATH && make lint
   build:
     runs-on: ubuntu-latest
     steps:
