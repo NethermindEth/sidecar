@@ -1,7 +1,14 @@
 .PHONY: deps proto
 
-args=CGO_ENABLED=1
+PROJECT_ROOT = $(shell pwd)
+CGO_CFLAGS = "-I$(PROJECT_ROOT)/sqlite-extensions"
+CGO_LDFLAGS = "-L$(PROJECT_ROOT)/sqlite-extensions/build/lib -lcalculations -Wl,-rpath,$(PROJECT_ROOT)/sqlite-extensions/build/lib"
+PYTHONPATH = $(PROJECT_ROOT)/sqlite-extensions
+CGO_ENABLED = 1
 GO=$(shell which go)
+ALL_FLAGS=CGO_CFLAGS=$(CGO_CFLAGS) CGO_LDFLAGS=$(CGO_LDFLAGS) PYTHONPATH=$(PYTHONPATH) CGO_ENABLED=$(CGO_ENABLED)
+
+PROTO_OPTS=--proto_path=protos --go_out=paths=source_relative:protos
 
 deps/dev:
 	${GO} install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
@@ -31,11 +38,13 @@ deps-buf:
     curl -sSL "https://github.com/bufbuild/buf/releases/download/v${VERSION}/buf-$(uname -s)-$(uname -m)" -o "${BIN}/buf" && \
     chmod +x "${BIN}/buf"
 
-deps: deps-buf deps/go deps/dev
+deps-system:
 	./scripts/installDeps.sh
 
-PROTO_OPTS=--proto_path=protos --go_out=paths=source_relative:protos
+deps: deps-system deps-buf deps/go deps/dev
 
+
+# Build targets
 proto:
 	buf generate protos
 
@@ -45,11 +54,12 @@ clean:
 
 .PHONY: build/cmd/sidecar
 build/cmd/sidecar:
-	${args} ${GO} build -o bin/sidecar main.go
+	$(ALL_FLAGS) $(GO) build -o bin/sidecar main.go
 
 .PHONY: build
 build: build/cmd/sidecar
 
+# Docker build steps
 docker-buildx-self:
 	docker buildx build -t go-sidecar:latest -t go-sidecar:latest .
 
@@ -75,11 +85,11 @@ fmtcheck:
 	fi
 .PHONY: vet
 vet:
-	go vet ./...
+	$(ALL_FLAGS) $(GO) vet ./...
 
 .PHONY: lint
 lint:
-	golangci-lint run
+	$(ALL_FLAGS) golangci-lint run
 
 .PHONY: test
 test:

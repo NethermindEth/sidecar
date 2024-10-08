@@ -137,6 +137,9 @@ func Test_Rewards(t *testing.T) {
 	}
 
 	snapshotDate, err := getSnapshotDate()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("Should initialize the rewards calculator", func(t *testing.T) {
 		rc, err := NewRewardsCalculator(l, grm, cfg)

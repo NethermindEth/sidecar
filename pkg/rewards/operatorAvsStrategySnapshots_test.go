@@ -82,6 +82,9 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 
 	projectRoot := getProjectRootPath()
 	dbFileName, cfg, grm, l, err := setupOperatorAvsStrategyWindows()
+	if err != nil {
+		t.Fatal(err)
+	}
 	testContext := getRewardsTestContext()
 
 	snapshotDate, err := getSnapshotDate()

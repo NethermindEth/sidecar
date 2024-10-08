@@ -25,6 +25,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	sqliteBlockStore "github.com/Layr-Labs/go-sidecar/internal/storage/sqlite"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
+	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
