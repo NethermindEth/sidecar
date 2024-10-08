@@ -1,4 +1,4 @@
-.PHONY: deps proto
+.PHONY: deps
 
 PROJECT_ROOT = $(shell pwd)
 CGO_CFLAGS = "-I$(PROJECT_ROOT)/sqlite-extensions"
@@ -8,44 +8,20 @@ CGO_ENABLED = 1
 GO=$(shell which go)
 ALL_FLAGS=CGO_CFLAGS=$(CGO_CFLAGS) CGO_LDFLAGS=$(CGO_LDFLAGS) PYTHONPATH=$(PYTHONPATH) CGO_ENABLED=$(CGO_ENABLED)
 
-PROTO_OPTS=--proto_path=protos --go_out=paths=source_relative:protos
-
 deps/dev:
 	${GO} install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
 	${GO} install honnef.co/go/tools/cmd/staticcheck@latest
 	${GO} install github.com/google/yamlfmt/cmd/yamlfmt@latest
 
 deps/go:
-	${GO} install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
-	${GO} install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
-	${GO} get \
-		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
-		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
-		google.golang.org/protobuf/cmd/protoc-gen-go \
-		google.golang.org/grpc/cmd/protoc-gen-go-grpc
-	${GO} install \
-		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
-		github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
-		google.golang.org/protobuf/cmd/protoc-gen-go \
-		google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	${GO} mod tidy
 
-
-deps-buf:
-    GOROOT=$(go env GOROOT)
-    BIN="${GOROOT}/bin" VERSION="1.32.2" && \
-    curl -sSL "https://github.com/bufbuild/buf/releases/download/v${VERSION}/buf-$(uname -s)-$(uname -m)" -o "${BIN}/buf" && \
-    chmod +x "${BIN}/buf"
 
 deps-system:
 	./scripts/installDeps.sh
 
-deps: deps-system deps-buf deps/go deps/dev
+deps: deps-system deps/go deps/dev
 
-
-# Build targets
-proto:
-	buf generate protos
 
 .PHONY: clean
 clean:
