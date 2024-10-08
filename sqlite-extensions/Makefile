@@ -1,7 +1,6 @@
 CC = gcc
 AR = ar
 RANLIB = ranlib
-INSTALL_NAME_TOOL = install_name_tool
 
 PYTHON_CONFIG = python3-config
 PYTHON_VERSION = $(shell python3 -c "import sys; print('{}.{}'.format(sys.version_info.major, sys.version_info.minor))")
@@ -28,10 +27,14 @@ CFLAGS += $(foreach dir,$(INCLUDE_DIRS),-I$(dir))
 PYTHON_CFLAGS := $(shell $(PYTHON_CONFIG) --includes)
 PYTHON_LDFLAGS := $(shell $(PYTHON_CONFIG) --ldflags)
 
-# SQLite flags (adjust the path as necessary)
-SQLITE_DIR = /opt/homebrew/opt/sqlite
-CFLAGS += -I$(SQLITE_DIR)/include
-LDFLAGS += -L$(SQLITE_DIR)/lib -lsqlite3
+# SQLite flags
+ifeq ($(shell uname),Darwin)
+    SQLITE_DIR = /opt/homebrew/opt/sqlite
+    CFLAGS += -I$(SQLITE_DIR)/include
+    LDFLAGS += -L$(SQLITE_DIR)/lib -lsqlite3
+else
+    LDFLAGS += -lsqlite3
+endif
 
 CFLAGS += $(PYTHON_CFLAGS)
 LDFLAGS += $(PYTHON_LDFLAGS) -L$(PYTHON_LIBDIR) -lpython$(PYTHON_VERSION)
@@ -41,15 +44,20 @@ SOURCES = $(wildcard $(SRC_DIR)/*.c)
 OBJECTS = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SOURCES))
 
 # Shared library target
-SHARED_LIB = $(LIB_DIR)/libcalculations.dylib
+ifeq ($(shell uname),Darwin)
+    SHARED_LIB = $(LIB_DIR)/libcalculations.dylib
+    SHARED_LIB_FLAGS = -dynamiclib -install_name $(SRC_DIR_ABS)/$(SHARED_LIB)
+else
+    SHARED_LIB = $(LIB_DIR)/libcalculations.so
+    SHARED_LIB_FLAGS = -shared -Wl,-soname,libcalculations.so
+endif
 
 # Static library target
 STATIC_LIB = $(LIB_DIR)/libcalculations.a
 
 # Shared library rule
 $(SHARED_LIB): $(OBJECTS)
-	$(CC) -shared $(CFLAGS) -o $@ $^ $(LDFLAGS)
-	$(INSTALL_NAME_TOOL) -id $(SRC_DIR_ABS)/$(SHARED_LIB) $@
+	$(CC) $(SHARED_LIB_FLAGS) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Static library rule
 $(STATIC_LIB): $(OBJECTS)

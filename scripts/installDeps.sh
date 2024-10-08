@@ -14,7 +14,8 @@ if [[ "$OS" == "linux" ]]; then
         build-essential \
         sqlite3 \
         libsqlite3-0 \
-        libsqlite3-dev
+        libsqlite3-dev \
+        python3-dev
     which go
     if [[ $? != 0 ]]; then
         echo "Installing Go 1.22"
