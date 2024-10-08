@@ -1,4 +1,40 @@
-## Running
+# Development
+
+## Dependencies
+
+* Go 1.22
+* Sqlite3 (version 9.x.x)
+* Python3 (version 3.12)
+* GCC (for building sqlite3 extensions)
+* Homebrew (if on MacOS)
+
+## Supported build environments
+
+* MacOS
+* Linux (Ubuntu/Debian)
+
+## Environment setup
+
+```bash
+make deps
+```
+
+If you are starting from a fresh linux install with nothing, run:
+
+```bash
+./scripts/installDeps.sh
+
+make deps
+```
+
+## Testing
+
+```bash
+
+```
+
+
+# Running
 
 ### Directly using Go
 
