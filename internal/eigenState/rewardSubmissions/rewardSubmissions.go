@@ -156,6 +156,8 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 			rewardType = "all_stakers"
 		} else if log.EventName == "RangePaymentCreated" || log.EventName == "AVSRewardsSubmissionCreated" {
 			rewardType = "avs"
+		} else if log.EventName == "RewardsSubmissionForAllEarnersCreated" {
+			rewardType = "all_earners"
 		} else {
 			return nil, xerrors.Errorf("Unknown event name: %s", log.EventName)
 		}
@@ -225,6 +227,7 @@ func (rs *RewardSubmissionsModel) getContractAddressesForEnvironment() map[strin
 			"RewardsSubmissionForAllCreated",
 			"RangePaymentCreated",
 			"AVSRewardsSubmissionCreated",
+			"RewardsSubmissionForAllEarnersCreated",
 		},
 	}
 }

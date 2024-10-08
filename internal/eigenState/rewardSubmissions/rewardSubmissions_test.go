@@ -378,6 +378,78 @@ func Test_RewardSubmissions(t *testing.T) {
 			})
 		})
 
+		t.Run("Handle a reward submission for all earners", func(t *testing.T) {
+			blockNumber := uint64(104)
+
+			if err := createBlock(model, blockNumber); err != nil {
+				t.Fatal(err)
+			}
+
+			log := &storage.TransactionLog{
+				TransactionHash:  "some hash",
+				TransactionIndex: big.NewInt(100).Uint64(),
+				BlockNumber:      blockNumber,
+				Address:          cfg.GetContractsMapForChain().RewardsCoordinator,
+				Arguments:        `[{"Name": "tokenHopper", "Type": "address", "Value": "0x8daae33cb2da8da23595adb19f271ef41e34bd8c", "Indexed": true}, {"Name": "submissionNonce", "Type": "uint256", "Value": 0, "Indexed": true}, {"Name": "rewardsSubmissionHash", "Type": "bytes32", "Value": "0xeb2a1f63fd3274fa701ad2045c04b4f1274c6d7b5ff8a83d75d87e812b589c9c", "Indexed": true}, {"Name": "rewardsSubmission", "Type": "((address,uint96)[],address,uint256,uint32,uint32)", "Value": null, "Indexed": false}]`,
+				EventName:        "RewardsSubmissionForAllEarnersCreated",
+				LogIndex:         big.NewInt(12).Uint64(),
+				OutputData:       `{"rewardsSubmission": {"token": "0x3b78576f7d6837500ba3de27a60c7f594934027e", "amount": 321855128516280769230770, "duration": 604800, "startTimestamp": 1725494400, "strategiesAndMultipliers": [{"strategy": "0x43252609bff8a13dfe5e057097f2f45a24387a84", "multiplier": 1000000000000000000}]}}`,
+			}
+
+			err = model.InitBlockProcessing(blockNumber)
+			assert.Nil(t, err)
+
+			isInteresting := model.IsInterestingLog(log)
+			assert.True(t, isInteresting)
+
+			change, err := model.HandleStateChange(log)
+			assert.Nil(t, err)
+			assert.NotNil(t, change)
+
+			strategiesAndMultipliers := []struct {
+				Strategy   string
+				Multiplier string
+			}{
+				{"0x43252609bff8a13dfe5e057097f2f45a24387a84", "1000000000000000000"},
+			}
+
+			typedChange := change.(*RewardSubmissions)
+			assert.Equal(t, len(strategiesAndMultipliers), len(typedChange.Submissions))
+
+			for i, submission := range typedChange.Submissions {
+				assert.Equal(t, strings.ToLower("0x8daae33cb2da8da23595adb19f271ef41e34bd8c"), strings.ToLower(submission.Avs))
+				assert.Equal(t, strings.ToLower("0x3b78576f7d6837500ba3de27a60c7f594934027e"), strings.ToLower(submission.Token))
+				assert.Equal(t, strings.ToLower("0xeb2a1f63fd3274fa701ad2045c04b4f1274c6d7b5ff8a83d75d87e812b589c9c"), strings.ToLower(submission.RewardHash))
+				assert.Equal(t, "321855128516280769230770", submission.Amount)
+				assert.Equal(t, uint64(604800), submission.Duration)
+				assert.Equal(t, int64(1725494400), submission.StartTimestamp.Unix())
+				assert.Equal(t, int64(604800+1725494400), submission.EndTimestamp.Unix())
+
+				assert.Equal(t, strings.ToLower(strategiesAndMultipliers[i].Strategy), strings.ToLower(submission.Strategy))
+				assert.Equal(t, strategiesAndMultipliers[i].Multiplier, submission.Multiplier)
+			}
+
+			err = model.CommitFinalState(blockNumber)
+			assert.Nil(t, err)
+
+			rewards := make([]*RewardSubmission, 0)
+			query := `select * from reward_submissions where block_number = ?`
+			res := model.DB.Raw(query, blockNumber).Scan(&rewards)
+			assert.Nil(t, res.Error)
+			assert.Equal(t, len(strategiesAndMultipliers), len(rewards))
+
+			submissionCounter += len(strategiesAndMultipliers)
+
+			stateRoot, err := model.GenerateStateRoot(blockNumber)
+			assert.Nil(t, err)
+			assert.NotNil(t, stateRoot)
+			assert.True(t, len(stateRoot) > 0)
+
+			t.Cleanup(func() {
+				teardown(model)
+			})
+		})
+
 		t.Cleanup(func() {
 			teardown(model)
 		})
