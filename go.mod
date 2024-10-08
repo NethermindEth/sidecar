@@ -30,6 +30,7 @@ require (
 )
 
 require (
+	github.com/Layr-Labs/sidecar-apis v0.0.0-20241008133938-7596231e046f // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
