@@ -237,8 +237,13 @@ func (rs *RewardSubmissionsModel) IsInterestingLog(log *storage.TransactionLog) 
 	return rs.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (rs *RewardSubmissionsModel) InitBlockProcessing(blockNumber uint64) error {
+func (rs *RewardSubmissionsModel) SetupStateForBlock(blockNumber uint64) error {
 	rs.stateAccumulator[blockNumber] = make(map[types.SlotID]*RewardSubmission)
+	return nil
+}
+
+func (rs *RewardSubmissionsModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
+	delete(rs.stateAccumulator, blockNumber)
 	return nil
 }
 
@@ -392,11 +397,6 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 	return nil
 }
 
-func (rs *RewardSubmissionsModel) ClearAccumulatedState(blockNumber uint64) error {
-	delete(rs.stateAccumulator, blockNumber)
-	return nil
-}
-
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
 func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
 	inserts, deletes, err := rs.prepareState(blockNumber)
@@ -439,5 +439,5 @@ func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardS
 }
 
 func (rs *RewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return rs.BaseEigenState.DeleteState("registered_avs_operators", startBlockNumber, endBlockNumber, rs.DB)
+	return rs.BaseEigenState.DeleteState("reward_submissions", startBlockNumber, endBlockNumber, rs.DB)
 }

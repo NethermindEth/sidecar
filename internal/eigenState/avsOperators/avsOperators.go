@@ -72,8 +72,8 @@ type AvsOperatorsModel struct {
 	deltaAccumulator map[uint64][]*AvsOperatorStateChange
 }
 
-// NewAvsOperators creates a new AvsOperatorsModel.
-func NewAvsOperators(
+// NewAvsOperatorsModel creates a new AvsOperatorsModel.
+func NewAvsOperatorsModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
 	logger *zap.Logger,
@@ -194,9 +194,15 @@ func (a *AvsOperatorsModel) IsInterestingLog(log *storage.TransactionLog) bool {
 	return a.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (a *AvsOperatorsModel) InitBlockProcessing(blockNumber uint64) error {
+func (a *AvsOperatorsModel) SetupStateForBlock(blockNumber uint64) error {
 	a.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	a.deltaAccumulator[blockNumber] = make([]*AvsOperatorStateChange, 0)
+	return nil
+}
+
+func (a *AvsOperatorsModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
+	delete(a.stateAccumulator, blockNumber)
+	delete(a.deltaAccumulator, blockNumber)
 	return nil
 }
 
@@ -276,7 +282,7 @@ func (a *AvsOperatorsModel) prepareState(blockNumber uint64) ([]RegisteredAvsOpe
 func (a *AvsOperatorsModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) error {
 	records, ok := a.deltaAccumulator[blockNumber]
 	if !ok {
-		msg := "Delta accumulator was not initialized"
+		msg := "delta accumulator was not initialized"
 		a.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
 		return errors.New(msg)
 	}
@@ -327,12 +333,6 @@ func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64) error {
 		return err
 	}
 
-	return nil
-}
-
-func (a *AvsOperatorsModel) ClearAccumulatedState(blockNumber uint64) error {
-	delete(a.stateAccumulator, blockNumber)
-	delete(a.deltaAccumulator, blockNumber)
 	return nil
 }
 

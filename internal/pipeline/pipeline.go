@@ -173,7 +173,7 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		p.Logger.Sugar().Debugw("Wrote state root", zap.Uint64("blockNumber", blockNumber), zap.Any("stateRoot", sr))
 	}
 
-	_ = p.stateManager.CleanupBlock(blockNumber)
+	_ = p.stateManager.CleanupProcessedStateForBlock(blockNumber)
 
 	return err
 }

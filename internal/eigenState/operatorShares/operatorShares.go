@@ -4,12 +4,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	pkgUtils "github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"math/big"
 	"slices"
 	"sort"
 	"strings"
 	"time"
+
+	pkgUtils "github.com/Layr-Labs/go-sidecar/pkg/utils"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
@@ -188,8 +189,13 @@ func (osm *OperatorSharesModel) IsInterestingLog(log *storage.TransactionLog) bo
 	return osm.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (osm *OperatorSharesModel) InitBlockProcessing(blockNumber uint64) error {
+func (osm *OperatorSharesModel) SetupStateForBlock(blockNumber uint64) error {
 	osm.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
+	return nil
+}
+
+func (osm *OperatorSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
+	delete(osm.stateAccumulator, blockNumber)
 	return nil
 }
 
@@ -325,11 +331,6 @@ func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
 		}
 	}
 
-	return nil
-}
-
-func (osm *OperatorSharesModel) ClearAccumulatedState(blockNumber uint64) error {
-	delete(osm.stateAccumulator, blockNumber)
 	return nil
 }
 

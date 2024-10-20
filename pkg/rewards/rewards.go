@@ -2,11 +2,12 @@ package rewards
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/submittedDistributionRoots"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"time"
 )
 
 type RewardsCalculator struct {
@@ -88,9 +89,9 @@ func (rc *RewardsCalculator) isValidSnapshotDate(snapshotDate time.Time) bool {
 	return true
 }
 
-func (rc *RewardsCalculator) getMostRecentDistributionRoot() (*submittedDistributionRoots.SubmittedDistributionRoots, error) {
-	var distributionRoot *submittedDistributionRoots.SubmittedDistributionRoots
-	res := rc.grm.Model(&submittedDistributionRoots.SubmittedDistributionRoots{}).Order("block_number desc").First(&distributionRoot)
+func (rc *RewardsCalculator) getMostRecentDistributionRoot() (*submittedDistributionRoots.SubmittedDistributionRoot, error) {
+	var distributionRoot *submittedDistributionRoots.SubmittedDistributionRoot
+	res := rc.grm.Model(&submittedDistributionRoots.SubmittedDistributionRoot{}).Order("block_number desc").First(&distributionRoot)
 	if res != nil {
 		return nil, res.Error
 	}
