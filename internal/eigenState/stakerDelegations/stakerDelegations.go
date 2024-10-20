@@ -176,10 +176,17 @@ func (s *StakerDelegationsModel) IsInterestingLog(log *storage.TransactionLog) b
 	return s.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-// InitBlockProcessing initialize state accumulator for the block.
-func (s *StakerDelegationsModel) InitBlockProcessing(blockNumber uint64) error {
+// InitBlock initialize state accumulator for the block.
+func (s *StakerDelegationsModel) InitBlock(blockNumber uint64) error {
 	s.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	s.deltaAccumulator[blockNumber] = make([]*StakerDelegationChange, 0)
+	return nil
+}
+
+// CleanupBlock clears the accumulated state for the given block number to free up memory.
+func (s *StakerDelegationsModel) CleanupBlock(blockNumber uint64) error {
+	delete(s.stateAccumulator, blockNumber)
+	delete(s.deltaAccumulator, blockNumber)
 	return nil
 }
 
@@ -255,7 +262,7 @@ func (s *StakerDelegationsModel) prepareState(blockNumber uint64) ([]DelegatedSt
 func (s *StakerDelegationsModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) error {
 	records, ok := s.deltaAccumulator[blockNumber]
 	if !ok {
-		msg := "Delta accumulator was not initialized"
+		msg := "delta accumulator was not initialized"
 		s.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
 		return errors.New(msg)
 	}
@@ -309,13 +316,6 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 	if err = s.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
 		return err
 	}
-	return nil
-}
-
-// ClearAccumulatedState clears the accumulated state for the given block number to free up memory.
-func (s *StakerDelegationsModel) ClearAccumulatedState(blockNumber uint64) error {
-	delete(s.stateAccumulator, blockNumber)
-	delete(s.deltaAccumulator, blockNumber)
 	return nil
 }
 

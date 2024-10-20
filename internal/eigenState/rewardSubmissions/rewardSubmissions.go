@@ -237,8 +237,13 @@ func (rs *RewardSubmissionsModel) IsInterestingLog(log *storage.TransactionLog) 
 	return rs.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (rs *RewardSubmissionsModel) InitBlockProcessing(blockNumber uint64) error {
+func (rs *RewardSubmissionsModel) InitBlock(blockNumber uint64) error {
 	rs.stateAccumulator[blockNumber] = make(map[types.SlotID]*RewardSubmission)
+	return nil
+}
+
+func (rs *RewardSubmissionsModel) CleanupBlock(blockNumber uint64) error {
+	delete(rs.stateAccumulator, blockNumber)
 	return nil
 }
 
@@ -389,11 +394,6 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 			}
 		}
 	}
-	return nil
-}
-
-func (rs *RewardSubmissionsModel) ClearAccumulatedState(blockNumber uint64) error {
-	delete(rs.stateAccumulator, blockNumber)
 	return nil
 }
 

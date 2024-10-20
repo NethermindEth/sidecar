@@ -460,8 +460,13 @@ func (ss *StakerSharesModel) IsInterestingLog(log *storage.TransactionLog) bool 
 	return ss.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (ss *StakerSharesModel) InitBlockProcessing(blockNumber uint64) error {
+func (ss *StakerSharesModel) InitBlock(blockNumber uint64) error {
 	ss.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
+	return nil
+}
+
+func (ss *StakerSharesModel) CleanupBlock(blockNumber uint64) error {
+	delete(ss.stateAccumulator, blockNumber)
 	return nil
 }
 
@@ -593,11 +598,6 @@ func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
 		}
 	}
 
-	return nil
-}
-
-func (ss *StakerSharesModel) ClearAccumulatedState(blockNumber uint64) error {
-	delete(ss.stateAccumulator, blockNumber)
 	return nil
 }
 

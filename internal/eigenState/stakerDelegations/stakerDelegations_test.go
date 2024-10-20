@@ -2,6 +2,9 @@ package stakerDelegations
 
 import (
 	"database/sql"
+	"testing"
+	"time"
+
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
@@ -12,8 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"testing"
-	"time"
 )
 
 func setup() (
@@ -78,7 +79,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 
 		assert.Equal(t, true, model.IsInterestingLog(&log))
 
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		res, err := model.HandleStateChange(&log)
@@ -114,7 +115,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 
 		assert.Equal(t, true, model.IsInterestingLog(&log))
 
-		err = model.InitBlockProcessing(blockNumber)
+		err = model.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		stateChange, err := model.HandleStateChange(&log)
@@ -187,7 +188,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 		for _, log := range logs {
 			assert.True(t, model.IsInterestingLog(log))
 
-			err = model.InitBlockProcessing(log.BlockNumber)
+			err = model.InitBlock(log.BlockNumber)
 			assert.Nil(t, err)
 
 			stateChange, err := model.HandleStateChange(log)

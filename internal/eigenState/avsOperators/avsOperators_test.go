@@ -67,7 +67,7 @@ func Test_AvsOperatorState(t *testing.T) {
 
 	t.Run("Should create a new AvsOperatorState", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
+		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, avsOperatorState)
 	})
@@ -88,12 +88,12 @@ func Test_AvsOperatorState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
+		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
 
-		err = avsOperatorState.InitBlockProcessing(blockNumber)
+		err = avsOperatorState.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		res, err := avsOperatorState.HandleStateChange(&log)
@@ -135,12 +135,12 @@ func Test_AvsOperatorState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
+		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
 
-		err = avsOperatorState.InitBlockProcessing(blockNumber)
+		err = avsOperatorState.InitBlock(blockNumber)
 		assert.Nil(t, err)
 
 		stateChange, err := avsOperatorState.HandleStateChange(&log)
@@ -205,13 +205,13 @@ func Test_AvsOperatorState(t *testing.T) {
 			},
 		}
 
-		avsOperatorState, err := NewAvsOperators(esm, grm, l, cfg)
+		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		for _, log := range logs {
 			assert.True(t, avsOperatorState.IsInterestingLog(log))
 
-			err = avsOperatorState.InitBlockProcessing(log.BlockNumber)
+			err = avsOperatorState.InitBlock(log.BlockNumber)
 			assert.Nil(t, err)
 
 			stateChange, err := avsOperatorState.HandleStateChange(log)
