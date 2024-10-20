@@ -15,13 +15,13 @@ type IEigenStateModel interface {
 	// Determine if the log is interesting to the state model
 	IsInterestingLog(log *storage.TransactionLog) bool
 
-	// InitBlock
+	// SetupStateForBlock
 	// Perform any necessary setup for processing a block
-	InitBlock(blockNumber uint64) error
+	SetupStateForBlock(blockNumber uint64) error
 
-	// CleanupBlock
+	// CleanupProcessedStateForBlock
 	// Perform any necessary cleanup for processing a block
-	CleanupBlock(blockNumber uint64) error
+	CleanupProcessedStateForBlock(blockNumber uint64) error
 
 	// HandleStateChange
 	// Allow the state model to handle the state change

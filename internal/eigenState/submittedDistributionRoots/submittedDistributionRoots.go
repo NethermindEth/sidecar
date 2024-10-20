@@ -196,12 +196,12 @@ func (sdr *SubmittedDistributionRootsModel) IsInterestingLog(log *storage.Transa
 	return sdr.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (sdr *SubmittedDistributionRootsModel) InitBlock(blockNumber uint64) error {
+func (sdr *SubmittedDistributionRootsModel) SetupStateForBlock(blockNumber uint64) error {
 	sdr.stateAccumulator[blockNumber] = make(map[types.SlotID]*SubmittedDistributionRoot)
 	return nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) CleanupBlock(blockNumber uint64) error {
+func (sdr *SubmittedDistributionRootsModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(sdr.stateAccumulator, blockNumber)
 	return nil
 }

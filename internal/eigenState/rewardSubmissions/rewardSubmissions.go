@@ -237,12 +237,12 @@ func (rs *RewardSubmissionsModel) IsInterestingLog(log *storage.TransactionLog) 
 	return rs.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (rs *RewardSubmissionsModel) InitBlock(blockNumber uint64) error {
+func (rs *RewardSubmissionsModel) SetupStateForBlock(blockNumber uint64) error {
 	rs.stateAccumulator[blockNumber] = make(map[types.SlotID]*RewardSubmission)
 	return nil
 }
 
-func (rs *RewardSubmissionsModel) CleanupBlock(blockNumber uint64) error {
+func (rs *RewardSubmissionsModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(rs.stateAccumulator, blockNumber)
 	return nil
 }

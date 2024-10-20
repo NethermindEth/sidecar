@@ -176,15 +176,15 @@ func (s *StakerDelegationsModel) IsInterestingLog(log *storage.TransactionLog) b
 	return s.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-// InitBlock initialize state accumulator for the block.
-func (s *StakerDelegationsModel) InitBlock(blockNumber uint64) error {
+// SetupStateForBlock initialize state accumulator for the block.
+func (s *StakerDelegationsModel) SetupStateForBlock(blockNumber uint64) error {
 	s.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	s.deltaAccumulator[blockNumber] = make([]*StakerDelegationChange, 0)
 	return nil
 }
 
-// CleanupBlock clears the accumulated state for the given block number to free up memory.
-func (s *StakerDelegationsModel) CleanupBlock(blockNumber uint64) error {
+// CleanupProcessedStateForBlock clears the accumulated state for the given block number to free up memory.
+func (s *StakerDelegationsModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(s.stateAccumulator, blockNumber)
 	delete(s.deltaAccumulator, blockNumber)
 	return nil

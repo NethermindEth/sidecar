@@ -460,12 +460,12 @@ func (ss *StakerSharesModel) IsInterestingLog(log *storage.TransactionLog) bool 
 	return ss.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (ss *StakerSharesModel) InitBlock(blockNumber uint64) error {
+func (ss *StakerSharesModel) SetupStateForBlock(blockNumber uint64) error {
 	ss.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	return nil
 }
 
-func (ss *StakerSharesModel) CleanupBlock(blockNumber uint64) error {
+func (ss *StakerSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(ss.stateAccumulator, blockNumber)
 	return nil
 }

@@ -93,7 +93,7 @@ func Test_AvsOperatorState(t *testing.T) {
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
 
-		err = avsOperatorState.InitBlock(blockNumber)
+		err = avsOperatorState.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
 		res, err := avsOperatorState.HandleStateChange(&log)
@@ -140,7 +140,7 @@ func Test_AvsOperatorState(t *testing.T) {
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
 
-		err = avsOperatorState.InitBlock(blockNumber)
+		err = avsOperatorState.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
 		stateChange, err := avsOperatorState.HandleStateChange(&log)
@@ -211,7 +211,7 @@ func Test_AvsOperatorState(t *testing.T) {
 		for _, log := range logs {
 			assert.True(t, avsOperatorState.IsInterestingLog(log))
 
-			err = avsOperatorState.InitBlock(log.BlockNumber)
+			err = avsOperatorState.SetupStateForBlock(log.BlockNumber)
 			assert.Nil(t, err)
 
 			stateChange, err := avsOperatorState.HandleStateChange(log)

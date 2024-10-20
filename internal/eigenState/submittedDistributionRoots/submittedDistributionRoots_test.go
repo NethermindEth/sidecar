@@ -76,7 +76,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		err = model.InitBlock(blockNumber)
+		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
 		isInteresting := model.IsInterestingLog(log)
@@ -129,7 +129,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 
 		assert.Nil(t, err)
 
-		err = model.InitBlock(blockNumber)
+		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
 		isInteresting := model.IsInterestingLog(log)

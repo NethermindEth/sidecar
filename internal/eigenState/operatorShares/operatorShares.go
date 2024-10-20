@@ -189,12 +189,12 @@ func (osm *OperatorSharesModel) IsInterestingLog(log *storage.TransactionLog) bo
 	return osm.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (osm *OperatorSharesModel) InitBlock(blockNumber uint64) error {
+func (osm *OperatorSharesModel) SetupStateForBlock(blockNumber uint64) error {
 	osm.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	return nil
 }
 
-func (osm *OperatorSharesModel) CleanupBlock(blockNumber uint64) error {
+func (osm *OperatorSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(osm.stateAccumulator, blockNumber)
 	return nil
 }

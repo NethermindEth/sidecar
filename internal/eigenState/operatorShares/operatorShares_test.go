@@ -77,7 +77,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
-		err = model.InitBlock(blockNumber)
+		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
 		change, err := model.HandleStateChange(&log)
@@ -106,7 +106,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
-		err = model.InitBlock(blockNumber)
+		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
 		stateChange, err := model.HandleStateChange(&log)
@@ -155,7 +155,7 @@ func Test_OperatorSharesState(t *testing.T) {
 		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
-		err = model.InitBlock(blockNumber)
+		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
 		stateChange, err := model.HandleStateChange(&log)

@@ -194,13 +194,13 @@ func (a *AvsOperatorsModel) IsInterestingLog(log *storage.TransactionLog) bool {
 	return a.BaseEigenState.IsInterestingLog(addresses, log)
 }
 
-func (a *AvsOperatorsModel) InitBlock(blockNumber uint64) error {
+func (a *AvsOperatorsModel) SetupStateForBlock(blockNumber uint64) error {
 	a.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
 	a.deltaAccumulator[blockNumber] = make([]*AvsOperatorStateChange, 0)
 	return nil
 }
 
-func (a *AvsOperatorsModel) CleanupBlock(blockNumber uint64) error {
+func (a *AvsOperatorsModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(a.stateAccumulator, blockNumber)
 	delete(a.deltaAccumulator, blockNumber)
 	return nil
