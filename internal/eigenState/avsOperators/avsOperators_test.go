@@ -67,7 +67,7 @@ func Test_AvsOperatorState(t *testing.T) {
 
 	t.Run("Should create a new AvsOperatorState", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
+		avsOperatorState, err := NewAvsOperatorsModelModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, avsOperatorState)
 	})
@@ -88,7 +88,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
+		avsOperatorState, err := NewAvsOperatorsModelModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
@@ -135,7 +135,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			DeletedAt:        time.Time{},
 		}
 
-		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
+		avsOperatorState, err := NewAvsOperatorsModelModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
@@ -205,7 +205,7 @@ func Test_AvsOperatorState(t *testing.T) {
 			},
 		}
 
-		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
+		avsOperatorState, err := NewAvsOperatorsModelModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
 		for _, log := range logs {

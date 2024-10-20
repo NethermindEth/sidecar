@@ -72,8 +72,8 @@ type AvsOperatorsModel struct {
 	deltaAccumulator map[uint64][]*AvsOperatorStateChange
 }
 
-// NewAvsOperatorsModel creates a new AvsOperatorsModel.
-func NewAvsOperatorsModel(
+// NewAvsOperatorsModelModel creates a new AvsOperatorsModel.
+func NewAvsOperatorsModelModel(
 	esm *stateManager.EigenStateManager,
 	grm *gorm.DB,
 	logger *zap.Logger,
