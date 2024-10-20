@@ -439,5 +439,5 @@ func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardS
 }
 
 func (rs *RewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return rs.BaseEigenState.DeleteState("registered_avs_operators", startBlockNumber, endBlockNumber, rs.DB)
+	return rs.BaseEigenState.DeleteState("reward_submissions", startBlockNumber, endBlockNumber, rs.DB)
 }
