@@ -81,7 +81,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}
 
-	mds := sqliteBlockStore.NewSqliteBlockStore(grm, l, cfg)
+	mds := sqliteBlockStore.NewPostgresBlockStore(grm, l, cfg)
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 

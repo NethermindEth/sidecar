@@ -17,7 +17,8 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			hash varchar(255) NOT NULL,
 			block_time timestamp with time zone NOT NULL,
 			created_at timestamp with time zone DEFAULT current_timestamp,
-			updated_at timestamp with time zone DEFAULT NULL
+			updated_at timestamp with time zone DEFAULT NULL,
+			deleted_at timestamp with time zone
     	)`,
 		`CREATE TABLE IF NOT EXISTS transactions (
 			block_number bigint NOT NULL,
@@ -25,7 +26,6 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			transaction_index bigint NOT NULL,
 			from_address character varying(255) NOT NULL,
 			to_address character varying(255) DEFAULT NULL::character varying,
-			block_sequence_id bigint NOT NULL,
 			contract_address character varying(255) DEFAULT NULL::character varying,
 			bytecode_hash character varying(64) DEFAULT NULL::character varying,
 			gas_used numeric,
@@ -43,7 +43,6 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			event_name character varying(255) NOT NULL,
 			log_index bigint NOT NULL,
 			block_number bigint NOT NULL,
-			block_sequence_id bigint NOT NULL,
 			transaction_index integer NOT NULL,
 			output_data jsonb,
     		created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,

@@ -202,7 +202,7 @@ func WrapTxAndCommit[T any](fn func(*gorm.DB) (T, error), db *gorm.DB, tx *gorm.
 }
 
 func IsDuplicateKeyError(err error) bool {
-	r := regexp.MustCompile(`UNIQUE constraint failed`)
+	r := regexp.MustCompile(`duplicate key value violates unique constraint`)
 
 	return r.MatchString(err.Error())
 }

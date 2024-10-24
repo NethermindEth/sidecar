@@ -1,4 +1,4 @@
-package sqlite
+package postgres
 
 import (
 	"database/sql"
@@ -17,11 +17,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type SqliteBlockStoreConfig struct {
-	DbLocation string
-}
-
-type SqliteBlockStore struct {
+type PostgresBlockStore struct {
 	Db *gorm.DB
 	//nolint:unused
 	migrated     bool
@@ -29,8 +25,8 @@ type SqliteBlockStore struct {
 	GlobalConfig *config.Config
 }
 
-func NewSqliteBlockStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *SqliteBlockStore {
-	bs := &SqliteBlockStore{
+func NewPostgresBlockStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *PostgresBlockStore {
+	bs := &PostgresBlockStore{
 		Db:           db,
 		Logger:       l,
 		GlobalConfig: cfg,
@@ -38,7 +34,7 @@ func NewSqliteBlockStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *Sqlite
 	return bs
 }
 
-func (s *SqliteBlockStore) InsertBlockAtHeight(
+func (s *PostgresBlockStore) InsertBlockAtHeight(
 	blockNumber uint64,
 	hash string,
 	blockTime uint64,
@@ -57,7 +53,7 @@ func (s *SqliteBlockStore) InsertBlockAtHeight(
 	return block, nil
 }
 
-func (s *SqliteBlockStore) InsertBlockTransaction(
+func (s *PostgresBlockStore) InsertBlockTransaction(
 	blockNumber uint64,
 	txHash string,
 	txIndex uint64,
@@ -88,7 +84,7 @@ func (s *SqliteBlockStore) InsertBlockTransaction(
 	return tx, nil
 }
 
-func (s *SqliteBlockStore) InsertTransactionLog(
+func (s *PostgresBlockStore) InsertTransactionLog(
 	txHash string,
 	transactionIndex uint64,
 	blockNumber uint64,
@@ -123,7 +119,7 @@ func (s *SqliteBlockStore) InsertTransactionLog(
 	return txLog, nil
 }
 
-func (s *SqliteBlockStore) GetLatestBlock() (*storage.Block, error) {
+func (s *PostgresBlockStore) GetLatestBlock() (*storage.Block, error) {
 	block := &storage.Block{}
 
 	query := `
@@ -140,7 +136,7 @@ func (s *SqliteBlockStore) GetLatestBlock() (*storage.Block, error) {
 	return block, nil
 }
 
-func (s *SqliteBlockStore) GetBlockByNumber(blockNumber uint64) (*storage.Block, error) {
+func (s *PostgresBlockStore) GetBlockByNumber(blockNumber uint64) (*storage.Block, error) {
 	block := &storage.Block{}
 
 	result := s.Db.Model(block).Where("number = ?", blockNumber).First(&block)
@@ -153,7 +149,7 @@ func (s *SqliteBlockStore) GetBlockByNumber(blockNumber uint64) (*storage.Block,
 	return block, nil
 }
 
-func (s *SqliteBlockStore) InsertOperatorRestakedStrategies(
+func (s *PostgresBlockStore) InsertOperatorRestakedStrategies(
 	avsDirectorAddress string,
 	blockNumber uint64,
 	blockTime time.Time,
@@ -178,22 +174,17 @@ func (s *SqliteBlockStore) InsertOperatorRestakedStrategies(
 	return ors, nil
 }
 
-func (s *SqliteBlockStore) GetLatestActiveAvsOperators(blockNumber uint64, avsDirectoryAddress string) ([]*storage.ActiveAvsOperator, error) {
+func (s *PostgresBlockStore) GetLatestActiveAvsOperators(blockNumber uint64, avsDirectoryAddress string) ([]*storage.ActiveAvsOperator, error) {
 	avsDirectoryAddress = strings.ToLower(avsDirectoryAddress)
 
 	rows := make([]*storage.ActiveAvsOperator, 0)
 	query := `
 		WITH latest_status AS (
-			SELECT
-				lower(json_extract(tl.arguments, '$[0].Value')) as operator,
-				lower(json_extract(tl.arguments, '$[1].Value')) as avs,
-				lower(json_extract(tl.output_data, '$.status')) as status,
-				ROW_NUMBER() OVER (
-					PARTITION BY
-						lower(json_extract(tl.arguments, '$[0].Value')),
-						lower(json_extract(tl.arguments, '$[1].Value'))
-					ORDER BY block_number DESC
-					) AS row_number
+			SELECT 
+				lower(tl.arguments #>> '{0,Value}') as operator,
+				lower(tl.arguments #>> '{1,Value}') as avs,
+				lower(tl.output_data #>> '{status}') as status,
+				ROW_NUMBER() OVER (PARTITION BY lower(tl.arguments #>> '{0,Value}'), lower(tl.arguments #>> '{1,Value}') ORDER BY block_number DESC, log_index desc) AS row_number
 			FROM transaction_logs as tl
 			WHERE
 				tl.address = ?
@@ -211,7 +202,7 @@ func (s *SqliteBlockStore) GetLatestActiveAvsOperators(blockNumber uint64, avsDi
 	return rows, nil
 }
 
-func (s *SqliteBlockStore) DeleteCorruptedState(startBlockNumber uint64, endBlockNumber uint64) error {
+func (s *PostgresBlockStore) DeleteCorruptedState(startBlockNumber uint64, endBlockNumber uint64) error {
 	if endBlockNumber != 0 && endBlockNumber < startBlockNumber {
 		s.Logger.Sugar().Errorw("Invalid block range",
 			zap.Uint64("startBlockNumber", startBlockNumber),

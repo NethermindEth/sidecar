@@ -65,7 +65,7 @@ func main() {
 
 	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
 
-	mds := sqliteBlockStore.NewSqliteBlockStore(grm, l, cfg)
+	mds := sqliteBlockStore.NewPostgresBlockStore(grm, l, cfg)
 	if err != nil {
 		log.Fatalln(err)
 	}

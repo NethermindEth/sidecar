@@ -4,7 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	_ "github.com/lib/pq"
+	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -24,6 +27,38 @@ type Postgres struct {
 	Db *sql.DB
 }
 
+func GetTestPostgresDatabase(cfg config.DatabaseConfig, l *zap.Logger) (
+	string,
+	*sql.DB,
+	*gorm.DB,
+	error,
+) {
+	testDbName, err := tests.GenerateTestDbName()
+	if err != nil {
+		return testDbName, nil, nil, err
+	}
+	cfg.DbName = testDbName
+
+	pgConfig := PostgresConfigFromDbConfig(&cfg)
+	pgConfig.CreateDbIfNotExists = true
+
+	pg, err := NewPostgres(pgConfig)
+	if err != nil {
+		return testDbName, nil, nil, err
+	}
+
+	grm, err := NewGormFromPostgresConnection(pg.Db)
+	if err != nil {
+		return testDbName, nil, nil, err
+	}
+
+	migrator := migrations.NewMigrator(pg.Db, grm, l)
+	if err = migrator.MigrateAll(); err != nil {
+		return testDbName, nil, nil, err
+	}
+	return testDbName, pg.Db, grm, nil
+}
+
 func PostgresConfigFromDbConfig(dbCfg *config.DatabaseConfig) *PostgresConfig {
 	return &PostgresConfig{
 		Host:     dbCfg.Host,
@@ -34,8 +69,7 @@ func PostgresConfigFromDbConfig(dbCfg *config.DatabaseConfig) *PostgresConfig {
 	}
 }
 
-func CreateDatabaseIfNotExists(cfg *PostgresConfig) error {
-	fmt.Printf("Creating database if not exists '%s'...\n", cfg.DbName)
+func getPostgresRootConnection(cfg *PostgresConfig) (*sql.DB, error) {
 	postgresConnStr := fmt.Sprintf("host=%s port=%d dbname=postgres sslmode=disable",
 		cfg.Host,
 		cfg.Port,
@@ -49,7 +83,33 @@ func CreateDatabaseIfNotExists(cfg *PostgresConfig) error {
 
 	postgresDB, err := sql.Open("postgres", postgresConnStr)
 	if err != nil {
-		return fmt.Errorf("error connecting to postgres database: %v", err)
+		return nil, fmt.Errorf("error connecting to postgres database: %v", err)
+	}
+	return postgresDB, nil
+}
+
+func DeleteTestDatabase(cfg *PostgresConfig, dbName string) error {
+	postgresDB, err := getPostgresRootConnection(cfg)
+	if err != nil {
+		return err
+	}
+	defer postgresDB.Close()
+
+	query := fmt.Sprintf("DROP DATABASE %s", dbName)
+	_, err = postgresDB.Exec(query)
+	if err != nil {
+		return fmt.Errorf("error dropping database: %v", err)
+	}
+	fmt.Printf("Database '%s' dropped successfully\n", cfg.DbName)
+	return nil
+}
+
+func CreateDatabaseIfNotExists(cfg *PostgresConfig) error {
+	fmt.Printf("Creating database if not exists '%s'...\n", cfg.DbName)
+
+	postgresDB, err := getPostgresRootConnection(cfg)
+	if err != nil {
+		return err
 	}
 	defer postgresDB.Close()
 
