@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 	"slices"
 	"testing"
+	"time"
 )
 
 func setupOperatorAvsRegistrationSnapshot() (
@@ -161,7 +162,8 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 					t.Logf("Operator/AVS not found in results: %+v\n", window)
 					lacksExpectedResult = append(lacksExpectedResult, window)
 				} else {
-					if !slices.Contains(found, window.Snapshot) {
+					snapshotStr := window.Snapshot.Format(time.DateOnly)
+					if !slices.Contains(found, snapshotStr) {
 						t.Logf("Found operator/AVS, but no snapshot: %+v - %+v\n", window, found)
 						lacksExpectedResult = append(lacksExpectedResult, window)
 					}

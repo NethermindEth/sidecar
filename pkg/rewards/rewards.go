@@ -101,7 +101,6 @@ func (rc *RewardsCalculator) getMostRecentDistributionRoot() (*submittedDistribu
 func (rc *RewardsCalculator) initializeRewardsSchema() error {
 	funcs := []func() error{
 		rc.CreateStakerShareSnapshotsTable,
-		rc.CreateStakerDelegationSnapshotsTable,
 
 		// Gold tables
 		rc.CreateGold1ActiveRewardsTable,
@@ -155,7 +154,7 @@ func (rc *RewardsCalculator) generateSnapshotData(startDate string, snapshotDate
 	}
 	rc.logger.Sugar().Debugw("Generated staker share snapshots")
 
-	if err = rc.GenerateAndInsertStakerDelegationSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertStakerDelegationSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", err)
 		return err
 	}

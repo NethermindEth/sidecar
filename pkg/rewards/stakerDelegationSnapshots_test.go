@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"slices"
 	"testing"
+	"time"
 )
 
 func setupStakerDelegationSnapshot() (
@@ -21,30 +21,39 @@ func setupStakerDelegationSnapshot() (
 	*zap.Logger,
 	error,
 ) {
+	testContext := getRewardsTestContext()
 	cfg := tests.GetConfig()
+	switch testContext {
+	case "testnet":
+		cfg.Chain = config.Chain_Holesky
+	case "testnet-reduced":
+		cfg.Chain = config.Chain_Holesky
+	case "mainnet-reduced":
+		cfg.Chain = config.Chain_Mainnet
+	default:
+		return "", nil, nil, nil, fmt.Errorf("Unknown test context")
+	}
+
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return dbFileName, cfg, db, l, err
+	return dbname, cfg, grm, l, nil
 }
 
-func teardownStakerDelegationSnapshot(grm *gorm.DB) {
-	queries := []string{
-		`delete from staker_delegation_changes`,
-		`delete from blocks`,
-	}
-	for _, query := range queries {
-		if res := grm.Exec(query); res.Error != nil {
-			fmt.Printf("Failed to run query: %v\n", res.Error)
-		}
+func teardownStakerDelegationSnapshot(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
+	rawDb, _ := db.DB()
+	_ = rawDb.Close()
+
+	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
+
+	if err := postgres.DeleteTestDatabase(pgConfig, dbname); err != nil {
+		l.Sugar().Errorw("Failed to delete test database", "error", err)
 	}
 }
 
@@ -82,6 +91,8 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	startDate := "1970-01-01"
+
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
 		if _, err := hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
@@ -94,7 +105,7 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
 		t.Log("Generating staker delegation snapshots")
-		snapshots, err := rewards.GenerateStakerDelegationSnapshots(snapshotDate)
+		snapshots, err := rewards.GenerateStakerDelegationSnapshots(startDate, snapshotDate)
 		assert.Nil(t, err)
 
 		t.Log("Getting expected results")
@@ -125,7 +136,8 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 					t.Logf("Staker/operator not found in results: %+v\n", snapshot)
 					lacksExpectedResult = append(lacksExpectedResult, snapshot)
 				} else {
-					if !slices.Contains(found, snapshot.Snapshot) {
+					snapshotStr := snapshot.Snapshot.Format(time.DateOnly)
+					if !slices.Contains(found, snapshotStr) {
 						t.Logf("Found staker operator, but no snapshot: %+v - %+v\n", snapshot, found)
 						lacksExpectedResult = append(lacksExpectedResult, snapshot)
 					}
@@ -141,7 +153,6 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 		}
 	})
 	t.Cleanup(func() {
-		teardownStakerDelegationSnapshot(grm)
-		tests.DeleteTestSqliteDB(dbFileName)
+		teardownStakerDelegationSnapshot(dbFileName, cfg, grm, l)
 	})
 }
