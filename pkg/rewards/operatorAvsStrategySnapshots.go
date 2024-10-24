@@ -28,11 +28,11 @@ with ranked_records AS (
 		lower(avs) as avs,
 		lower(strategy) as strategy,
 		block_time,
-		DATE(block_time, '+1 day') as start_time,
+		date_trunc('day', CAST(block_time as timestamp(6))) + interval '1' day as start_time,
 		ROW_NUMBER() OVER (
-			PARTITION BY operator, avs, strategy, DATE(block_time, '+1 day')
-			ORDER BY block_time DESC -- want latest records to be ranked highest
-		) AS rn
+            PARTITION BY operator, avs, strategy, date_trunc('day', CAST(block_time as timestamp(6))) + interval '1' day
+            ORDER BY block_time DESC -- want latest records to be ranked highest
+            ) AS rn
 	FROM operator_restaked_strategies
 	WHERE avs_directory_address = lower(@avsDirectoryAddress)
 ),
@@ -70,7 +70,7 @@ parsed_ranges AS (
 		start_time,
 		-- If the next_start_time is not on the consecutive day, close off the end_time
 		CASE
-			WHEN next_start_time IS NULL OR next_start_time > DATE(start_time, '+1 day') THEN start_time
+			WHEN next_start_time IS NULL OR next_start_time > start_time + INTERVAL '1' DAY THEN start_time
 			ELSE next_start_time
 		END AS end_time
 	FROM grouped_records
@@ -81,26 +81,15 @@ active_windows as (
 	FROM parsed_ranges
 	WHERE start_time != end_time
 ),
-partitioned_gaps_and_islands as (
-	select
+gaps_and_islands AS (
+	SELECT
 		operator,
 		avs,
 		strategy,
 		start_time,
 		end_time,
-		ROW_NUMBER() OVER (PARTITION BY operator, avs, strategy ORDER BY start_time) as rn
-	from active_windows
-),
--- Mark the prev_end_time for each row. If new window, then gap is empty
-gaps_and_islands AS (
-    SELECT
-        operator,
-        avs,
-        strategy,
-        start_time,
-        end_time,
-        LAG(end_time) OVER(PARTITION BY operator, avs, strategy ORDER BY start_time) as prev_end_time
-    FROM active_windows
+		LAG(end_time) OVER(PARTITION BY operator, avs, strategy ORDER BY start_time) as prev_end_time
+	FROM active_windows
 ),
 -- Detect islands
 island_detection AS (
@@ -114,22 +103,16 @@ island_detection AS (
 ),
 -- Group each based on their ID
 island_groups AS (
-	SELECT
-		t1.operator,
-		t1.avs,
-		t1.strategy,
-		t1.start_time,
-		t1.end_time,
-		(
-			SELECT SUM(t2.new_island)
-			FROM island_detection t2
-			WHERE t2.operator = t1.operator
-			AND t2.avs = t1.avs
-			AND t2.strategy = t1.strategy
-			AND t2.start_time <= t1.start_time
-		) AS island_id
-	FROM island_detection t1
-	ORDER BY t1.operator, t1.avs, t1.strategy, t1.start_time
+	 SELECT
+		 operator,
+		 avs,
+		 strategy,
+		 start_time,
+		 end_time,
+		 SUM(new_island) OVER (
+			 PARTITION BY operator, avs, strategy ORDER BY start_time
+			 ) AS island_id
+	 FROM island_detection
 ),
 operator_avs_strategy_windows AS (
 	SELECT
@@ -147,49 +130,31 @@ cleaned_records AS (
 	FROM operator_avs_strategy_windows
 	WHERE start_time < end_time
 ),
-date_bounds as (
-	select
-		min(start_time) as min_start,
-		max(end_time) as max_end
-	from cleaned_records
-),
-day_series AS (
-	with RECURSIVE day_series_inner AS (
-		SELECT DATE(min_start) AS day
-		FROM date_bounds
-		UNION ALL
-		SELECT DATE(day, '+1 day')
-		FROM day_series_inner
-		WHERE day < (SELECT max_end FROM date_bounds)
-	)
-	select * from day_series_inner
-),
 final_results as (
-	select
+	SELECT
 		operator,
 		avs,
 		strategy,
-		day as snapshot
-	from cleaned_records
-	cross join day_series
-	where DATE(day) between DATE(start_time) and DATE(end_time, '-1 day')
+		cast(day AS DATE) AS snapshot
+	FROM cleaned_records
+		CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 )
-select * from final_results;
+select * from final_results
+where
+	snapshot >= @startDate
+	and snapshot < @cutoffDate
 `
 
-type OperatorAvsStrategySnapshot struct {
-	Operator string
-	Avs      string
-	Strategy string
-	Snapshot string
-}
-
-func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(snapshotDate string) ([]*OperatorAvsStrategySnapshot, error) {
+func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(startDate string, snapshotDate string) ([]*OperatorAvsStrategySnapshot, error) {
 	results := make([]*OperatorAvsStrategySnapshot, 0)
 
 	contractAddresses := r.globalConfig.GetContractsMapForChain()
 
-	res := r.grm.Raw(operatorAvsStrategyWindowsQuery, sql.Named("avsDirectoryAddress", contractAddresses.AvsDirectory)).Scan(&results)
+	res := r.grm.Raw(operatorAvsStrategyWindowsQuery,
+		sql.Named("startDate", startDate),
+		sql.Named("cutoffDate", snapshotDate),
+		sql.Named("avsDirectoryAddress", contractAddresses.AvsDirectory),
+	).Scan(&results)
 
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator AVS strategy windows", "error", res.Error)
@@ -198,8 +163,8 @@ func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(snapshotDate st
 	return results, nil
 }
 
-func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(snapshotDate string) error {
-	snapshots, err := r.GenerateOperatorAvsStrategySnapshots(snapshotDate)
+func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(startDate string, snapshotDate string) error {
+	snapshots, err := r.GenerateOperatorAvsStrategySnapshots(startDate, snapshotDate)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator AVS strategy snapshots", "error", err)
 		return err
@@ -210,27 +175,6 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(snapsh
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to insert operator AVS strategy snapshots", "error", res.Error)
 		return res.Error
-	}
-	return nil
-}
-
-func (r *RewardsCalculator) CreateOperatorAvsStrategySnapshotsTable() error {
-	queries := []string{
-		`CREATE TABLE IF NOT EXISTS operator_avs_strategy_snapshots (
-				operator TEXT NOT NULL,
-				avs TEXT NOT NULL,
-				strategy TEXT NOT NULL,
-				snapshot DATE NOT NULL
-			);
-		`,
-		`CREATE INDEX IF NOT EXISTS idx_operator_avs_strategy_snapshots_avs_strat_snap ON operator_avs_strategy_snapshots (avs, strategy, snapshot);`,
-	}
-	for _, query := range queries {
-		res := r.grm.Exec(query)
-		if res.Error != nil {
-			r.logger.Sugar().Errorw("Failed to create operator_avs_strategy_snapshots table", "error", res.Error)
-			return res.Error
-		}
 	}
 	return nil
 }

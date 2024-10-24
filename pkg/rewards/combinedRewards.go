@@ -1,9 +1,5 @@
 package rewards
 
-import (
-	"time"
-)
-
 const rewardsCombinedQuery = `
 	with combined_rewards as (
 		select
@@ -28,23 +24,6 @@ const rewardsCombinedQuery = `
 	select * from combined_rewards
 	where rn = 1
 `
-
-type CombinedRewards struct {
-	Avs            string
-	RewardHash     string
-	Token          string
-	Amount         string
-	Strategy       string
-	StrategyIndex  uint64
-	Multiplier     string
-	StartTimestamp time.Time
-	EndTimestamp   time.Time
-	Duration       uint64
-	BlockNumber    uint64
-	BlockDate      string
-	BlockTime      time.Time
-	RewardType     string // avs, all_stakers, all_earners
-}
 
 func (r *RewardsCalculator) GenerateCombinedRewards() ([]*CombinedRewards, error) {
 	combinedRewards := make([]*CombinedRewards, 0)

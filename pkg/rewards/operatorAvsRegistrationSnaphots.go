@@ -108,12 +108,6 @@ where
 	and snapshot < @cutoffDate
 `
 
-type OperatorAvsRegistrationSnapshots struct {
-	Avs      string
-	Operator string
-	Snapshot string
-}
-
 // GenerateOperatorAvsRegistrationSnapshots returns a list of OperatorAvsRegistrationSnapshots objects
 func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(startDate string, snapshotDate string) ([]*OperatorAvsRegistrationSnapshots, error) {
 	results := make([]*OperatorAvsRegistrationSnapshots, 0)

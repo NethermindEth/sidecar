@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func setupOperatorAvsStrategyWindows() (
@@ -35,26 +35,26 @@ func setupOperatorAvsStrategyWindows() (
 		return "", nil, nil, nil, fmt.Errorf("Unknown test context")
 	}
 
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return dbFileName, cfg, db, l, err
+	return dbname, cfg, grm, l, nil
 }
 
-func teardownOperatorAvsStrategyWindows(grm *gorm.DB) {
-	queries := []string{
-		`delete from operator_avs_strategy_snapshots`,
-	}
-	for _, query := range queries {
-		grm.Exec(query)
+func teardownOperatorAvsStrategyWindows(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
+	rawDb, _ := db.DB()
+	_ = rawDb.Close()
+
+	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
+
+	if err := postgres.DeleteTestDatabase(pgConfig, dbname); err != nil {
+		l.Sugar().Errorw("Failed to delete test database", "error", err)
 	}
 }
 
@@ -92,9 +92,7 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err != nil {
-		t.Fatal(err)
-	}
+	startDate := "1970-01-01"
 
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
 		t.Log("Hydrating restaked strategies")
@@ -115,7 +113,7 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 		case "testnet-reduced":
 			assert.Equal(t, 1591921, count)
 		case "mainnet-reduced":
-			assert.Equal(t, 2317332, count)
+			assert.Equal(t, 2497286, count)
 		default:
 			t.Fatal("Unknown test context")
 		}
@@ -125,7 +123,7 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
 		t.Log("Generating snapshots")
-		windows, err := rewards.GenerateOperatorAvsStrategySnapshots(snapshotDate)
+		windows, err := rewards.GenerateOperatorAvsStrategySnapshots(startDate, snapshotDate)
 		assert.Nil(t, err)
 
 		t.Log("Getting expected results")
@@ -158,7 +156,8 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 				t.Logf("Could not find expected result for %+v", window)
 				continue
 			}
-			if !slices.Contains(found, window.Snapshot) {
+			windowSnapshot := window.Snapshot.Format(time.DateOnly)
+			if !slices.Contains(found, windowSnapshot) {
 				t.Logf("Found result, but snapshot doesnt match: %+v - %v", window, found)
 				lacksExpectedResult = append(lacksExpectedResult, window)
 			}
@@ -166,7 +165,6 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 		assert.Equal(t, 0, len(lacksExpectedResult))
 	})
 	t.Cleanup(func() {
-		teardownOperatorAvsStrategyWindows(grm)
-		tests.DeleteTestSqliteDB(dbFileName)
+		teardownOperatorAvsStrategyWindows(dbFileName, cfg, grm, l)
 	})
 }

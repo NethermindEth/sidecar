@@ -20,7 +20,19 @@ func setupOperatorAvsRegistrationSnapshot() (
 	*zap.Logger,
 	error,
 ) {
+	testContext := getRewardsTestContext()
 	cfg := tests.GetConfig()
+	switch testContext {
+	case "testnet":
+		cfg.Chain = config.Chain_Holesky
+	case "testnet-reduced":
+		cfg.Chain = config.Chain_Holesky
+	case "mainnet-reduced":
+		cfg.Chain = config.Chain_Mainnet
+	default:
+		return "", nil, nil, nil, fmt.Errorf("Unknown test context")
+	}
+
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
