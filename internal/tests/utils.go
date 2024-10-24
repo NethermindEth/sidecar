@@ -4,10 +4,32 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/gocarina/gocsv"
+	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+func GenerateTestDbName() (string, error) {
+	fileName, err := uuid.NewUUID()
+	if err != nil {
+		return "", err
+	}
+	// remove dashes
+	fileNameStr := strings.ReplaceAll(fileName.String(), "-", "")
+	return fmt.Sprintf("test_%s_%v", fileNameStr, time.Now().Unix()), nil
+}
+
+func GetDbConfigFromEnv() *config.DatabaseConfig {
+	return &config.DatabaseConfig{
+		Host:     os.Getenv(config.GetEnvVarVar(config.DatabaseHost)),
+		Port:     config.StringVarToInt(os.Getenv(config.GetEnvVarVar(config.DatabasePort))),
+		User:     os.Getenv(config.GetEnvVarVar(config.DatabaseUser)),
+		Password: os.Getenv(config.GetEnvVarVar(config.DatabasePassword)),
+		DbName:   os.Getenv(config.GetEnvVarVar(config.DatabaseDbName)),
+	}
+}
 
 func GetConfig() *config.Config {
 	return config.NewConfig()

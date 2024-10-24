@@ -51,7 +51,7 @@ func init() {
 }
 
 func initConfig(cmd *cobra.Command) {
-	viper.SetEnvPrefix("sidecar")
+	viper.SetEnvPrefix(config.ENV_PREFIX)
 
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
 

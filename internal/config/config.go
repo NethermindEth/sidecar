@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/viper"
+	"strconv"
 	"strings"
 )
 
@@ -23,6 +24,8 @@ const (
 
 	Fork_Nile   ForkName = "nile"
 	Fork_Amazon ForkName = "amazon"
+
+	ENV_PREFIX = "SIDECAR"
 )
 
 func parseListEnvVar(envVar string) []string {
@@ -54,6 +57,7 @@ type Config struct {
 	EthereumRpcConfig EthereumRpcConfig
 	EtherscanConfig   EtherscanConfig
 	SqliteConfig      SqliteConfig
+	DatabaseConfig    DatabaseConfig
 	RpcConfig         RpcConfig
 	Chain             Chain
 	DataDir           string
@@ -72,6 +76,14 @@ type SqliteConfig struct {
 	InMemory       bool
 	DbFilePath     string
 	ExtensionsPath []string
+}
+
+type DatabaseConfig struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	DbName   string
 }
 
 type RpcConfig struct {
@@ -93,6 +105,14 @@ func StringWithDefault(value, defaultValue string) string {
 	return value
 }
 
+var (
+	DatabaseHost     = "database.host"
+	DatabasePort     = "database.port"
+	DatabaseUser     = "database.user"
+	DatabasePassword = "database.password"
+	DatabaseDbName   = "database.db_name"
+)
+
 func NewConfig() *Config {
 	return &Config{
 		Debug:     viper.GetBool(normalizeFlagName("debug")),
@@ -111,6 +131,14 @@ func NewConfig() *Config {
 		SqliteConfig: SqliteConfig{
 			InMemory:       viper.GetBool(normalizeFlagName("sqlite.in_memory")),
 			ExtensionsPath: parseListEnvVar(viper.GetString(normalizeFlagName("sqlite.extensions_path"))),
+		},
+
+		DatabaseConfig: DatabaseConfig{
+			Host:     viper.GetString(normalizeFlagName(DatabaseHost)),
+			Port:     viper.GetInt(normalizeFlagName(DatabasePort)),
+			User:     viper.GetString(normalizeFlagName(DatabaseUser)),
+			Password: viper.GetString(normalizeFlagName(DatabasePassword)),
+			DbName:   viper.GetString(normalizeFlagName(DatabaseDbName)),
 		},
 
 		RpcConfig: RpcConfig{
@@ -246,4 +274,18 @@ func (c *Config) GetOperatorRestakedStrategiesStartBlock() int64 {
 
 func KebabToSnakeCase(str string) string {
 	return strings.ReplaceAll(str, "-", "_")
+}
+
+func GetEnvVarVar(key string) string {
+	// replace . with _ and uppercase
+	key = strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
+	return fmt.Sprintf("%s_%s", ENV_PREFIX, key)
+}
+
+func StringVarToInt(val string) int {
+	v, err := strconv.Atoi(val)
+	if err != nil {
+		return 0
+	}
+	return v
 }
