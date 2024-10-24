@@ -31,3 +31,10 @@ type OperatorAvsStrategySnapshot struct {
 	Strategy string
 	Snapshot time.Time
 }
+
+type OperatorShareSnapshots struct {
+	Operator string
+	Strategy string
+	Shares   string
+	Snapshot time.Time
+}

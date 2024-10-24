@@ -100,7 +100,6 @@ func (rc *RewardsCalculator) getMostRecentDistributionRoot() (*submittedDistribu
 
 func (rc *RewardsCalculator) initializeRewardsSchema() error {
 	funcs := []func() error{
-		rc.CreateOperatorSharesSnapshotsTable,
 		rc.CreateStakerShareSnapshotsTable,
 		rc.CreateStakerDelegationSnapshotsTable,
 
@@ -144,7 +143,7 @@ func (rc *RewardsCalculator) generateSnapshotData(startDate string, snapshotDate
 	}
 	rc.logger.Sugar().Debugw("Generated operator AVS strategy snapshots")
 
-	if err = rc.GenerateAndInsertOperatorShareSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertOperatorShareSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", err)
 		return err
 	}
