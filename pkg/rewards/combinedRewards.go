@@ -37,13 +37,13 @@ type CombinedRewards struct {
 	Strategy       string
 	StrategyIndex  uint64
 	Multiplier     string
-	StartTimestamp *time.Time `gorm:"type:DATETIME"`
-	EndTimestamp   *time.Time `gorm:"type:DATETIME"`
+	StartTimestamp time.Time
+	EndTimestamp   time.Time
 	Duration       uint64
 	BlockNumber    uint64
 	BlockDate      string
-	BlockTime      *time.Time `gorm:"type:DATETIME"`
-	RewardType     string     // avs, all_stakers, all_earners
+	BlockTime      time.Time
+	RewardType     string // avs, all_stakers, all_earners
 }
 
 func (r *RewardsCalculator) GenerateCombinedRewards() ([]*CombinedRewards, error) {
@@ -68,32 +68,6 @@ func (r *RewardsCalculator) GenerateAndInsertCombinedRewards() error {
 	res := r.grm.Model(&CombinedRewards{}).CreateInBatches(combinedRewards, 500)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to insert combined rewards", "error", res.Error)
-		return res.Error
-	}
-	return nil
-}
-
-func (r *RewardsCalculator) CreateCombinedRewardsTable() error {
-	res := r.grm.Exec(`
-		CREATE TABLE IF NOT EXISTS combined_rewards (
-			avs TEXT,
-			reward_hash TEXT,
-			token TEXT,
-			amount TEXT,
-			strategy TEXT,
-			strategy_index INTEGER,
-			multiplier TEXT,
-			start_timestamp DATETIME,
-			end_timestamp DATETIME,
-			duration INTEGER,
-			block_number INTEGER,
-			block_time DATETIME,
-			block_date DATE,
-			reward_type string
-		)`,
-	)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to create combined_rewards table", "error", res.Error)
 		return res.Error
 	}
 	return nil

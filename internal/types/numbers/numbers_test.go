@@ -39,10 +39,6 @@ func roundToEven(f *big.Float) *big.Float {
 }
 
 func Test_Numbers(t *testing.T) {
-	if err := InitPython(); err != nil {
-		t.Error(err)
-	}
-	defer FinalizePython()
 
 	t.Run("Test that big.Int can produce negative numbers", func(t *testing.T) {
 		startingNum := big.Int{}

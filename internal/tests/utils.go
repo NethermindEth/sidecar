@@ -12,7 +12,7 @@ import (
 )
 
 func GenerateTestDbName() (string, error) {
-	fileName, err := uuid.NewUUID()
+	fileName, err := uuid.NewRandom()
 	if err != nil {
 		return "", err
 	}
@@ -95,7 +95,6 @@ func getExpectedResultsCsvFile[T any](filePath string) ([]*T, error) {
 
 func GetAllBlocksSqlFile(projectBase string) (string, error) {
 	path := getTestdataPathFromProjectRoot(projectBase, "/allBlocks.sql")
-	fmt.Printf("Path: %v\n", path)
 	return getSqlFile(path)
 }
 

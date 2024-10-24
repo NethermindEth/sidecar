@@ -37,18 +37,6 @@ func setup() (
 }
 
 func teardown(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
-	queries := []string{
-		`truncate blocks cascade`,
-		`truncate transactions cascade`,
-		`truncate transaction_logs cascade`,
-		`truncate transaction_logs cascade`,
-	}
-	for _, query := range queries {
-		res := db.Exec(query)
-		if res.Error != nil {
-			l.Sugar().Errorw("Failed to truncate table", "error", res.Error)
-		}
-	}
 	rawDb, _ := db.DB()
 	_ = rawDb.Close()
 

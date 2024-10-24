@@ -100,7 +100,7 @@ func DeleteTestDatabase(cfg *PostgresConfig, dbName string) error {
 	if err != nil {
 		return fmt.Errorf("error dropping database: %v", err)
 	}
-	fmt.Printf("Database '%s' dropped successfully\n", cfg.DbName)
+	fmt.Printf("Database '%s' dropped successfully\n", dbName)
 	return nil
 }
 

@@ -105,7 +105,6 @@ func (rc *RewardsCalculator) initializeRewardsSchema() error {
 		rc.CreateOperatorSharesSnapshotsTable,
 		rc.CreateStakerShareSnapshotsTable,
 		rc.CreateStakerDelegationSnapshotsTable,
-		rc.CreateCombinedRewardsTable,
 
 		// Gold tables
 		rc.CreateGold1ActiveRewardsTable,
