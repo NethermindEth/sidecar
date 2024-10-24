@@ -152,7 +152,7 @@ SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
 `
 
-func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(startDate string, snapshotDate string, forks config.ForkMap) error {
 	res := rc.grm.Exec(_2_goldStakerRewardAmountsQuery,
 		sql.Named("amazonHardforkDate", forks[config.Fork_Amazon]),
 		sql.Named("nileHardforkDate", forks[config.Fork_Nile]),

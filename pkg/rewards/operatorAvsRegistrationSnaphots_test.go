@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -22,29 +21,26 @@ func setupOperatorAvsRegistrationSnapshot() (
 	error,
 ) {
 	cfg := tests.GetConfig()
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return dbFileName, cfg, db, l, err
+	return dbname, cfg, grm, l, nil
 }
 
-func teardownOperatorAvsRegistrationSnapshot(grm *gorm.DB) {
-	queries := []string{
-		`delete from avs_operator_state_changes`,
-		`delete from blocks`,
-	}
-	for _, query := range queries {
-		if res := grm.Exec(query); res.Error != nil {
-			fmt.Printf("Failed to run query: %v\n", res.Error)
-		}
+func teardownOperatorAvsRegistrationSnapshot(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
+	rawDb, _ := db.DB()
+	_ = rawDb.Close()
+
+	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
+
+	if err := postgres.DeleteTestDatabase(pgConfig, dbname); err != nil {
+		l.Sugar().Errorw("Failed to delete test database", "error", err)
 	}
 }
 
@@ -83,6 +79,8 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	startDate := "1970-01-01"
+
 	t.Run("Should hydrate blocks and operatorAvsStateChanges tables", func(t *testing.T) {
 		totalBlockCount, err := hydrateAllBlocksTable(grm, l)
 		if err != nil {
@@ -109,7 +107,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		case "testnet-reduced":
 			assert.Equal(t, 16042, count)
 		case "mainnet-reduced":
-			assert.Equal(t, 1752, count)
+			assert.Equal(t, 1922, count)
 		default:
 			t.Fatal("Unknown test context")
 		}
@@ -117,7 +115,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 	t.Run("Should generate the proper operatorAvsRegistrationWindows", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
-		snapshots, err := rewards.GenerateOperatorAvsRegistrationSnapshots(snapshotDate)
+		snapshots, err := rewards.GenerateOperatorAvsRegistrationSnapshots(startDate, snapshotDate)
 		assert.Nil(t, err)
 		assert.NotNil(t, snapshots)
 
@@ -167,7 +165,6 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		}
 	})
 	t.Cleanup(func() {
-		tests.DeleteTestSqliteDB(dbFileName)
-		teardownOperatorAvsRegistrationSnapshot(grm)
+		teardownOperatorAvsRegistrationSnapshot(dbFileName, cfg, grm, l)
 	})
 }

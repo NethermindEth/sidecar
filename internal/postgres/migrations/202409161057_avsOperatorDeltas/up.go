@@ -16,7 +16,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			avs varchar not null,
 			block_number bigint not null,
 			log_index integer not null,
-			registered integer not null,
+			registered boolean not null,
 			created_at timestamp with time zone DEFAULT current_timestamp,
 			unique(operator, avs, block_number, log_index)
 		);

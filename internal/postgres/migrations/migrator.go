@@ -14,6 +14,7 @@ import (
 	_202409161057_avsOperatorDeltas "github.com/Layr-Labs/go-sidecar/internal/postgres/migrations/202409161057_avsOperatorDeltas"
 	_202409181340_stakerDelegationDelta "github.com/Layr-Labs/go-sidecar/internal/postgres/migrations/202409181340_stakerDelegationDelta"
 	_202410241239_combinedRewards "github.com/Layr-Labs/go-sidecar/internal/postgres/migrations/202410241239_combinedRewards"
+	_202410241313_operatorAvsRegistrationSnapshots "github.com/Layr-Labs/go-sidecar/internal/postgres/migrations/202410241313_operatorAvsRegistrationSnapshots"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -53,6 +54,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202409161057_avsOperatorDeltas.Migration{},
 		&_202409181340_stakerDelegationDelta.Migration{},
 		&_202410241239_combinedRewards.Migration{},
+		&_202410241313_operatorAvsRegistrationSnapshots.Migration{},
 	}
 
 	for _, migration := range migrations {

@@ -100,7 +100,6 @@ func (rc *RewardsCalculator) getMostRecentDistributionRoot() (*submittedDistribu
 
 func (rc *RewardsCalculator) initializeRewardsSchema() error {
 	funcs := []func() error{
-		rc.CreateOperatorAvsRegistrationSnapshotsTable,
 		rc.CreateOperatorAvsStrategySnapshotsTable,
 		rc.CreateOperatorSharesSnapshotsTable,
 		rc.CreateStakerShareSnapshotsTable,
@@ -125,7 +124,7 @@ func (rc *RewardsCalculator) initializeRewardsSchema() error {
 	return nil
 }
 
-func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
+func (rc *RewardsCalculator) generateSnapshotData(startDate string, snapshotDate string) error {
 	var err error
 
 	if err = rc.GenerateAndInsertCombinedRewards(); err != nil {
@@ -134,7 +133,7 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	}
 	rc.logger.Sugar().Debugw("Generated combined rewards")
 
-	if err = rc.GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertOperatorAvsRegistrationSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator AVS registration snapshots", "error", err)
 		return err
 	}
@@ -170,4 +169,25 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 func (rc *RewardsCalculator) calculateRewards(previousSnapshotDate string, snapshotDate time.Time) error {
 
 	return nil
+}
+
+// GetNextSnapshotDate retrieves the next snapshot date from the gold_table
+// If no snapshot exists, it returns a default date of '1970-01-01'
+func (rc *RewardsCalculator) GetNextSnapshotDate() (string, error) {
+	var maxDate string
+	query := `
+		with max_date as (
+			select max(snapshot) as snapshot from gold_table
+		)
+		SELECT
+			CASE WHEN md.snapshot IS NULL
+			THEN '1970-01-01' ELSE DATE(md.snapshot) + interval '1' day END as snapshot
+		FROM max_date as md
+	`
+	res := rc.grm.Raw(query).Scan(&maxDate)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to get max snapshot date", "error", res.Error)
+		return "", res.Error
+	}
+	return maxDate, nil
 }

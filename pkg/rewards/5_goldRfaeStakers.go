@@ -1,5 +1,7 @@
 package rewards
 
+import "github.com/Layr-Labs/go-sidecar/internal/config"
+
 const _5_goldRfaeStakersQuery = `
 insert into gold_5_rfae_stakers
 WITH avs_opted_operators AS (
@@ -126,7 +128,7 @@ SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
 `
 
-func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable() error {
+func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(forks config.ForkMap) error {
 	res := rc.grm.Exec(_5_goldRfaeStakersQuery)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to generate gold_rfae_stakers", "error", res.Error)
