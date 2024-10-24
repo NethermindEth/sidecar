@@ -69,7 +69,7 @@ deduped_earners AS (
     snapshot,
     reward_hash,
     token,
-    sum_big(amount) as amount
+    SUM(amount) as amount
   FROM combined_rewards
   GROUP BY
     earner,
@@ -79,30 +79,18 @@ deduped_earners AS (
 )
 SELECT *
 FROM deduped_earners
+where
+	snapshot >= @startDate
+	and snapshot < @cutoffDate
 `
 
-func (rc *RewardsCalculator) GenerateGold7StagingTable() error {
-	res := rc.grm.Exec(_7_goldStagingQuery)
+func (rc *RewardsCalculator) GenerateGold7StagingTable(startDate string, snapshotDate string) error {
+	res := rc.grm.Exec(_7_goldStagingQuery,
+		sql.Named("startDate", startDate),
+		sql.Named("cutoffDate", snapshotDate),
+	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staging", "error", res.Error)
-		return res.Error
-	}
-	return nil
-}
-
-func (rc *RewardsCalculator) CreateGold7StagingTable() error {
-	query := `
-		create table if not exists gold_7_staging (
-			earner TEXT NOT NULL,
-			snapshot DATE NOT NULL,
-			reward_hash TEXT NOT NULL,
-			token TEXT NOT NULL,
-			amount TEXT NOT NULL
-		)
-	`
-	res := rc.grm.Exec(query)
-	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_7_staging", "error", res.Error)
 		return res.Error
 	}
 	return nil

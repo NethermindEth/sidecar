@@ -27,10 +27,6 @@ func NewRewardsCalculator(
 		globalConfig: cfg,
 	}
 
-	if err := rc.initializeRewardsSchema(); err != nil {
-		l.Sugar().Errorw("Failed to initialize rewards schema", zap.Error(err))
-		return nil, err
-	}
 	return rc, nil
 }
 
@@ -96,28 +92,6 @@ func (rc *RewardsCalculator) getMostRecentDistributionRoot() (*submittedDistribu
 		return nil, res.Error
 	}
 	return distributionRoot, nil
-}
-
-func (rc *RewardsCalculator) initializeRewardsSchema() error {
-	funcs := []func() error{
-
-		// Gold tables
-		rc.CreateGold1ActiveRewardsTable,
-		rc.CreateGold2RewardAmountsTable,
-		rc.CreateGold3OperatorRewardsTable,
-		rc.CreateGold4RewardsForAllTable,
-		rc.CreateGold5RfaeStakersTable,
-		rc.CreateGold6RfaeOperatorsTable,
-		rc.CreateGold7StagingTable,
-		rc.Create8GoldTable,
-	}
-	for _, f := range funcs {
-		err := f()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (rc *RewardsCalculator) generateSnapshotData(startDate string, snapshotDate string) error {

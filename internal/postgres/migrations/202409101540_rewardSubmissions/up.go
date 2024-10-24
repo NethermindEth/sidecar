@@ -17,7 +17,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			amount numeric not null,
 			strategy varchar not null,
 			strategy_index integer not null,
-			multiplier numeric not null,
+			multiplier numeric(78) not null,
 			start_timestamp timestamp with time zone not null,
 			end_timestamp timestamp with time zone not null,
 			duration bigint not null,

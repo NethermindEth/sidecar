@@ -1,33 +1,22 @@
 package rewards
 
+import "database/sql"
+
 const _6_goldRfaeOperatorsQuery = `
 insert into gold_6_rfae_operators
-with operator_token_sums_grouped as (
-    select
-    	operator,
-    	reward_hash,
-    	snapshot,
-    	sum_big(operator_tokens) AS operator_tokens
-    from gold_5_rfae_stakers
-    group by operator, reward_hash, snapshot
-),
-operator_token_sums AS (
+WITH operator_token_sums AS (
   SELECT
-    g.reward_hash,
-    g.snapshot,
-    g.token,
-    g.avs,
-    g.strategy,
-    g.multiplier,
-    g.reward_type,
-    g.operator,
-    otg.operator_tokens
-  FROM gold_5_rfae_stakers as g
-  join operator_token_sums_grouped as otg on (
-	g.operator = otg.operator
-   	and g.reward_hash = otg.reward_hash
-   	and g.snapshot = otg.snapshot
-  )
+    reward_hash,
+    snapshot,
+    token,
+    tokens_per_day_decimal,
+    avs,
+    strategy,
+    multiplier,
+    reward_type,
+    operator,
+    SUM(operator_tokens) OVER (PARTITION BY operator, reward_hash, snapshot) AS operator_tokens
+  FROM gold_5_rfae_stakers
 ),
 -- Dedupe the operator tokens across strategies for each operator, reward hash, and snapshot
 distinct_operators AS (
@@ -42,35 +31,18 @@ distinct_operators AS (
   WHERE rn = 1
 )
 SELECT * FROM distinct_operators
+where
+	snapshot >= @startDate
+	and snapshot < @cutoffDate
 `
 
-func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable() error {
-	res := rc.grm.Exec(_6_goldRfaeOperatorsQuery)
+func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(startDate string, snapshotDate string) error {
+	res := rc.grm.Exec(_6_goldRfaeOperatorsQuery,
+		sql.Named("startDate", startDate),
+		sql.Named("cutoffDate", snapshotDate),
+	)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_rfae_operators", "error", res.Error)
-		return res.Error
-	}
-	return nil
-}
-
-func (rc *RewardsCalculator) CreateGold6RfaeOperatorsTable() error {
-	query := `
-		create table if not exists gold_6_rfae_operators (
-			reward_hash TEXT NOT NULL,
-			snapshot DATE NOT NULL,
-			token TEXT NOT NULL,
-			avs TEXT NOT NULL,
-			strategy TEXT NOT NULL,
-			multiplier TEXT NOT NULL,
-			reward_type TEXT NOT NULL,
-			operator TEXT NOT NULL,
-			operator_tokens TEXT NOT NULL,
-			rn INTEGER NOT NULL
-		)
-	`
-	res := rc.grm.Exec(query)
-	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_6_rfae_operators", "error", res.Error)
 		return res.Error
 	}
 	return nil
