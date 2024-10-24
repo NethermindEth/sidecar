@@ -18,6 +18,7 @@ import (
 	_202410241417_operatorAvsStrategySnapshots "github.com/Layr-Labs/go-sidecar/internal/postgres/migrations/202410241417_operatorAvsStrategySnapshots"
 	_202410241431_operatorShareSnapshots "github.com/Layr-Labs/go-sidecar/internal/postgres/migrations/202410241431_operatorShareSnapshots"
 	_202410241450_stakerDelegationSnapshots "github.com/Layr-Labs/go-sidecar/internal/postgres/migrations/202410241450_stakerDelegationSnapshots"
+	_202410241456_stakerShareSnapshots "github.com/Layr-Labs/go-sidecar/internal/postgres/migrations/202410241456_stakerShareSnapshots"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -61,6 +62,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202410241417_operatorAvsStrategySnapshots.Migration{},
 		&_202410241431_operatorShareSnapshots.Migration{},
 		&_202410241450_stakerDelegationSnapshots.Migration{},
+		&_202410241456_stakerShareSnapshots.Migration{},
 	}
 
 	for _, migration := range migrations {

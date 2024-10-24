@@ -44,3 +44,10 @@ type StakerDelegationSnapshot struct {
 	Operator string
 	Snapshot time.Time
 }
+
+type StakerShareSnapshot struct {
+	Staker   string
+	Strategy string
+	Snapshot time.Time
+	Shares   string
+}
