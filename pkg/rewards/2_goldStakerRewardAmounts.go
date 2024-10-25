@@ -10,7 +10,7 @@ insert into gold_2_staker_reward_amounts
 WITH reward_snapshot_operators as (
   SELECT
     ap.reward_hash,
-    ap.snapshot,
+    ap.snapshot::date as snapshot,
     ap.token,
     ap.tokens_per_day,
     ap.tokens_per_day_decimal,
@@ -97,9 +97,9 @@ staker_operator_total_tokens AS (
   SELECT *,
     CASE
       -- For snapshots that are before the hard fork AND submitted before the hard fork, we use the old calc method
-      WHEN snapshot < DATE(@amazonHardforkDate) AND reward_submission_date < DATE(@amazonHardforkDate) THEN
+      WHEN snapshot < @amazonHardforkDate AND reward_submission_date < @amazonHardforkDate THEN
         cast(staker_proportion * tokens_per_day AS DECIMAL(38,0))
-      WHEN snapshot < DATE(@nileHardforkDate) AND reward_submission_date < DATE(@nileHardforkDate) THEN
+      WHEN snapshot < @nileHardforkDate AND reward_submission_date < @nileHardforkDate THEN
         (staker_proportion * tokens_per_day)::text::decimal(38,0)
       ELSE
         FLOOR(staker_proportion * tokens_per_day_decimal)
@@ -110,17 +110,17 @@ staker_operator_total_tokens AS (
 token_breakdowns AS (
   SELECT *,
     CASE
-      WHEN snapshot < DATE(@amazonHardforkDate) AND reward_submission_date < DATE(@amazonHardforkDate) THEN
+      WHEN snapshot < @amazonHardforkDate AND reward_submission_date < @amazonHardforkDate THEN
         cast(total_staker_operator_payout * 0.10 AS DECIMAL(38,0))
-      WHEN snapshot < DATE DATE(@nileHardforkDate) AND reward_submission_date < DATE(@nileHardforkDate) THEN
+      WHEN snapshot < @nileHardforkDate AND reward_submission_date < @nileHardforkDate THEN
         (total_staker_operator_payout * 0.10)::text::decimal(38,0)
       ELSE
         floor(total_staker_operator_payout * 0.10)
     END as operator_tokens,
     CASE
-      WHEN snapshot < DATE(@amazonHardforkDate) AND reward_submission_date < DATE(@amazonHardforkDate) THEN
+      WHEN snapshot < @amazonHardforkDate AND reward_submission_date < @amazonHardforkDate THEN
         total_staker_operator_payout - cast(total_staker_operator_payout * 0.10 as DECIMAL(38,0))
-      WHEN snapshot < DATE(@nileHardforkDate) AND reward_submission_date < DATE(@nileHardforkDate) THEN
+      WHEN snapshot < @nileHardforkDate AND reward_submission_date < @nileHardforkDate THEN
         total_staker_operator_payout - ((total_staker_operator_payout * 0.10)::text::decimal(38,0))
       ELSE
         total_staker_operator_payout - floor(total_staker_operator_payout * 0.10)
@@ -129,8 +129,8 @@ token_breakdowns AS (
 )
 SELECT * from token_breakdowns
 where
-	snapshot >= @startDate
-	and snapshot < @cutoffDate
+	DATE(snapshot) >= @startDate
+	and DATE(snapshot) < @cutoffDate
 ORDER BY reward_hash, snapshot, staker, operator
 `
 

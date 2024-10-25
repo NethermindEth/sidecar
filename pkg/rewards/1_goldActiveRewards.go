@@ -88,8 +88,8 @@ active_rewards_final AS (
 )
 select * from active_rewards_final
 where
-	snapshot >= @startDate
-	and snapshot < @cutoffDate
+	DATE(snapshot) >= @rewardsStart
+	and DATE(snapshot) < @cutoffDate
 `
 
 // Generate1ActiveRewards generates active rewards for the gold_1_active_rewards table

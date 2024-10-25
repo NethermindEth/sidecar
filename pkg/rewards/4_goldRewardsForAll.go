@@ -63,8 +63,8 @@ staker_tokens AS (
 )
 SELECT * from staker_tokens
 where
-	snapshot >= @startDate
-	and snapshot < @cutoffDate
+	DATE(snapshot) >= @startDate
+	and DATE(snapshot) < @cutoffDate
 `
 
 func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(startDate string, snapshotDate string) error {

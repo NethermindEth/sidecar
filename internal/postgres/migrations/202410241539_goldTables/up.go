@@ -71,9 +71,9 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			address varchar not null PRIMARY KEY,
 			network varchar not null,
 			description varchar,
-			created_at timestamp with timezone default currrent_timestamp,
-			updated_at timestamp with timezone,
-			deleted_at timestamp with timezone,
+			created_at timestamp with time zone default current_timestamp,
+			updated_at timestamp with time zone,
+			deleted_at timestamp with time zone,
 			unique(address)
 		)`,
 		`create table if not exists gold_1_active_rewards (

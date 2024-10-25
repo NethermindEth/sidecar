@@ -114,8 +114,8 @@ token_breakdowns AS (
 )
 SELECT * from token_breakdowns
 where
-	snapshot >= @startDate
-	and snapshot < @cutoffDate
+	DATE(snapshot) >= @startDate
+	and DATE(snapshot) < @cutoffDate
 ORDER BY reward_hash, snapshot, staker, operator
 `
 

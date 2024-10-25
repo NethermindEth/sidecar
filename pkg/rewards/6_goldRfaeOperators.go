@@ -32,8 +32,8 @@ distinct_operators AS (
 )
 SELECT * FROM distinct_operators
 where
-	snapshot >= @startDate
-	and snapshot < @cutoffDate
+	DATE(snapshot) >= @startDate
+	and DATE(snapshot) < @cutoffDate
 `
 
 func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(startDate string, snapshotDate string) error {

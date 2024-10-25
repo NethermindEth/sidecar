@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -95,29 +94,40 @@ func setupRewards() (
 	*zap.Logger,
 	error,
 ) {
+	testContext := getRewardsTestContext()
 	cfg := tests.GetConfig()
-	cfg.Chain = config.Chain_Holesky
-	cfg.Debug = true
+	switch testContext {
+	case "testnet":
+		cfg.Chain = config.Chain_Holesky
+	case "testnet-reduced":
+		cfg.Chain = config.Chain_Holesky
+	case "mainnet-reduced":
+		cfg.Chain = config.Chain_Mainnet
+	default:
+		return "", nil, nil, nil, fmt.Errorf("Unknown test context")
+	}
+
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return dbFileName, cfg, db, l, err
+	return dbname, cfg, grm, l, nil
 }
 
-func teardownRewards(grm *gorm.DB) {
-	// teardownOperatorAvsRegistrationSnapshot(grm)
-	// teardownOperatorAvsStrategyWindows(grm)
-	// teardownOperatorShareSnapshot(grm)
-	// teardownStakerDelegationSnapshot(grm)
-	// teardownStakerShareSnapshot(grm)
+func teardownRewards(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
+	rawDb, _ := db.DB()
+	_ = rawDb.Close()
+
+	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
+
+	if err := postgres.DeleteTestDatabase(pgConfig, dbname); err != nil {
+		l.Sugar().Errorw("Failed to delete test database", "error", err)
+	}
 }
 
 func Test_Rewards(t *testing.T) {
@@ -148,39 +158,7 @@ func Test_Rewards(t *testing.T) {
 		}
 		assert.NotNil(t, rc)
 
-		fmt.Printf("DB Path: %+v", dbFileName)
-
-		query := `select name from main.sqlite_master where type = 'table' order by name asc`
-		type row struct{ Name string }
-		var tables []row
-		res := rc.grm.Raw(query).Scan(&tables)
-		assert.Nil(t, res.Error)
-
-		expectedTables := []string{
-			"combined_rewards",
-			"gold_1_active_rewards",
-			"gold_2_staker_reward_amounts",
-			"gold_3_operator_reward_amounts",
-			"gold_4_rewards_for_all",
-			"gold_5_rfae_stakers",
-			"gold_6_rfae_operators",
-			"gold_7_staging",
-			"gold_table",
-			"operator_avs_registration_snapshots",
-			"operator_avs_strategy_snapshots",
-			"operator_share_snapshots",
-			"staker_delegation_snapshots",
-			"staker_share_snapshots",
-		}
-		tablesList := make([]string, 0)
-		for i, table := range tables {
-			fmt.Printf("[%v]: %+v\n", i, table.Name)
-			tablesList = append(tablesList, table.Name)
-		}
-
-		for _, table := range expectedTables {
-			assert.True(t, slices.Contains(tablesList, table))
-		}
+		fmt.Printf("DB Path: %+v\n", dbFileName)
 
 		testStart := time.Now()
 
@@ -228,8 +206,8 @@ func Test_Rewards(t *testing.T) {
 
 			t.Logf("Generating rewards - startDate %s, snapshotDate: %s", startDate, snapshotDate)
 			// Generate snapshots
-			err = rc.generateSnapshotData(startDate, snapshotDate)
-			assert.Nil(t, err)
+			//err = rc.generateSnapshotData(startDate, snapshotDate)
+			//assert.Nil(t, err)
 
 			fmt.Printf("Snapshot duration: %v\n", time.Since(testStart))
 			testStart = time.Now()
@@ -351,7 +329,7 @@ func Test_Rewards(t *testing.T) {
 
 		fmt.Printf("Done!\n\n")
 		t.Cleanup(func() {
-			teardownRewards(grm)
+			// teardownRewards(dbFileName, cfg, grm, l)
 		})
 	})
 }

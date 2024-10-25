@@ -80,8 +80,8 @@ deduped_earners AS (
 SELECT *
 FROM deduped_earners
 where
-	snapshot >= @startDate
-	and snapshot < @cutoffDate
+	DATE(snapshot) >= @startDate
+	and DATE(snapshot) < @cutoffDate
 `
 
 func (rc *RewardsCalculator) GenerateGold7StagingTable(startDate string, snapshotDate string) error {
