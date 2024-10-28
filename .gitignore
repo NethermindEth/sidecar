@@ -24,3 +24,4 @@ test-db
 *.dylib.dSYM
 /sqlite-extensions/build
 .DS_Store
+node_modules

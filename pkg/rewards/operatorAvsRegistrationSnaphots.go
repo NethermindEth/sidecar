@@ -21,8 +21,8 @@ const operatorAvsRegistrationSnapshotsQuery = `
 WITH state_changes as (
 	select
 		aosc.*,
-		b.block_time as block_time,
-		DATE(b.block_time) as block_date
+		b.block_time::timestamp(6) as block_time,
+		b.block_time::date as block_date
 	from avs_operator_state_changes as aosc
 	left join blocks as b on (b.number = aosc.block_number)
 ),
@@ -91,16 +91,13 @@ operator_avs_registration_windows as (
 cleaned_records AS (
 	SELECT * FROM operator_avs_registration_windows
 	WHERE start_time < end_time
-),
-final_results as (
-	SELECT
-		operator,
-		avs,
-		day AS snapshot
-	FROM cleaned_records
-	CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 )
-select * from final_results
+SELECT
+	operator,
+	avs,
+	day::date AS snapshot
+FROM cleaned_records
+CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 `
 
 // GenerateOperatorAvsRegistrationSnapshots returns a list of OperatorAvsRegistrationSnapshots objects

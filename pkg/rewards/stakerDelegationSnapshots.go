@@ -9,8 +9,8 @@ with staker_delegations_with_block_info as (
 		case when sdc.delegated = false then '0x0000000000000000000000000000000000000000' else sdc.operator end as operator,
 		sdc.log_index,
 		sdc.block_number,
-		b.block_time,
-		DATE(b.block_time) as block_date
+		b.block_time::timestamp(6) as block_time,
+		b.block_time::date as block_date
 	from staker_delegation_changes as sdc
 	left join blocks as b on (b.number = sdc.block_number)
 ),

@@ -7,8 +7,8 @@ with operator_shares_with_block_info as (
 		os.strategy,
 		os.shares,
 		os.block_number,
-		b.block_time,
-		DATE(b.block_time) as block_date
+		b.block_time::timestamp(6),
+		b.block_time::date as block_date
 	from operator_shares as os
 	left join blocks as b on (b.number = os.block_number)
 ),

@@ -14,8 +14,8 @@ const rewardsCombinedQuery = `
 			rs.end_timestamp,
 			rs.duration,
 			rs.block_number,
-			b.block_time,
-			DATE(b.block_time) as block_date,
+			b.block_time::timestamp(6),
+			b.block_time::date as block_date,
 			rs.reward_type,
 			ROW_NUMBER() OVER (PARTITION BY reward_hash, strategy_index ORDER BY block_number asc) as rn
 		from reward_submissions as rs

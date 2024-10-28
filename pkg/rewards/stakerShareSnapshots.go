@@ -7,8 +7,8 @@ with staker_shares_with_block_info as (
 		ss.strategy,
 		ss.shares,
 		ss.block_number,
-		b.block_time,
-		DATE(b.block_time) as block_date
+		b.block_time::timestamp(6) as block_time,
+		b.block_time::date as block_date
 	from staker_shares as ss
 	left join blocks as b on (b.number = ss.block_number)
 ),

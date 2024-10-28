@@ -15,10 +15,10 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 		`CREATE TABLE IF NOT EXISTS blocks (
 			number bigint NOT NULL PRIMARY KEY,
 			hash varchar(255) NOT NULL,
-			block_time timestamp with time zone NOT NULL,
-			created_at timestamp with time zone DEFAULT current_timestamp,
-			updated_at timestamp with time zone DEFAULT NULL,
-			deleted_at timestamp with time zone
+			block_time timestamp without time zone NOT NULL,
+			created_at timestamp without time zone DEFAULT current_timestamp,
+			updated_at timestamp without time zone DEFAULT NULL,
+			deleted_at timestamp without time zone
     	)`,
 		`CREATE TABLE IF NOT EXISTS transactions (
 			block_number bigint NOT NULL,
@@ -31,9 +31,9 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			gas_used numeric,
 			cumulative_gas_used numeric,
 			effective_gas_price numeric,
-    		created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-			updated_at timestamp with time zone,
-			deleted_at timestamp with time zone,
+    		created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+			updated_at timestamp without time zone,
+			deleted_at timestamp without time zone,
 			UNIQUE(block_number, transaction_hash, transaction_index)
 		)`,
 		`CREATE TABLE IF NOT EXISTS transaction_logs (
@@ -45,9 +45,9 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			block_number bigint NOT NULL,
 			transaction_index integer NOT NULL,
 			output_data jsonb,
-    		created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-			updated_at timestamp with time zone,
-			deleted_at timestamp with time zone,
+    		created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+			updated_at timestamp without time zone,
+			deleted_at timestamp without time zone,
 			UNIQUE(transaction_hash, log_index)
     	)`,
 		`CREATE TABLE IF NOT EXISTS contracts (
@@ -59,18 +59,18 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			checked_for_proxy boolean DEFAULT false NOT NULL,
 			id integer NOT NULL,
 			checked_for_abi boolean,
-    		created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-			updated_at timestamp with time zone,
-			deleted_at timestamp with time zone,
+    		created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+			updated_at timestamp without time zone,
+			deleted_at timestamp without time zone,
 			UNIQUE(contract_address)
 		)`,
 		`CREATE TABLE IF NOT EXISTS proxy_contracts (
 			block_number bigint NOT NULL,
 			contract_address character varying(255) NOT NULL,
 			proxy_contract_address character varying(255) NOT NULL,
-			created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-			updated_at timestamp with time zone,
-			deleted_at timestamp with time zone,
+			created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+			updated_at timestamp without time zone,
+			deleted_at timestamp without time zone,
 			unique(contract_address, proxy_contract_address, block_number) 
 		)`,
 		`CREATE TABLE IF NOT EXISTS operator_restaked_strategies (
@@ -78,11 +78,11 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			operator character varying NOT NULL,
 			avs character varying NOT NULL,
 			strategy character varying NOT NULL,
-			block_time timestamp with time zone NOT NULL,
+			block_time timestamp without time zone NOT NULL,
 			avs_directory_address character varying,
-			created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-			updated_at timestamp with time zone,
-			deleted_at timestamp with time zone
+			created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+			updated_at timestamp without time zone,
+			deleted_at timestamp without time zone
 		);`,
 	}
 

@@ -11,7 +11,7 @@ create table {{.destTableName}} as
 WITH reward_snapshot_operators as (
   SELECT
     ap.reward_hash,
-    ap.snapshot::date as snapshot,
+    ap.snapshot as snapshot,
     ap.token,
     ap.tokens_per_day,
     ap.tokens_per_day_decimal,
@@ -23,7 +23,7 @@ WITH reward_snapshot_operators as (
     oar.operator
   FROM {{.activeRewardsTable}} ap
   JOIN operator_avs_registration_snapshots oar
-  ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
+  ON ap.avs = oar.avs and ap.snapshot::timestamp::date = oar.snapshot::timestamp::date
   WHERE ap.reward_type = 'avs'
 ),
 _operator_restaked_strategies AS (

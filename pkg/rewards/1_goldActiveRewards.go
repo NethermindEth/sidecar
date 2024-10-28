@@ -39,7 +39,8 @@ active_rewards_updated_end_timestamps as (
 active_rewards_updated_start_timestamps as (
 	SELECT
 		ap.avs,
-		COALESCE(MAX(g.snapshot), ap.reward_start_exclusive) as reward_start_exclusive,
+		-- COALESCE(MAX(g.snapshot), ap.reward_start_exclusive) as reward_start_exclusive,
+		ap.reward_start_exclusive,
 		ap.reward_end_inclusive,
 		ap.token,
 		-- We use floor to ensure we are always underesimating total tokens per day
