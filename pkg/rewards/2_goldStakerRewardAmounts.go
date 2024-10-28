@@ -3,10 +3,11 @@ package rewards
 import (
 	"database/sql"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"go.uber.org/zap"
 )
 
 const _2_goldStakerRewardAmountsQuery = `
-insert into gold_2_staker_reward_amounts
+create table {{.destTableName}} as
 WITH reward_snapshot_operators as (
   SELECT
     ap.reward_hash,
@@ -20,7 +21,7 @@ WITH reward_snapshot_operators as (
     ap.reward_type,
     ap.reward_submission_date,
     oar.operator
-  FROM gold_1_active_rewards ap
+  FROM {{.activeRewardsTable}} ap
   JOIN operator_avs_registration_snapshots oar
   ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
   WHERE ap.reward_type = 'avs'
@@ -128,16 +129,31 @@ token_breakdowns AS (
   FROM staker_operator_total_tokens
 )
 SELECT * from token_breakdowns
-where
-	DATE(snapshot) >= @startDate
-	and DATE(snapshot) < @cutoffDate
 ORDER BY reward_hash, snapshot, staker, operator
 `
 
 func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(startDate string, snapshotDate string, forks config.ForkMap) error {
-	res := rc.grm.Exec(_2_goldStakerRewardAmountsQuery,
-		sql.Named("startDate", startDate),
-		sql.Named("cutoffDate", snapshotDate),
+	allTableNames := getGoldTableNames(snapshotDate)
+	destTableName := allTableNames[Table_2_StakerRewardAmounts]
+
+	rc.logger.Sugar().Infow("Generating staker reward amounts",
+		zap.String("startDate", startDate),
+		zap.String("cutoffDate", snapshotDate),
+		zap.String("destTableName", destTableName),
+		zap.String("amazonHardforkDate", forks[config.Fork_Amazon]),
+		zap.String("nileHardforkDate", forks[config.Fork_Nile]),
+	)
+
+	query, err := renderQueryTemplate(_2_goldStakerRewardAmountsQuery, map[string]string{
+		"destTableName":      destTableName,
+		"activeRewardsTable": allTableNames[Table_1_ActiveRewards],
+	})
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		return err
+	}
+
+	res := rc.grm.Debug().Exec(query,
 		sql.Named("amazonHardforkDate", forks[config.Fork_Amazon]),
 		sql.Named("nileHardforkDate", forks[config.Fork_Nile]),
 	)

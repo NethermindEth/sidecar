@@ -140,9 +140,6 @@ final_results as (
 		CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 )
 select * from final_results
-where
-	snapshot >= @startDate
-	and snapshot < @cutoffDate
 `
 
 func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(startDate string, snapshotDate string) ([]*OperatorAvsStrategySnapshot, error) {
@@ -151,8 +148,6 @@ func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(startDate strin
 	contractAddresses := r.globalConfig.GetContractsMapForChain()
 
 	res := r.grm.Raw(operatorAvsStrategyWindowsQuery,
-		sql.Named("startDate", startDate),
-		sql.Named("cutoffDate", snapshotDate),
 		sql.Named("avsDirectoryAddress", contractAddresses.AvsDirectory),
 	).Scan(&results)
 
@@ -164,17 +159,13 @@ func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(startDate strin
 }
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(startDate string, snapshotDate string) error {
-	snapshots, err := r.GenerateOperatorAvsStrategySnapshots(startDate, snapshotDate)
+	tableName := "operator_avs_strategy_snapshots"
+	err := r.generateAndInsertFromQuery(tableName, operatorAvsStrategyWindowsQuery, map[string]interface{}{
+		"avsDirectoryAddress": r.globalConfig.GetContractsMapForChain().AvsDirectory,
+	})
 	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate operator AVS strategy snapshots", "error", err)
+		r.logger.Sugar().Errorw("Failed to generate operator_avs_registration_snapshots", "error", err)
 		return err
-	}
-
-	r.logger.Sugar().Infow("Inserting operator AVS strategy snapshots", "count", len(snapshots))
-	res := r.grm.Model(&OperatorAvsStrategySnapshot{}).CreateInBatches(snapshots, 100)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to insert operator AVS strategy snapshots", "error", res.Error)
-		return res.Error
 	}
 	return nil
 }

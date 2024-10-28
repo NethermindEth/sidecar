@@ -1,7 +1,5 @@
 package rewards
 
-import "database/sql"
-
 const stakerShareSnapshotsQuery = `
 with staker_shares_with_block_info as (
 	select
@@ -36,7 +34,7 @@ staker_share_windows as (
 	 staker, strategy, shares, snapshot_time as start_time,
 	 CASE
 		 -- If the range does not have the end, use the current timestamp truncated to 0 UTC
-		 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', DATE(@cutoffDate))
+		 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
 		 ELSE LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time)
 		 END AS end_time
  FROM snapshotted_records
@@ -57,18 +55,20 @@ final_results as (
 		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 )
 select * from final_results
-where
-	snapshot >= @startDate
-	and snapshot < @cutoffDate
 `
 
 func (r *RewardsCalculator) GenerateStakerShareSnapshots(startDate string, snapshotDate string) ([]*StakerShareSnapshot, error) {
 	results := make([]*StakerShareSnapshot, 0)
 
-	res := r.grm.Raw(stakerShareSnapshotsQuery,
-		sql.Named("startDate", startDate),
-		sql.Named("cutoffDate", snapshotDate),
-	).Scan(&results)
+	query, err := renderQueryTemplate(stakerShareSnapshotsQuery, map[string]string{
+		"cutoffDate": snapshotDate,
+	})
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		return nil, err
+	}
+
+	res := r.grm.Raw(query).Scan(&results)
 
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", res.Error)
@@ -78,17 +78,20 @@ func (r *RewardsCalculator) GenerateStakerShareSnapshots(startDate string, snaps
 }
 
 func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(startDate string, snapshotDate string) error {
-	snapshots, err := r.GenerateStakerShareSnapshots(startDate, snapshotDate)
+	tableName := "staker_share_snapshots"
+
+	query, err := renderQueryTemplate(stakerShareSnapshotsQuery, map[string]string{
+		"cutoffDate": snapshotDate,
+	})
 	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", err)
+		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
 		return err
 	}
 
-	r.logger.Sugar().Infow("Inserting staker share snapshots", "count", len(snapshots))
-	res := r.grm.Model(&StakerShareSnapshot{}).CreateInBatches(snapshots, 100)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to insert staker share snapshots", "error", res.Error)
-		return res.Error
+	err = r.generateAndInsertFromQuery(tableName, query, nil)
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to generate staker_share_snapshots", "error", err)
+		return err
 	}
 	return nil
 }

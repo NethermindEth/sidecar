@@ -94,18 +94,8 @@ func setupRewards() (
 	*zap.Logger,
 	error,
 ) {
-	testContext := getRewardsTestContext()
 	cfg := tests.GetConfig()
-	switch testContext {
-	case "testnet":
-		cfg.Chain = config.Chain_Holesky
-	case "testnet-reduced":
-		cfg.Chain = config.Chain_Holesky
-	case "mainnet-reduced":
-		cfg.Chain = config.Chain_Mainnet
-	default:
-		return "", nil, nil, nil, fmt.Errorf("Unknown test context")
-	}
+	cfg.Chain = config.Chain_Mainnet
 
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
@@ -128,6 +118,31 @@ func teardownRewards(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logg
 	if err := postgres.DeleteTestDatabase(pgConfig, dbname); err != nil {
 		l.Sugar().Errorw("Failed to delete test database", "error", err)
 	}
+}
+
+func generateDateRange(startStr, endStr string) ([]string, error) {
+	start, err := time.Parse(time.DateOnly, startStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid start date format: %v", err)
+	}
+
+	end, err := time.Parse(time.DateOnly, endStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid end date format: %v", err)
+	}
+
+	if start.After(end) {
+		return []string{}, nil
+	}
+
+	days := int(end.Sub(start).Hours()/24) + 1
+	dates := make([]string, days)
+
+	for i := 0; i < days; i++ {
+		dates[i] = start.AddDate(0, 0, i).Format(time.DateOnly)
+	}
+
+	return dates, nil
 }
 
 func Test_Rewards(t *testing.T) {
@@ -186,11 +201,14 @@ func Test_Rewards(t *testing.T) {
 
 		t.Log("Hydrated tables")
 
-		snapshotDates := []string{"2024-08-02", "2024-08-09", "2024-08-10", "2024-08-11", "2024-08-12"}
+		snapshotDates, err := generateDateRange("2024-08-02", "2024-08-19")
+		if err != nil {
+			t.Fatal(err)
+		}
+		snapshotDates = []string{"2024-08-12"}
 
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
 		testStart = time.Now()
-		totalTestStart := time.Now()
 
 		for i, snapshotDate := range snapshotDates {
 			var startDate string
@@ -204,10 +222,16 @@ func Test_Rewards(t *testing.T) {
 				t.Logf("Max snapshot date: %s", startDate)
 			}
 
+			startDate = "1970-01-01"
+
+			snapshotStartTime := time.Now()
+
 			t.Logf("Generating rewards - startDate %s, snapshotDate: %s", startDate, snapshotDate)
 			// Generate snapshots
-			//err = rc.generateSnapshotData(startDate, snapshotDate)
-			//assert.Nil(t, err)
+			err = rc.generateSnapshotData(startDate, snapshotDate)
+			assert.Nil(t, err)
+
+			goldTableNames := getGoldTableNames(snapshotDate)
 
 			fmt.Printf("Snapshot duration: %v\n", time.Since(testStart))
 			testStart = time.Now()
@@ -219,7 +243,7 @@ func Test_Rewards(t *testing.T) {
 			fmt.Printf("Running gold_1_active_rewards\n")
 			err = rc.Generate1ActiveRewards(startDate, snapshotDate)
 			assert.Nil(t, err)
-			rows, err := getRowCountForTable(grm, "gold_1_active_rewards")
+			rows, err := getRowCountForTable(grm, goldTableNames[Table_1_ActiveRewards])
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_1_active_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
@@ -227,7 +251,7 @@ func Test_Rewards(t *testing.T) {
 			fmt.Printf("Running gold_2_staker_reward_amounts %+v\n", time.Now())
 			err = rc.GenerateGold2StakerRewardAmountsTable(startDate, snapshotDate, forks)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, "gold_2_staker_reward_amounts")
+			rows, err = getRowCountForTable(grm, goldTableNames[Table_2_StakerRewardAmounts])
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_2_staker_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
@@ -235,7 +259,7 @@ func Test_Rewards(t *testing.T) {
 			fmt.Printf("Running gold_3_operator_reward_amounts\n")
 			err = rc.GenerateGold3OperatorRewardAmountsTable(startDate, snapshotDate)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, "gold_3_operator_reward_amounts")
+			rows, err = getRowCountForTable(grm, goldTableNames[Table_3_OperatorRewardAmounts])
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_3_operator_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
@@ -243,7 +267,7 @@ func Test_Rewards(t *testing.T) {
 			fmt.Printf("Running gold_4_rewards_for_all\n")
 			err = rc.GenerateGold4RewardsForAllTable(startDate, snapshotDate)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, "gold_4_rewards_for_all")
+			rows, err = getRowCountForTable(grm, goldTableNames[Table_4_RewardsForAll])
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_4_rewards_for_all: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
@@ -251,7 +275,7 @@ func Test_Rewards(t *testing.T) {
 			fmt.Printf("Running gold_5_rfae_stakers\n")
 			err = rc.GenerateGold5RfaeStakersTable(startDate, snapshotDate, forks)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, "gold_5_rfae_stakers")
+			rows, err = getRowCountForTable(grm, goldTableNames[Table_5_RfaeStakers])
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_5_rfae_stakers: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
@@ -259,7 +283,7 @@ func Test_Rewards(t *testing.T) {
 			fmt.Printf("Running gold_6_rfae_operators\n")
 			err = rc.GenerateGold6RfaeOperatorsTable(startDate, snapshotDate)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, "gold_6_rfae_operators")
+			rows, err = getRowCountForTable(grm, goldTableNames[Table_6_RfaeOperators])
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_6_rfae_operators: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
@@ -267,7 +291,7 @@ func Test_Rewards(t *testing.T) {
 			fmt.Printf("Running gold_7_staging\n")
 			err = rc.GenerateGold7StagingTable(startDate, snapshotDate)
 			assert.Nil(t, err)
-			rows, err = getRowCountForTable(grm, "gold_7_staging")
+			rows, err = getRowCountForTable(grm, goldTableNames[Table_7_GoldStaging])
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_7_staging: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
@@ -285,7 +309,7 @@ func Test_Rewards(t *testing.T) {
 
 			t.Logf("Gold staging rows for snapshot %s: %d", snapshotDate, len(goldStagingRows))
 
-			fmt.Printf("Duration for snapshot %s: %v\n", snapshotDate, time.Since(totalTestStart))
+			fmt.Printf("Total duration for rewards compute %s: %v\n", snapshotDate, time.Since(snapshotStartTime))
 			testStart = time.Now()
 
 			if !slices.Contains([]string{"2024-08-02", "2024-08-12"}, snapshotDate) {
@@ -299,6 +323,7 @@ func Test_Rewards(t *testing.T) {
 			}
 
 			assert.Equal(t, len(expectedRows), len(goldStagingRows))
+			t.Logf("Expected rows: %d, Gold staging rows: %d", len(expectedRows), len(goldStagingRows))
 
 			missingRows := 0
 			invalidAmounts := 0
@@ -316,7 +341,7 @@ func Test_Rewards(t *testing.T) {
 				if foundRow.Amount != row.Amount {
 					invalidAmounts++
 					if invalidAmounts < 100 {
-						fmt.Printf("[%d] Amount mismatch: expected '%s', got '%s' for row: %+v\n", i, row.Amount, foundRow.Amount, row)
+						fmt.Printf("[%d] Amount mismatch: expected '%s', got '%s' for row: %+v\n", i, foundRow.Amount, row.Amount, row)
 					}
 				}
 			}

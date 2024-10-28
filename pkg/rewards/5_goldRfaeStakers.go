@@ -3,10 +3,11 @@ package rewards
 import (
 	"database/sql"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"go.uber.org/zap"
 )
 
 const _5_goldRfaeStakersQuery = `
-insert into gold_5_rfae_stakers
+create table {{.destTableName}} as
 WITH avs_opted_operators AS (
   SELECT DISTINCT
     snapshot,
@@ -26,7 +27,7 @@ reward_snapshot_operators as (
     ap.reward_type,
     ap.reward_submission_date,
     aoo.operator
-  FROM gold_1_active_rewards ap
+  FROM {{.activeRewardsTable}} ap
   JOIN avs_opted_operators aoo
   ON ap.snapshot = aoo.snapshot
   WHERE ap.reward_type = 'all_earners'
@@ -113,17 +114,30 @@ token_breakdowns AS (
   FROM staker_operator_total_tokens
 )
 SELECT * from token_breakdowns
-where
-	DATE(snapshot) >= @startDate
-	and DATE(snapshot) < @cutoffDate
 ORDER BY reward_hash, snapshot, staker, operator
 `
 
 func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(startDate string, snapshotDate string, forks config.ForkMap) error {
-	res := rc.grm.Exec(_5_goldRfaeStakersQuery,
+	allTableNames := getGoldTableNames(snapshotDate)
+	destTableName := allTableNames[Table_5_RfaeStakers]
+
+	rc.logger.Sugar().Infow("Generating rewards for all table",
+		zap.String("startDate", startDate),
+		zap.String("cutoffDate", snapshotDate),
+		zap.String("destTableName", destTableName),
+	)
+
+	query, err := renderQueryTemplate(_5_goldRfaeStakersQuery, map[string]string{
+		"destTableName":      destTableName,
+		"activeRewardsTable": allTableNames[Table_1_ActiveRewards],
+	})
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		return err
+	}
+
+	res := rc.grm.Exec(query,
 		sql.Named("panamaForkDate", forks[config.Fork_Panama]),
-		sql.Named("startDate", startDate),
-		sql.Named("cutoffDate", snapshotDate),
 		sql.Named("network", rc.globalConfig.Chain.String()),
 	)
 	if res.Error != nil {

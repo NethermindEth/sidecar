@@ -1,7 +1,11 @@
 package rewards
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
+	"github.com/Layr-Labs/go-sidecar/internal/utils"
+	"text/template"
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
@@ -160,4 +164,81 @@ func (rc *RewardsCalculator) GetNextSnapshotDate() (string, error) {
 		return "", res.Error
 	}
 	return maxDate, nil
+}
+
+func formatTableName(tableName string, snapshotDate string) string {
+	return fmt.Sprintf("%s_%s", tableName, utils.SnakeCase(snapshotDate))
+}
+
+var (
+	Table_1_ActiveRewards         = "gold_1_active_rewards"
+	Table_2_StakerRewardAmounts   = "gold_2_staker_reward_amounts"
+	Table_3_OperatorRewardAmounts = "gold_3_operator_reward_amounts"
+	Table_4_RewardsForAll         = "gold_4_rewards_for_all"
+	Table_5_RfaeStakers           = "gold_5_rfae_stakers"
+	Table_6_RfaeOperators         = "gold_6_rfae_operators"
+	Table_7_GoldStaging           = "gold_7_staging"
+	Table_8_GoldTable             = "gold_table"
+)
+
+var goldTableBaseNames = map[string]string{
+	Table_1_ActiveRewards:         "gold_1_active_rewards",
+	Table_2_StakerRewardAmounts:   "gold_2_staker_reward_amounts",
+	Table_3_OperatorRewardAmounts: "gold_3_operator_reward_amounts",
+	Table_4_RewardsForAll:         "gold_4_rewards_for_all",
+	Table_5_RfaeStakers:           "gold_5_rfae_stakers",
+	Table_6_RfaeOperators:         "gold_6_rfae_operators",
+	Table_7_GoldStaging:           "gold_7_staging",
+	Table_8_GoldTable:             "gold_table",
+}
+
+func getGoldTableNames(snapshotDate string) map[string]string {
+	tableNames := make(map[string]string)
+	for key, baseName := range goldTableBaseNames {
+		tableNames[key] = formatTableName(baseName, snapshotDate)
+	}
+	return tableNames
+}
+
+func renderQueryTemplate(query string, variables map[string]string) (string, error) {
+	queryTmpl := template.Must(template.New("").Parse(query))
+
+	var dest bytes.Buffer
+	if err := queryTmpl.Execute(&dest, variables); err != nil {
+		return "", err
+	}
+	return dest.String(), nil
+}
+
+func (rc *RewardsCalculator) generateAndInsertFromQuery(
+	tableName string,
+	query string,
+	variables map[string]interface{},
+) error {
+	tmpTableName := fmt.Sprintf("%s_tmp", tableName)
+
+	queryWithInsert := fmt.Sprintf("CREATE TABLE %s AS %s", tmpTableName, query)
+
+	_, err := postgres.WrapTxAndCommit(func(tx *gorm.DB) (interface{}, error) {
+		queries := []string{
+			queryWithInsert,
+			fmt.Sprintf(`drop table if exists %s`, tableName),
+			fmt.Sprintf(`alter table %s rename to %s`, tmpTableName, tableName),
+		}
+		for i, query := range queries {
+			var res *gorm.DB
+			if i == 0 && variables != nil {
+				res = tx.Exec(query, variables)
+			} else {
+				res = tx.Exec(query)
+			}
+			if res.Error != nil {
+				rc.logger.Sugar().Errorw("Failed to execute query", "query", query, "error", res.Error)
+				return nil, res.Error
+			}
+		}
+		return nil, nil
+	}, rc.grm, nil)
+
+	return err
 }

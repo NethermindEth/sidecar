@@ -37,17 +37,11 @@ func (r *RewardsCalculator) GenerateCombinedRewards() ([]*CombinedRewards, error
 }
 
 func (r *RewardsCalculator) GenerateAndInsertCombinedRewards() error {
-	combinedRewards, err := r.GenerateCombinedRewards()
+	tableName := "combined_rewards"
+	err := r.generateAndInsertFromQuery(tableName, rewardsCombinedQuery, nil)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate combined rewards", "error", err)
 		return err
-	}
-
-	r.logger.Sugar().Infow("Inserting combined rewards", "count", len(combinedRewards))
-	res := r.grm.Model(&CombinedRewards{}).CreateInBatches(combinedRewards, 500)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to insert combined rewards", "error", res.Error)
-		return res.Error
 	}
 	return nil
 }

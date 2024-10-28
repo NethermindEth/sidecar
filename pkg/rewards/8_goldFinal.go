@@ -1,6 +1,8 @@
 package rewards
 
-import "database/sql"
+import (
+	"go.uber.org/zap"
+)
 
 const _8_goldFinalQuery = `
 insert into gold_table
@@ -10,17 +12,26 @@ SELECT
     reward_hash,
     token,
     amount
-FROM gold_7_staging
-where
-	DATE(snapshot) >= @startDate
-	and DATE(snapshot) < @cutoffDate
+FROM {{.goldStagingTable}}
 `
 
 func (rc *RewardsCalculator) GenerateGold8FinalTable(startDate string, snapshotDate string) error {
-	res := rc.grm.Exec(_8_goldFinalQuery,
-		sql.Named("startDate", startDate),
-		sql.Named("cutoffDate", snapshotDate),
+	allTableNames := getGoldTableNames(snapshotDate)
+
+	rc.logger.Sugar().Infow("Generating rewards for all table",
+		zap.String("startDate", startDate),
+		zap.String("cutoffDate", snapshotDate),
 	)
+
+	query, err := renderQueryTemplate(_8_goldFinalQuery, map[string]string{
+		"goldStagingTable": allTableNames[Table_7_GoldStaging],
+	})
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		return err
+	}
+
+	res := rc.grm.Exec(query)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_final", "error", res.Error)
 		return res.Error

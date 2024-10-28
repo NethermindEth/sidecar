@@ -1,9 +1,11 @@
 package rewards
 
-import "database/sql"
+import (
+	"go.uber.org/zap"
+)
 
 const _4_goldRewardsForAllQuery = `
-insert into gold_4_rewards_for_all
+create table {{.destTableName}} as
 WITH reward_snapshot_stakers AS (
   SELECT
     ap.reward_hash,
@@ -16,7 +18,7 @@ WITH reward_snapshot_stakers AS (
     ap.reward_type,
     sss.staker,
     sss.shares
-  FROM gold_1_active_rewards ap
+  FROM {{.activeRewardsTable}} ap
   JOIN staker_share_snapshots as sss
   ON ap.strategy = sss.strategy and ap.snapshot = sss.snapshot
   WHERE ap.reward_type = 'all_stakers'
@@ -62,16 +64,28 @@ staker_tokens AS (
   FROM staker_proportion
 )
 SELECT * from staker_tokens
-where
-	DATE(snapshot) >= @startDate
-	and DATE(snapshot) < @cutoffDate
 `
 
 func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(startDate string, snapshotDate string) error {
-	res := rc.grm.Exec(_4_goldRewardsForAllQuery,
-		sql.Named("startDate", startDate),
-		sql.Named("cutoffDate", snapshotDate),
+	allTableNames := getGoldTableNames(snapshotDate)
+	destTableName := allTableNames[Table_4_RewardsForAll]
+
+	rc.logger.Sugar().Infow("Generating rewards for all table",
+		zap.String("startDate", startDate),
+		zap.String("cutoffDate", snapshotDate),
+		zap.String("destTableName", destTableName),
 	)
+
+	query, err := renderQueryTemplate(_4_goldRewardsForAllQuery, map[string]string{
+		"destTableName":      destTableName,
+		"activeRewardsTable": allTableNames[Table_1_ActiveRewards],
+	})
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		return err
+	}
+
+	res := rc.grm.Exec(query)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_rewards_for_all", "error", res.Error)
 		return res.Error

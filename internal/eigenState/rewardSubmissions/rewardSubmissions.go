@@ -30,8 +30,8 @@ type RewardSubmission struct {
 	Strategy       string
 	StrategyIndex  uint64
 	Multiplier     string
-	StartTimestamp *time.Time `gorm:"type:DATETIME"`
-	EndTimestamp   *time.Time `gorm:"type:DATETIME"`
+	StartTimestamp *time.Time
+	EndTimestamp   *time.Time
 	Duration       uint64
 	BlockNumber    uint64
 	RewardType     string // avs, all_stakers, all_earners

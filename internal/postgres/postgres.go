@@ -185,11 +185,9 @@ func WrapTxAndCommit[T any](fn func(*gorm.DB) (T, error), db *gorm.DB, tx *gorm.
 	res, err := fn(tx)
 
 	if err != nil && !exists {
-		fmt.Printf("Rollback transaction\n")
 		tx.Rollback()
 	}
 	if err == nil && !exists {
-		fmt.Printf("Commit transaction\n")
 		tx.Commit()
 	}
 	return res, err

@@ -1,9 +1,5 @@
 package rewards
 
-import (
-	"database/sql"
-)
-
 const operatorShareSnapshotsQuery = `
 with operator_shares_with_block_info as (
 	select
@@ -38,7 +34,7 @@ operator_share_windows as (
 	 operator, strategy, shares, snapshot_time as start_time,
 	 CASE
 		 -- If the range does not have the end, use the current timestamp truncated to 0 UTC
-		 WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', DATE(@cutoffDate))
+		 WHEN LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
 		 ELSE LEAD(snapshot_time) OVER (PARTITION BY operator, strategy ORDER BY snapshot_time)
 		 END AS end_time
  FROM snapshotted_records
@@ -59,18 +55,20 @@ final_results as (
 		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 )
 select * from final_results
-where
-	snapshot >= @startDate
-	and snapshot < @cutoffDate
 `
 
 func (r *RewardsCalculator) GenerateOperatorShareSnapshots(startDate string, snapshotDate string) ([]*OperatorShareSnapshots, error) {
 	results := make([]*OperatorShareSnapshots, 0)
 
-	res := r.grm.Raw(operatorShareSnapshotsQuery,
-		sql.Named("startDate", startDate),
-		sql.Named("cutoffDate", snapshotDate),
-	).Scan(&results)
+	query, err := renderQueryTemplate(operatorShareSnapshotsQuery, map[string]string{
+		"cutoffDate": snapshotDate,
+	})
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to render operator share snapshots query", "error", err)
+		return nil, err
+	}
+
+	res := r.grm.Raw(query).Scan(&results)
 
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", res.Error)
@@ -80,18 +78,20 @@ func (r *RewardsCalculator) GenerateOperatorShareSnapshots(startDate string, sna
 }
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(startDate string, snapshotDate string) error {
-	snapshots, err := r.GenerateOperatorShareSnapshots(startDate, snapshotDate)
+	tableName := "operator_share_snapshots"
+
+	query, err := renderQueryTemplate(operatorShareSnapshotsQuery, map[string]string{
+		"cutoffDate": snapshotDate,
+	})
 	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", err)
+		r.logger.Sugar().Errorw("Failed to render operator share snapshots query", "error", err)
 		return err
 	}
 
-	r.logger.Sugar().Infow("Inserting operator share snapshots", "count", len(snapshots))
-	res := r.grm.Model(&OperatorShareSnapshots{}).CreateInBatches(snapshots, 100)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to insert operator share snapshots", "error", res.Error)
-		return res.Error
+	err = r.generateAndInsertFromQuery(tableName, query, nil)
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to generate operator_share_snapshots", "error", err)
+		return err
 	}
-
 	return nil
 }

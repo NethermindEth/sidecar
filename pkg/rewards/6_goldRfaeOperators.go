@@ -1,9 +1,11 @@
 package rewards
 
-import "database/sql"
+import (
+	"go.uber.org/zap"
+)
 
 const _6_goldRfaeOperatorsQuery = `
-insert into gold_6_rfae_operators
+create table {{.destTableName}} as
 WITH operator_token_sums AS (
   SELECT
     reward_hash,
@@ -16,7 +18,7 @@ WITH operator_token_sums AS (
     reward_type,
     operator,
     SUM(operator_tokens) OVER (PARTITION BY operator, reward_hash, snapshot) AS operator_tokens
-  FROM gold_5_rfae_stakers
+  FROM {{.rfaeStakersTable}}
 ),
 -- Dedupe the operator tokens across strategies for each operator, reward hash, and snapshot
 distinct_operators AS (
@@ -31,16 +33,28 @@ distinct_operators AS (
   WHERE rn = 1
 )
 SELECT * FROM distinct_operators
-where
-	DATE(snapshot) >= @startDate
-	and DATE(snapshot) < @cutoffDate
 `
 
 func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(startDate string, snapshotDate string) error {
-	res := rc.grm.Exec(_6_goldRfaeOperatorsQuery,
-		sql.Named("startDate", startDate),
-		sql.Named("cutoffDate", snapshotDate),
+	allTableNames := getGoldTableNames(snapshotDate)
+	destTableName := allTableNames[Table_6_RfaeOperators]
+
+	rc.logger.Sugar().Infow("Generating rewards for all table",
+		zap.String("startDate", startDate),
+		zap.String("cutoffDate", snapshotDate),
+		zap.String("destTableName", destTableName),
 	)
+
+	query, err := renderQueryTemplate(_6_goldRfaeOperatorsQuery, map[string]string{
+		"destTableName":    destTableName,
+		"rfaeStakersTable": allTableNames[Table_5_RfaeStakers],
+	})
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		return err
+	}
+
+	res := rc.grm.Exec(query)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_rfae_operators", "error", res.Error)
 		return res.Error

@@ -2,16 +2,17 @@ package rewards
 
 import (
 	"database/sql"
+	"go.uber.org/zap"
 )
 
 var _1_goldActiveRewardsQuery = `
-insert into gold_1_active_rewards
+create table {{.destTableName}} as
 WITH active_rewards_modified as (
     SELECT *,
            amount/(duration/86400) as tokens_per_day,
            cast(@cutoffDate AS TIMESTAMP(6)) as global_end_inclusive -- Inclusive means we DO USE this day as a snapshot
     FROM combined_rewards
-        WHERE end_timestamp >= DATE(@rewardsStart) and start_timestamp <= DATE(@cutoffDate)
+        WHERE end_timestamp >= TIMESTAMP '{{.rewardsStart}}' and start_timestamp <= TIMESTAMP '{{.cutoffDate}}'
 ),
 -- Cut each reward's start and end windows to handle the global range
 active_rewards_updated_end_timestamps as (
@@ -50,7 +51,7 @@ active_rewards_updated_start_timestamps as (
 		ap.reward_hash,
 		ap.reward_type,
 		ap.global_end_inclusive,
-		ap.reward_submission_date
+	 	ap.reward_submission_date
 	FROM active_rewards_updated_end_timestamps ap
 	LEFT JOIN gold_table g ON g.reward_hash = ap.reward_hash
  GROUP BY ap.avs, ap.reward_end_inclusive, ap.token, ap.tokens_per_day, ap.multiplier, ap.strategy, ap.reward_hash, ap.global_end_inclusive, ap.reward_start_exclusive, ap.reward_type, ap.reward_submission_date
@@ -87,9 +88,6 @@ active_rewards_final AS (
 	WHERE day != reward_start_exclusive
 )
 select * from active_rewards_final
-where
-	DATE(snapshot) >= @rewardsStart
-	and DATE(snapshot) < @cutoffDate
 `
 
 // Generate1ActiveRewards generates active rewards for the gold_1_active_rewards table
@@ -97,11 +95,28 @@ where
 // @param snapshotDate: The upper bound of when to calculate rewards to
 // @param startDate: The lower bound of when to calculate rewards from. If we're running rewards for the first time,
 // this will be "1970-01-01". If this is a subsequent run, this will be the last snapshot date.
-func (r *RewardsCalculator) Generate1ActiveRewards(cutoffDate string, startDate string) error {
-	r.logger.Sugar().Infow("Generating active rewards", "cutoffDate", cutoffDate, "startDate", startDate)
-	res := r.grm.Exec(_1_goldActiveRewardsQuery,
-		sql.Named("cutoffDate", cutoffDate),
-		sql.Named("rewardsStart", startDate),
+func (r *RewardsCalculator) Generate1ActiveRewards(startDate string, snapshotDate string) error {
+	allTableNames := getGoldTableNames(snapshotDate)
+	destTableName := allTableNames[Table_1_ActiveRewards]
+
+	r.logger.Sugar().Infow("Generating active rewards",
+		zap.String("startDate", startDate),
+		zap.String("cutoffDate", snapshotDate),
+		zap.String("destTableName", destTableName),
+	)
+
+	query, err := renderQueryTemplate(_1_goldActiveRewardsQuery, map[string]string{
+		"destTableName": destTableName,
+		"rewardsStart":  startDate,
+		"cutoffDate":    snapshotDate,
+	})
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		return err
+	}
+
+	res := r.grm.Exec(query,
+		sql.Named("cutoffDate", snapshotDate),
 	)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate active rewards", "error", res.Error)

@@ -1,9 +1,12 @@
 package rewards
 
-import "database/sql"
+import (
+	"database/sql"
+	"go.uber.org/zap"
+)
 
 const _7_goldStagingQuery = `
-insert into gold_7_staging
+create table {{.destTableName}} as
 WITH staker_rewards AS (
   -- We can select DISTINCT here because the staker's tokens are the same for each strategy in the reward hash
   SELECT DISTINCT
@@ -12,7 +15,7 @@ WITH staker_rewards AS (
     reward_hash,
     token,
     staker_tokens as amount
-  FROM gold_2_staker_reward_amounts
+  FROM {{.stakerRewardAmountsTable}}
 ),
 operator_rewards AS (
   SELECT DISTINCT
@@ -22,7 +25,7 @@ operator_rewards AS (
     reward_hash,
     token,
     operator_tokens as amount
-  FROM gold_3_operator_reward_amounts
+  FROM {{.operatorRewardAmountsTable}}
 ),
 rewards_for_all AS (
   SELECT DISTINCT
@@ -31,7 +34,7 @@ rewards_for_all AS (
     reward_hash,
     token,
     staker_tokens as amount
-  FROM gold_4_rewards_for_all
+  FROM {{.rewardsForAllTable}}
 ),
 rewards_for_all_earners_stakers AS (
   SELECT DISTINCT
@@ -40,7 +43,7 @@ rewards_for_all_earners_stakers AS (
     reward_hash,
     token,
     staker_tokens as amounts
-  FROM gold_5_rfae_stakers
+  FROM {{.rfaeStakerTable}}
 ),
 rewards_for_all_earners_operators AS (
   SELECT DISTINCT
@@ -49,7 +52,7 @@ rewards_for_all_earners_operators AS (
     reward_hash,
     token,
     operator_tokens as amount
-  FROM gold_6_rfae_operators
+  FROM {{.rfaeOperatorTable}}
 ),
 combined_rewards AS (
   SELECT * FROM operator_rewards
@@ -79,16 +82,32 @@ deduped_earners AS (
 )
 SELECT *
 FROM deduped_earners
-where
-	DATE(snapshot) >= @startDate
-	and DATE(snapshot) < @cutoffDate
 `
 
 func (rc *RewardsCalculator) GenerateGold7StagingTable(startDate string, snapshotDate string) error {
-	res := rc.grm.Exec(_7_goldStagingQuery,
-		sql.Named("startDate", startDate),
-		sql.Named("cutoffDate", snapshotDate),
+	allTableNames := getGoldTableNames(snapshotDate)
+	destTableName := allTableNames[Table_7_GoldStaging]
+
+	rc.logger.Sugar().Infow("Generating rewards for all table",
+		zap.String("startDate", startDate),
+		zap.String("cutoffDate", snapshotDate),
+		zap.String("destTableName", destTableName),
 	)
+
+	query, err := renderQueryTemplate(_7_goldStagingQuery, map[string]string{
+		"destTableName":              destTableName,
+		"stakerRewardAmountsTable":   allTableNames[Table_2_StakerRewardAmounts],
+		"operatorRewardAmountsTable": allTableNames[Table_3_OperatorRewardAmounts],
+		"rewardsForAllTable":         allTableNames[Table_4_RewardsForAll],
+		"rfaeStakerTable":            allTableNames[Table_5_RfaeStakers],
+		"rfaeOperatorTable":          allTableNames[Table_6_RfaeOperators],
+	})
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		return err
+	}
+
+	res := rc.grm.Exec(query)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_staging", "error", res.Error)
 		return res.Error
@@ -105,16 +124,26 @@ type GoldStagingRow struct {
 }
 
 func (rc *RewardsCalculator) ListGoldStagingRowsForSnapshot(snapshotDate string) ([]*GoldStagingRow, error) {
+	allTableNames := getGoldTableNames(snapshotDate)
+
 	results := make([]*GoldStagingRow, 0)
-	query := `
+	query, err := renderQueryTemplate(`
 	SELECT
 		earner,
 		snapshot::text as snapshot,
 		reward_hash,
 		token,
 		amount
-	FROM gold_7_staging WHERE DATE(snapshot) < @cutoffDate`
-	res := rc.grm.Raw(query, sql.Named("cutoffDate", snapshotDate)).Scan(&results)
+	FROM {{.goldStagingTable}} WHERE DATE(snapshot) < @cutoffDate`, map[string]string{
+		"goldStagingTable": allTableNames[Table_7_GoldStaging],
+	})
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		return nil, err
+	}
+	res := rc.grm.Raw(query,
+		sql.Named("cutoffDate", snapshotDate),
+	).Scan(&results)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to list gold staging rows", "error", res.Error)
 		return nil, res.Error

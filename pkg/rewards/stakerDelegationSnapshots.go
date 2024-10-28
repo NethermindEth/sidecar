@@ -55,16 +55,12 @@ final_results as (
 		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 )
 select * from final_results
-where
-	snapshot >= @startDate
-	and snapshot < @cutoffDate
 `
 
 func (r *RewardsCalculator) GenerateStakerDelegationSnapshots(startDate string, snapshotDate string) ([]*StakerDelegationSnapshot, error) {
 	results := make([]*StakerDelegationSnapshot, 0)
 
 	res := r.grm.Raw(stakerDelegationSnapshotsQuery,
-		sql.Named("startDate", startDate),
 		sql.Named("cutoffDate", snapshotDate),
 	).Scan(&results)
 
@@ -76,18 +72,13 @@ func (r *RewardsCalculator) GenerateStakerDelegationSnapshots(startDate string, 
 }
 
 func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(startDate string, snapshotDate string) error {
-	snapshots, err := r.GenerateStakerDelegationSnapshots(startDate, snapshotDate)
+	tableName := "staker_delegation_snapshots"
+	err := r.generateAndInsertFromQuery(tableName, stakerDelegationSnapshotsQuery, map[string]interface{}{
+		"cutoffDate": snapshotDate,
+	})
 	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", err)
+		r.logger.Sugar().Errorw("Failed to generate staker_delegation_snapshots", "error", err)
 		return err
 	}
-
-	r.logger.Sugar().Infow("Inserting staker delegation snapshots", "count", len(snapshots))
-	res := r.grm.Model(&StakerDelegationSnapshot{}).CreateInBatches(snapshots, 100)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to insert staker delegation snapshots", "error", res.Error)
-		return res.Error
-	}
-
 	return nil
 }
