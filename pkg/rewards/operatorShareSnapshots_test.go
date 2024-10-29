@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"testing"
+	"time"
 )
 
 func setupOperatorShareSnapshot() (
@@ -129,7 +130,7 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 			// Go line-by-line in the snapshot results and find the corresponding line in the expected results.
 			// If one doesnt exist, add it to the missing list.
 			for _, snapshot := range snapshots {
-				snapshotStr := snapshot.Snapshot
+				snapshotStr := snapshot.Snapshot.Format(time.DateOnly)
 
 				slotId := fmt.Sprintf("%s_%s_%s", snapshot.Operator, snapshot.Strategy, snapshotStr)
 

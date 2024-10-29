@@ -95,7 +95,7 @@ cleaned_records AS (
 SELECT
 	operator,
 	avs,
-	to_char(d, 'YYYY-MM-DD') AS snapshot
+	d AS snapshot
 FROM cleaned_records
 CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
 `

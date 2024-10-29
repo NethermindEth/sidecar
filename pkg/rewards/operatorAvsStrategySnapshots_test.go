@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func setupOperatorAvsStrategyWindows() (
@@ -158,7 +159,7 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 				t.Logf("Could not find expected result for %+v", window)
 				continue
 			}
-			if !slices.Contains(found, window.Snapshot) {
+			if !slices.Contains(found, window.Snapshot.Format(time.DateOnly)) {
 				t.Logf("Found result, but snapshot doesnt match: %+v - %v", window, found)
 				lacksExpectedResult = append(lacksExpectedResult, window)
 			}

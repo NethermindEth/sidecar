@@ -48,11 +48,11 @@ final_results as (
 	SELECT
 		staker,
 		operator,
-		cast(day AS DATE) AS snapshot
+		d AS snapshot
 	FROM
 		cleaned_records
 			CROSS JOIN
-		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
 )
 select * from final_results
 `

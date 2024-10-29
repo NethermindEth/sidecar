@@ -22,32 +22,32 @@ type CombinedRewards struct {
 type OperatorAvsRegistrationSnapshots struct {
 	Avs      string
 	Operator string
-	Snapshot string
+	Snapshot time.Time
 }
 
 type OperatorAvsStrategySnapshot struct {
 	Operator string
 	Avs      string
 	Strategy string
-	Snapshot string
+	Snapshot time.Time
 }
 
 type OperatorShareSnapshots struct {
 	Operator string
 	Strategy string
 	Shares   string
-	Snapshot string
+	Snapshot time.Time
 }
 
 type StakerDelegationSnapshot struct {
 	Staker   string
 	Operator string
-	Snapshot string
+	Snapshot time.Time
 }
 
 type StakerShareSnapshot struct {
 	Staker   string
 	Strategy string
-	Snapshot string
+	Snapshot time.Time
 	Shares   string
 }
