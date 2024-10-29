@@ -3,6 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/Layr-Labs/go-sidecar/internal/contractStore/postgresContractStore"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
+	pgStorage "github.com/Layr-Labs/go-sidecar/internal/storage/postgres"
 	"log"
 	"time"
 
@@ -23,11 +26,9 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/metrics"
 	"github.com/Layr-Labs/go-sidecar/internal/pipeline"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/shutdown"
 	"github.com/Layr-Labs/go-sidecar/internal/sidecar"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
-	sqliteBlockStore "github.com/Layr-Labs/go-sidecar/internal/storage/sqlite"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -52,37 +53,32 @@ var runCmd = &cobra.Command{
 		etherscanClient := etherscan.NewEtherscanClient(cfg, l)
 		client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
 
-		if !cfg.SqliteConfig.InMemory {
-			if err := sqlite.InitSqliteDir(cfg.GetSqlitePath()); err != nil {
-				l.Error("Failed to initialize sqlite directory", zap.Error(err))
-				panic(err)
-			}
-		}
+		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
+		pgConfig.CreateDbIfNotExists = true
 
-		db := sqlite.NewSqlite(&sqlite.SqliteConfig{
-			Path:           cfg.GetSqlitePath(),
-			ExtensionsPath: cfg.SqliteConfig.ExtensionsPath,
-		}, l)
-
-		grm, err := sqlite.NewGormSqliteFromSqlite(db)
+		pg, err := postgres.NewPostgres(pgConfig)
 		if err != nil {
-			l.Error("Failed to create gorm instance", zap.Error(err))
-			panic(err)
+			l.Fatal("Failed to setup postgres connection", zap.Error(err))
 		}
 
-		migrator := migrations.NewSqliteMigrator(grm, l)
+		grm, err := postgres.NewGormFromPostgresConnection(pg.Db)
+		if err != nil {
+			l.Fatal("Failed to create gorm instance", zap.Error(err))
+		}
+
+		migrator := migrations.NewMigrator(pg.Db, grm, l)
 		if err = migrator.MigrateAll(); err != nil {
-			log.Fatalf("Failed to migrate: %v", err)
+			l.Fatal("Failed to migrate", zap.Error(err))
 		}
 
-		contractStore := postgresContractStore.NewSqliteContractStore(grm, l, cfg)
+		contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
 		if err := contractStore.InitializeCoreContracts(); err != nil {
 			log.Fatalf("Failed to initialize core contracts: %v", err)
 		}
 
 		cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
 
-		mds := sqliteBlockStore.NewPostgresBlockStore(grm, l, cfg)
+		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {
 			log.Fatalln(err)
 		}

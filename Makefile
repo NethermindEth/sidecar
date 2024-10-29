@@ -1,12 +1,8 @@
 .PHONY: deps
 
-PROJECT_ROOT = $(shell pwd)
-CGO_CFLAGS = "-I$(PROJECT_ROOT)/sqlite-extensions"
-CGO_LDFLAGS = "-L$(PROJECT_ROOT)/sqlite-extensions/build/lib -lcalculations -Wl,-rpath,$(PROJECT_ROOT)/sqlite-extensions/build/lib"
-PYTHONPATH = $(PROJECT_ROOT)/sqlite-extensions
 CGO_ENABLED = 1
 GO=$(shell which go)
-ALL_FLAGS=CGO_CFLAGS=$(CGO_CFLAGS) CGO_LDFLAGS=$(CGO_LDFLAGS) PYTHONPATH=$(PYTHONPATH) CGO_ENABLED=$(CGO_ENABLED)
+ALL_FLAGS=
 
 deps/dev:
 	${GO} install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
@@ -29,7 +25,6 @@ clean:
 
 .PHONY: build/cmd/sidecar
 build/cmd/sidecar:
-	cd sqlite-extensions && make all && cd -
 	$(ALL_FLAGS) $(GO) build -o bin/sidecar main.go
 
 .PHONY: build
