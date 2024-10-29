@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 	"slices"
 	"testing"
-	"time"
 )
 
 func setupStakerDelegationSnapshot() (
@@ -105,7 +104,10 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
 		t.Log("Generating staker delegation snapshots")
-		snapshots, err := rewards.GenerateStakerDelegationSnapshots(startDate, snapshotDate)
+		err = rewards.GenerateAndInsertStakerDelegationSnapshots(startDate, snapshotDate)
+		assert.Nil(t, err)
+
+		snapshots, err := rewards.ListStakerDelegationSnapshots()
 		assert.Nil(t, err)
 
 		t.Log("Getting expected results")
@@ -136,8 +138,7 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 					t.Logf("Staker/operator not found in results: %+v\n", snapshot)
 					lacksExpectedResult = append(lacksExpectedResult, snapshot)
 				} else {
-					snapshotStr := snapshot.Snapshot.Format(time.DateOnly)
-					if !slices.Contains(found, snapshotStr) {
+					if !slices.Contains(found, snapshot.Snapshot) {
 						t.Logf("Found staker operator, but no snapshot: %+v - %+v\n", snapshot, found)
 						lacksExpectedResult = append(lacksExpectedResult, snapshot)
 					}

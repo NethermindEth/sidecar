@@ -40,35 +40,6 @@ const rewardsCombinedQuery = `
 	from combined_rewards
 `
 
-func (r *RewardsCalculator) GenerateCombinedRewards(snapshotDate string) ([]*CombinedRewards, error) {
-	combinedRewards := make([]*CombinedRewards, 0)
-
-	query, err := renderQueryTemplate(rewardsCombinedQuery, map[string]string{
-		"cutoffDate": snapshotDate,
-	})
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to render rewards combined query", "error", err)
-		return nil, err
-	}
-
-	res := r.grm.Raw(query).Scan(&combinedRewards)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to generate combined rewards", "error", res.Error)
-		return nil, res.Error
-	}
-	return combinedRewards, nil
-}
-
-func (rc *RewardsCalculator) ListCombinedRewards() ([]*CombinedRewards, error) {
-	var combinedRewards []*CombinedRewards
-	res := rc.grm.Model(&CombinedRewards{}).Find(&combinedRewards)
-	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to list combined rewards", "error", res.Error)
-		return nil, res.Error
-	}
-	return combinedRewards, nil
-}
-
 func (r *RewardsCalculator) GenerateAndInsertCombinedRewards(snapshotDate string) error {
 	tableName := "combined_rewards"
 
@@ -86,4 +57,14 @@ func (r *RewardsCalculator) GenerateAndInsertCombinedRewards(snapshotDate string
 		return err
 	}
 	return nil
+}
+
+func (rc *RewardsCalculator) ListCombinedRewards() ([]*CombinedRewards, error) {
+	var combinedRewards []*CombinedRewards
+	res := rc.grm.Model(&CombinedRewards{}).Find(&combinedRewards)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to list combined rewards", "error", res.Error)
+		return nil, res.Error
+	}
+	return combinedRewards, nil
 }

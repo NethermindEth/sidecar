@@ -59,26 +59,6 @@ final_results as (
 select * from final_results
 `
 
-func (r *RewardsCalculator) GenerateOperatorShareSnapshots(startDate string, snapshotDate string) ([]*OperatorShareSnapshots, error) {
-	results := make([]*OperatorShareSnapshots, 0)
-
-	query, err := renderQueryTemplate(operatorShareSnapshotsQuery, map[string]string{
-		"cutoffDate": snapshotDate,
-	})
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to render operator share snapshots query", "error", err)
-		return nil, err
-	}
-
-	res := r.grm.Raw(query).Scan(&results)
-
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", res.Error)
-		return nil, res.Error
-	}
-	return results, nil
-}
-
 func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(startDate string, snapshotDate string) error {
 	tableName := "operator_share_snapshots"
 
@@ -96,4 +76,14 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(startDate st
 		return err
 	}
 	return nil
+}
+
+func (r *RewardsCalculator) ListOperatorShareSnapshots() ([]*OperatorShareSnapshots, error) {
+	var operatorShareSnapshots []*OperatorShareSnapshots
+	res := r.grm.Model(&OperatorShareSnapshots{}).Find(&operatorShareSnapshots)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to list operator share snapshots", "error", res.Error)
+		return nil, res.Error
+	}
+	return operatorShareSnapshots, nil
 }

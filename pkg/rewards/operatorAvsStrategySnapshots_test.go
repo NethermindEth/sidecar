@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 )
 
 func setupOperatorAvsStrategyWindows() (
@@ -113,7 +112,7 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 		case "testnet-reduced":
 			assert.Equal(t, 1591921, count)
 		case "mainnet-reduced":
-			assert.Equal(t, 2497286, count)
+			assert.Equal(t, 2317332, count)
 		default:
 			t.Fatal("Unknown test context")
 		}
@@ -123,7 +122,10 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
 		t.Log("Generating snapshots")
-		windows, err := rewards.GenerateOperatorAvsStrategySnapshots(startDate, snapshotDate)
+		err := rewards.GenerateAndInsertOperatorAvsStrategySnapshots(startDate, snapshotDate)
+		assert.Nil(t, err)
+
+		windows, err := rewards.ListOperatorAvsStrategySnapshots()
 		assert.Nil(t, err)
 
 		t.Log("Getting expected results")
@@ -156,8 +158,7 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 				t.Logf("Could not find expected result for %+v", window)
 				continue
 			}
-			windowSnapshot := window.Snapshot.Format(time.DateOnly)
-			if !slices.Contains(found, windowSnapshot) {
+			if !slices.Contains(found, window.Snapshot) {
 				t.Logf("Found result, but snapshot doesnt match: %+v - %v", window, found)
 				lacksExpectedResult = append(lacksExpectedResult, window)
 			}

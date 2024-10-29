@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 	"slices"
 	"testing"
-	"time"
 )
 
 func setupOperatorAvsRegistrationSnapshot() (
@@ -120,7 +119,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		case "testnet-reduced":
 			assert.Equal(t, 16042, count)
 		case "mainnet-reduced":
-			assert.Equal(t, 1922, count)
+			assert.Equal(t, 1752, count)
 		default:
 			t.Fatal("Unknown test context")
 		}
@@ -128,8 +127,10 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 	t.Run("Should generate the proper operatorAvsRegistrationWindows", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
-		snapshots, err := rewards.GenerateOperatorAvsRegistrationSnapshots(startDate, snapshotDate)
+		err := rewards.GenerateAndInsertOperatorAvsRegistrationSnapshots(startDate, snapshotDate)
 		assert.Nil(t, err)
+
+		snapshots, err := rewards.ListOperatorAvsRegistrationSnapshots()
 		assert.NotNil(t, snapshots)
 
 		t.Logf("Generated %d snapshots", len(snapshots))
@@ -162,8 +163,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 					t.Logf("Operator/AVS not found in results: %+v\n", window)
 					lacksExpectedResult = append(lacksExpectedResult, window)
 				} else {
-					snapshotStr := window.Snapshot.Format(time.DateOnly)
-					if !slices.Contains(found, snapshotStr) {
+					if !slices.Contains(found, window.Snapshot) {
 						t.Logf("Found operator/AVS, but no snapshot: %+v - %+v\n", window, found)
 						lacksExpectedResult = append(lacksExpectedResult, window)
 					}

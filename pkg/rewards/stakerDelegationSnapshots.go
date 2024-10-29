@@ -57,26 +57,6 @@ final_results as (
 select * from final_results
 `
 
-func (r *RewardsCalculator) GenerateStakerDelegationSnapshots(startDate string, snapshotDate string) ([]*StakerDelegationSnapshot, error) {
-	results := make([]*StakerDelegationSnapshot, 0)
-
-	query, err := renderQueryTemplate(stakerDelegationSnapshotsQuery, map[string]string{
-		"cutoffDate": snapshotDate,
-	})
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to render operator share snapshots query", "error", err)
-		return nil, err
-	}
-
-	res := r.grm.Raw(query).Scan(&results)
-
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", res.Error)
-		return nil, res.Error
-	}
-	return results, nil
-}
-
 func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(startDate string, snapshotDate string) error {
 	tableName := "staker_delegation_snapshots"
 
@@ -94,4 +74,14 @@ func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(startDate
 		return err
 	}
 	return nil
+}
+
+func (rc *RewardsCalculator) ListStakerDelegationSnapshots() ([]*StakerDelegationSnapshot, error) {
+	var stakerDelegationSnapshots []*StakerDelegationSnapshot
+	res := rc.grm.Model(&StakerDelegationSnapshot{}).Find(&stakerDelegationSnapshots)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to list staker delegation snapshots", "error", res.Error)
+		return nil, res.Error
+	}
+	return stakerDelegationSnapshots, nil
 }

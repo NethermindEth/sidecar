@@ -95,30 +95,10 @@ cleaned_records AS (
 SELECT
 	operator,
 	avs,
-	day::date AS snapshot
+	to_char(d, 'YYYY-MM-DD') AS snapshot
 FROM cleaned_records
-CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
 `
-
-// GenerateOperatorAvsRegistrationSnapshots returns a list of OperatorAvsRegistrationSnapshots objects
-func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(startDate string, snapshotDate string) ([]*OperatorAvsRegistrationSnapshots, error) {
-	results := make([]*OperatorAvsRegistrationSnapshots, 0)
-
-	query, err := renderQueryTemplate(operatorAvsRegistrationSnapshotsQuery, map[string]string{
-		"cutoffDate": snapshotDate,
-	})
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to render operator AVS registration snapshots query", "error", err)
-		return nil, err
-	}
-
-	res := r.grm.Raw(query).Scan(&results)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to generate operator AVS registration windows", "error", res.Error)
-		return nil, res.Error
-	}
-	return results, nil
-}
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(startDate string, snapshotDate string) error {
 	tableName := "operator_avs_registration_snapshots"
@@ -137,4 +117,14 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(st
 		return err
 	}
 	return nil
+}
+
+func (rc *RewardsCalculator) ListOperatorAvsRegistrationSnapshots() ([]*OperatorAvsRegistrationSnapshots, error) {
+	var operatorAvsRegistrationSnapshots []*OperatorAvsRegistrationSnapshots
+	res := rc.grm.Model(&OperatorAvsRegistrationSnapshots{}).Find(&operatorAvsRegistrationSnapshots)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to list operator AVS registration snapshots", "error", res.Error)
+		return nil, res.Error
+	}
+	return operatorAvsRegistrationSnapshots, nil
 }

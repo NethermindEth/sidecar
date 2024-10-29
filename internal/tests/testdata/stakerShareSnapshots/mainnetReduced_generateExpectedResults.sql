@@ -3,7 +3,7 @@ COPY (
     select
         *
     from dbt_mainnet_ethereum_rewards.staker_shares
-    where block_time < '2024-08-13'
+    where block_time < '2024-08-12'
 ),
 ranked_staker_records as (
     SELECT *,
@@ -24,7 +24,7 @@ ranked_staker_records as (
          SELECT
              staker, strategy, shares, snapshot_time as start_time,
              CASE
-                 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '2024-08-01')
+                 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '2024-08-12')
                  ELSE LEAD(snapshot_time) OVER (PARTITION BY staker, strategy ORDER BY snapshot_time)
                  END AS end_time
          FROM snapshotted_records
@@ -38,11 +38,11 @@ final_results as (
         staker,
         strategy,
         shares::text,
-        cast(day AS DATE) AS snapshot
+        to_char(d, 'YYYY-MM-DD') AS snapshot
     FROM
         cleaned_records
     CROSS JOIN
-        generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+        generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
         )
 SELECT * from final_results
 ) TO STDOUT WITH DELIMITER ',' CSV HEADER

@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"testing"
-	"time"
 )
 
 func setupOperatorShareSnapshot() (
@@ -104,7 +103,10 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
 		t.Log("Generating operator share snapshots")
-		snapshots, err := rewards.GenerateOperatorShareSnapshots(startDate, snapshotDate)
+		err := rewards.GenerateAndInsertOperatorShareSnapshots(startDate, snapshotDate)
+		assert.Nil(t, err)
+
+		snapshots, err := rewards.ListOperatorShareSnapshots()
 		assert.Nil(t, err)
 
 		t.Log("Loading expected results")
@@ -127,7 +129,7 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 			// Go line-by-line in the snapshot results and find the corresponding line in the expected results.
 			// If one doesnt exist, add it to the missing list.
 			for _, snapshot := range snapshots {
-				snapshotStr := snapshot.Snapshot.Format(time.DateOnly)
+				snapshotStr := snapshot.Snapshot
 
 				slotId := fmt.Sprintf("%s_%s_%s", snapshot.Operator, snapshot.Strategy, snapshotStr)
 

@@ -1,9 +1,5 @@
 package rewards
 
-import (
-	"database/sql"
-)
-
 // Operator AVS Strategy Windows: Ranges for which an Operator, Strategy is restaked on an AVS
 // 1. Ranked_records: Order all records. Round up block_time to 0 UTC
 // 2. Latest_records: Get latest records for each (operator, avs, strategy, day) combination
@@ -135,36 +131,12 @@ final_results as (
 		operator,
 		avs,
 		strategy,
-		cast(day AS DATE) AS snapshot
+		to_char(d, 'YYYY-MM-DD') AS snapshot
 	FROM cleaned_records
-		CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+		CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
 )
 select * from final_results
 `
-
-func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(startDate string, snapshotDate string) ([]*OperatorAvsStrategySnapshot, error) {
-	results := make([]*OperatorAvsStrategySnapshot, 0)
-
-	contractAddresses := r.globalConfig.GetContractsMapForChain()
-
-	query, err := renderQueryTemplate(operatorAvsStrategyWindowsQuery, map[string]string{
-		"cutoffDate": snapshotDate,
-	})
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to render operator AVS strategy snapshots query", "error", err)
-		return nil, err
-	}
-
-	res := r.grm.Raw(query,
-		sql.Named("avsDirectoryAddress", contractAddresses.AvsDirectory),
-	).Scan(&results)
-
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to generate operator AVS strategy windows", "error", res.Error)
-		return nil, res.Error
-	}
-	return results, nil
-}
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(startDate string, snapshotDate string) error {
 	tableName := "operator_avs_strategy_snapshots"
@@ -186,4 +158,14 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(startD
 		return err
 	}
 	return nil
+}
+
+func (r *RewardsCalculator) ListOperatorAvsStrategySnapshots() ([]*OperatorAvsStrategySnapshot, error) {
+	var operatorAvsStrategySnapshots []*OperatorAvsStrategySnapshot
+	res := r.grm.Model(&OperatorAvsStrategySnapshot{}).Find(&operatorAvsStrategySnapshots)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to list operator AVS strategy snapshots", "error", res.Error)
+		return nil, res.Error
+	}
+	return operatorAvsStrategySnapshots, nil
 }

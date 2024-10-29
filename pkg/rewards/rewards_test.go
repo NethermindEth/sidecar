@@ -53,7 +53,7 @@ func getSnapshotDate() (string, error) {
 	case "testnet-reduced":
 		return "2024-07-25", nil
 	case "mainnet-reduced":
-		return "2024-08-20", nil
+		return "2024-08-12", nil
 	}
 	return "", fmt.Errorf("Unknown context: %s", context)
 }

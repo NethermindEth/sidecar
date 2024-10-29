@@ -11,6 +11,8 @@ with staker_shares_with_block_info as (
 		to_char(b.block_time, 'YYYY-MM-DD') AS block_date
 	from staker_shares as ss
 	left join blocks as b on (b.number = ss.block_number)
+	-- pipeline bronze table uses this to filter the correct records
+	where b.block_time < TIMESTAMP '{{.cutoffDate}}'
 ),
 ranked_staker_records as (
     SELECT *,
@@ -57,26 +59,6 @@ final_results as (
 select * from final_results
 `
 
-func (r *RewardsCalculator) GenerateStakerShareSnapshots(startDate string, snapshotDate string) ([]*StakerShareSnapshot, error) {
-	results := make([]*StakerShareSnapshot, 0)
-
-	query, err := renderQueryTemplate(stakerShareSnapshotsQuery, map[string]string{
-		"cutoffDate": snapshotDate,
-	})
-	if err != nil {
-		r.logger.Sugar().Errorw("Failed to render query template", "error", err)
-		return nil, err
-	}
-
-	res := r.grm.Raw(query).Scan(&results)
-
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", res.Error)
-		return nil, res.Error
-	}
-	return results, nil
-}
-
 func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(startDate string, snapshotDate string) error {
 	tableName := "staker_share_snapshots"
 
@@ -94,4 +76,14 @@ func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(startDate stri
 		return err
 	}
 	return nil
+}
+
+func (r *RewardsCalculator) ListStakerShareSnapshots() ([]*StakerShareSnapshot, error) {
+	var snapshots []*StakerShareSnapshot
+	res := r.grm.Model(&StakerShareSnapshot{}).Find(&snapshots)
+	if res.Error != nil {
+		r.logger.Sugar().Errorw("Failed to list staker share snapshots", "error", res.Error)
+		return nil, res.Error
+	}
+	return snapshots, nil
 }

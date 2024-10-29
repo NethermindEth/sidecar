@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"testing"
-	"time"
 )
 
 func setupStakerShareSnapshot() (
@@ -101,7 +100,10 @@ func Test_StakerShareSnapshots(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
 		t.Log("Generating staker share snapshots")
-		snapshots, err := rewards.GenerateStakerShareSnapshots(startDate, snapshotDate)
+		err := rewards.GenerateAndInsertStakerShareSnapshots(startDate, snapshotDate)
+		assert.Nil(t, err)
+
+		snapshots, err := rewards.ListStakerShareSnapshots()
 		assert.Nil(t, err)
 
 		t.Log("Getting expected results")
@@ -124,8 +126,7 @@ func Test_StakerShareSnapshots(t *testing.T) {
 			// Go line-by-line in the snapshot results and find the corresponding line in the expected results.
 			// If one doesnt exist, add it to the missing list.
 			for _, snapshot := range snapshots {
-				snapshotStr := snapshot.Snapshot.Format(time.DateOnly)
-				slotId := fmt.Sprintf("%s_%s_%s", snapshot.Staker, snapshot.Strategy, snapshotStr)
+				slotId := fmt.Sprintf("%s_%s_%s", snapshot.Staker, snapshot.Strategy, snapshot.Snapshot)
 
 				found, ok := mappedExpectedResults[slotId]
 				if !ok {

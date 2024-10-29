@@ -102,11 +102,11 @@ SELECT
     operator,
     avs,
     strategy,
-    cast(day AS DATE) AS snapshot
+    to_char(d, 'YYYY-MM-DD') AS snapshot
 FROM
     cleaned_records
         CROSS JOIN
-    generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+    generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
 )
 select * from final_results
 ) to STDOUT DELIMITER ',' CSV HEADER;

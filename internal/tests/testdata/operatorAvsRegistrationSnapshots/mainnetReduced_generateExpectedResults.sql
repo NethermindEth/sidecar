@@ -1,7 +1,7 @@
 COPY (
      with filtered as (
     select * from dbt_mainnet_ethereum_rewards.operator_avs_status
-    where block_time < '2024-08-13'
+    where block_time < '2024-08-12'
 ),
 marked_statuses AS (
     SELECT
@@ -34,7 +34,7 @@ marked_statuses AS (
              operator,
              avs,
              block_time AS start_time,
-             COALESCE(next_block_time, TIMESTAMP '2024-08-01') AS end_time,
+             COALESCE(next_block_time, TIMESTAMP '2024-08-12') AS end_time,
              registered
          FROM removed_same_day_deregistrations
          WHERE registered = TRUE
@@ -59,9 +59,9 @@ marked_statuses AS (
         SELECT
             operator,
             avs,
-            day AS snapshot
+            to_char(d, 'YYYY-MM-DD') AS snapshot
         FROM cleaned_records
-        CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
+        CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
         )
         select * from final_results
 ) TO STDOUT WITH DELIMITER ',' CSV HEADER;
