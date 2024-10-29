@@ -61,7 +61,6 @@ type Config struct {
 	StatsdUrl         string
 	EthereumRpcConfig EthereumRpcConfig
 	EtherscanConfig   EtherscanConfig
-	SqliteConfig      SqliteConfig
 	DatabaseConfig    DatabaseConfig
 	RpcConfig         RpcConfig
 	Chain             Chain
@@ -77,12 +76,6 @@ type EtherscanConfig struct {
 	ApiKeys []string
 }
 
-type SqliteConfig struct {
-	InMemory       bool
-	DbFilePath     string
-	ExtensionsPath []string
-}
-
 type DatabaseConfig struct {
 	Host     string
 	Port     int
@@ -94,13 +87,6 @@ type DatabaseConfig struct {
 type RpcConfig struct {
 	GrpcPort int
 	HttpPort int
-}
-
-func (c *Config) GetSqlitePath() string {
-	if c.SqliteConfig.InMemory {
-		return "file::memory:?cache=shared"
-	}
-	return fmt.Sprintf("%s/db/%s", c.DataDir, "sidecar.db")
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -131,11 +117,6 @@ func NewConfig() *Config {
 
 		EtherscanConfig: EtherscanConfig{
 			ApiKeys: parseListEnvVar(viper.GetString(normalizeFlagName("etherscan.api_keys"))),
-		},
-
-		SqliteConfig: SqliteConfig{
-			InMemory:       viper.GetBool(normalizeFlagName("sqlite.in_memory")),
-			ExtensionsPath: parseListEnvVar(viper.GetString(normalizeFlagName("sqlite.extensions_path"))),
 		},
 
 		DatabaseConfig: DatabaseConfig{

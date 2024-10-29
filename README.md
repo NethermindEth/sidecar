@@ -3,9 +3,7 @@
 ## Dependencies
 
 * Go 1.22
-* Sqlite3 (version 9.x.x)
-* Python3 (version 3.12)
-* GCC (for building sqlite3 extensions)
+* PostgreSQL >= 15.x
 * Homebrew (if on MacOS)
 
 ## Supported build environments
