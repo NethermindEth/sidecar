@@ -1,7 +1,5 @@
 package rewards
 
-import "database/sql"
-
 const stakerDelegationSnapshotsQuery = `
 with staker_delegations_with_block_info as (
 	select
@@ -10,9 +8,11 @@ with staker_delegations_with_block_info as (
 		sdc.log_index,
 		sdc.block_number,
 		b.block_time::timestamp(6) as block_time,
-		b.block_time::date as block_date
+		to_char(b.block_time, 'YYYY-MM-DD') AS block_date
 	from staker_delegation_changes as sdc
 	left join blocks as b on (b.number = sdc.block_number)
+	-- pipeline bronze table uses this to filter the correct records
+	where b.block_time < TIMESTAMP '{{.cutoffDate}}'
 ),
 ranked_delegations as (
     SELECT *,
@@ -35,7 +35,7 @@ staker_delegation_windows as (
 	 staker, operator, snapshot_time as start_time,
 	 CASE
 		 -- If the range does not have the end, use the cutoff date truncated to 0 UTC
-		 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker ORDER BY snapshot_time) is null THEN date_trunc('day', DATE(@cutoffDate))
+		 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
 		 ELSE LEAD(snapshot_time) OVER (PARTITION BY staker ORDER BY snapshot_time)
 		 END AS end_time
  FROM snapshotted_records
@@ -60,9 +60,15 @@ select * from final_results
 func (r *RewardsCalculator) GenerateStakerDelegationSnapshots(startDate string, snapshotDate string) ([]*StakerDelegationSnapshot, error) {
 	results := make([]*StakerDelegationSnapshot, 0)
 
-	res := r.grm.Raw(stakerDelegationSnapshotsQuery,
-		sql.Named("cutoffDate", snapshotDate),
-	).Scan(&results)
+	query, err := renderQueryTemplate(stakerDelegationSnapshotsQuery, map[string]string{
+		"cutoffDate": snapshotDate,
+	})
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to render operator share snapshots query", "error", err)
+		return nil, err
+	}
+
+	res := r.grm.Raw(query).Scan(&results)
 
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", res.Error)
@@ -73,9 +79,16 @@ func (r *RewardsCalculator) GenerateStakerDelegationSnapshots(startDate string, 
 
 func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(startDate string, snapshotDate string) error {
 	tableName := "staker_delegation_snapshots"
-	err := r.generateAndInsertFromQuery(tableName, stakerDelegationSnapshotsQuery, map[string]interface{}{
+
+	query, err := renderQueryTemplate(stakerDelegationSnapshotsQuery, map[string]string{
 		"cutoffDate": snapshotDate,
 	})
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to render operator share snapshots query", "error", err)
+		return nil
+	}
+
+	err = r.generateAndInsertFromQuery(tableName, query, nil)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate staker_delegation_snapshots", "error", err)
 		return err

@@ -8,9 +8,11 @@ with operator_shares_with_block_info as (
 		os.shares,
 		os.block_number,
 		b.block_time::timestamp(6),
-		b.block_time::date as block_date
+		to_char(b.block_time, 'YYYY-MM-DD') as block_date
 	from operator_shares as os
 	left join blocks as b on (b.number = os.block_number)
+	-- pipeline bronze table uses this to filter the correct records
+	where b.block_time < TIMESTAMP '{{.cutoffDate}}'
 ),
 ranked_operator_records as (
     SELECT *,

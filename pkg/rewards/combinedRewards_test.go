@@ -72,6 +72,11 @@ func Test_CombinedRewards(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	snapshotDate, err := getSnapshotDate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	t.Run("Should hydrate blocks and reward_submissions tables", func(t *testing.T) {
 		totalBlockCount, err := hydrateAllBlocksTable(grm, l)
 		if err != nil {
@@ -106,8 +111,12 @@ func Test_CombinedRewards(t *testing.T) {
 	t.Run("Should generate the proper combinedRewards", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
-		combinedRewards, err := rewards.GenerateCombinedRewards()
+		err = rewards.GenerateAndInsertCombinedRewards(snapshotDate)
 		assert.Nil(t, err)
+
+		combinedRewards, err := rewards.ListCombinedRewards()
+		assert.Nil(t, err)
+
 		assert.NotNil(t, combinedRewards)
 
 		t.Logf("Generated %d combinedRewards", len(combinedRewards))

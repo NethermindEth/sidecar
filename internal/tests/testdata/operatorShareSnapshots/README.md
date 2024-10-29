@@ -30,7 +30,7 @@ select
     operator,
     strategy,
     block_number,
-    sum(shares)::text as shares
+    sum(shares) as shares
 from dbt_mainnet_ethereum_rewards.operator_shares
 where block_time < '2024-08-13'
 group by 1, 2, 3

@@ -39,8 +39,8 @@ active_rewards_updated_end_timestamps as (
 active_rewards_updated_start_timestamps as (
 	SELECT
 		ap.avs,
-		-- COALESCE(MAX(g.snapshot), ap.reward_start_exclusive) as reward_start_exclusive,
-		ap.reward_start_exclusive,
+		COALESCE(MAX(g.snapshot), ap.reward_start_exclusive) as reward_start_exclusive,
+		-- ap.reward_start_exclusive,
 		ap.reward_end_inclusive,
 		ap.token,
 		-- We use floor to ensure we are always underesimating total tokens per day
@@ -100,15 +100,17 @@ func (r *RewardsCalculator) Generate1ActiveRewards(startDate string, snapshotDat
 	allTableNames := getGoldTableNames(snapshotDate)
 	destTableName := allTableNames[Table_1_ActiveRewards]
 
+	rewardsStart := "1970-01-01 00:00:00" // This will always start as this date and get's updated later in the query
+
 	r.logger.Sugar().Infow("Generating active rewards",
-		zap.String("startDate", startDate),
+		zap.String("rewardsStart", rewardsStart),
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
 
 	query, err := renderQueryTemplate(_1_goldActiveRewardsQuery, map[string]string{
 		"destTableName": destTableName,
-		"rewardsStart":  startDate,
+		"rewardsStart":  rewardsStart,
 		"cutoffDate":    snapshotDate,
 	})
 	if err != nil {

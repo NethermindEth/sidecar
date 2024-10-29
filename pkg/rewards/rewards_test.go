@@ -201,16 +201,21 @@ func Test_Rewards(t *testing.T) {
 
 		t.Log("Hydrated tables")
 
-		snapshotDates, err := generateDateRange("2024-08-02", "2024-08-19")
+		// Each snapshot date present is the cutoff date - 1 day
+		// 0. August 1, 2024 --> August 2, 2024
+		// 1. August 11, 2024 --> August 12, 2024
+		snapshotDates, err := generateDateRange("2024-08-02", "2024-08-10")
 		if err != nil {
 			t.Fatal(err)
 		}
-		snapshotDates = []string{"2024-08-12"}
+
+		snapshotDates = []string{"2024-08-02", "2024-08-11", "2024-08-12"}
 
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
 		testStart = time.Now()
 
 		for i, snapshotDate := range snapshotDates {
+			t.Log("-----------------------------\n")
 			var startDate string
 			if i == 0 {
 				startDate = "1970-01-01"
@@ -221,8 +226,6 @@ func Test_Rewards(t *testing.T) {
 				}
 				t.Logf("Max snapshot date: %s", startDate)
 			}
-
-			startDate = "1970-01-01"
 
 			snapshotStartTime := time.Now()
 

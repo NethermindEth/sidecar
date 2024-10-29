@@ -101,7 +101,7 @@ func (rc *RewardsCalculator) getMostRecentDistributionRoot() (*submittedDistribu
 func (rc *RewardsCalculator) generateSnapshotData(startDate string, snapshotDate string) error {
 	var err error
 
-	if err = rc.GenerateAndInsertCombinedRewards(); err != nil {
+	if err = rc.GenerateAndInsertCombinedRewards(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate combined rewards", "error", err)
 		return err
 	}
@@ -155,7 +155,7 @@ func (rc *RewardsCalculator) GetNextSnapshotDate() (string, error) {
 		)
 		SELECT
 			CASE WHEN md.snapshot IS NULL
-			THEN '1970-01-01' ELSE DATE(md.snapshot) + interval '1' day END as snapshot
+			THEN '1970-01-01' ELSE to_char(md.snapshot + interval '1' day, 'YYYY-MM-DD') END as snapshot
 		FROM max_date as md
 	`
 	res := rc.grm.Raw(query).Scan(&maxDate)

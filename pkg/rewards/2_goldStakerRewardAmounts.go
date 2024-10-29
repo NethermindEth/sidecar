@@ -23,7 +23,7 @@ WITH reward_snapshot_operators as (
     oar.operator
   FROM {{.activeRewardsTable}} ap
   JOIN operator_avs_registration_snapshots oar
-  ON ap.avs = oar.avs and ap.snapshot::timestamp::date = oar.snapshot::timestamp::date
+  ON ap.avs = oar.avs and ap.snapshot = oar.snapshot
   WHERE ap.reward_type = 'avs'
 ),
 _operator_restaked_strategies AS (
@@ -153,7 +153,7 @@ func (rc *RewardsCalculator) GenerateGold2StakerRewardAmountsTable(startDate str
 		return err
 	}
 
-	res := rc.grm.Debug().Exec(query,
+	res := rc.grm.Exec(query,
 		sql.Named("amazonHardforkDate", forks[config.Fork_Amazon]),
 		sql.Named("nileHardforkDate", forks[config.Fork_Nile]),
 	)

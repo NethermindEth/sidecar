@@ -1,7 +1,5 @@
 package rewards
 
-import "database/sql"
-
 // Operator AVS Registration Windows: Ranges at which an operator has registered for an AVS
 // 0. Ranked: Rank the operator state changes by block_time and log_index since sqlite lacks LEAD/LAG functions
 // 1. Marked_statuses: Denote which registration status comes after one another
@@ -22,9 +20,11 @@ WITH state_changes as (
 	select
 		aosc.*,
 		b.block_time::timestamp(6) as block_time,
-		b.block_time::date as block_date
+		to_char(b.block_time, 'YYYY-MM-DD') AS block_date
 	from avs_operator_state_changes as aosc
 	left join blocks as b on (b.number = aosc.block_number)
+	-- pipeline bronze table uses this to filter the correct records
+	where b.block_time < TIMESTAMP '{{.cutoffDate}}'
 ),
 marked_statuses AS (
     SELECT
@@ -68,7 +68,7 @@ marked_statuses AS (
 		block_time AS start_time,
 		-- Mark the next_block_time as the end_time for the range
 		-- Use coalesce because if the next_block_time for a registration is not closed, then we use cutoff_date
-		COALESCE(next_block_time, @cutoffDate)::timestamp AS end_time,
+		COALESCE(next_block_time, '{{.cutoffDate}}')::timestamp AS end_time,
 		registered
 	FROM removed_same_day_deregistrations
 	WHERE registered = TRUE
@@ -104,7 +104,15 @@ CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, 
 func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(startDate string, snapshotDate string) ([]*OperatorAvsRegistrationSnapshots, error) {
 	results := make([]*OperatorAvsRegistrationSnapshots, 0)
 
-	res := r.grm.Raw(operatorAvsRegistrationSnapshotsQuery, sql.Named("cutoffDate", snapshotDate)).Scan(&results)
+	query, err := renderQueryTemplate(operatorAvsRegistrationSnapshotsQuery, map[string]string{
+		"cutoffDate": snapshotDate,
+	})
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to render operator AVS registration snapshots query", "error", err)
+		return nil, err
+	}
+
+	res := r.grm.Raw(query).Scan(&results)
 	if res.Error != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator AVS registration windows", "error", res.Error)
 		return nil, res.Error
@@ -114,9 +122,16 @@ func (r *RewardsCalculator) GenerateOperatorAvsRegistrationSnapshots(startDate s
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(startDate string, snapshotDate string) error {
 	tableName := "operator_avs_registration_snapshots"
-	err := r.generateAndInsertFromQuery(tableName, operatorAvsRegistrationSnapshotsQuery, map[string]interface{}{
+
+	query, err := renderQueryTemplate(operatorAvsRegistrationSnapshotsQuery, map[string]string{
 		"cutoffDate": snapshotDate,
 	})
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to render operator AVS registration snapshots query", "error", err)
+		return err
+	}
+
+	err = r.generateAndInsertFromQuery(tableName, query, nil)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator_avs_registration_snapshots", "error", err)
 		return err

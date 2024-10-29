@@ -147,7 +147,15 @@ func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(startDate strin
 
 	contractAddresses := r.globalConfig.GetContractsMapForChain()
 
-	res := r.grm.Raw(operatorAvsStrategyWindowsQuery,
+	query, err := renderQueryTemplate(operatorAvsStrategyWindowsQuery, map[string]string{
+		"cutoffDate": snapshotDate,
+	})
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to render operator AVS strategy snapshots query", "error", err)
+		return nil, err
+	}
+
+	res := r.grm.Raw(query,
 		sql.Named("avsDirectoryAddress", contractAddresses.AvsDirectory),
 	).Scan(&results)
 
@@ -160,8 +168,18 @@ func (r *RewardsCalculator) GenerateOperatorAvsStrategySnapshots(startDate strin
 
 func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(startDate string, snapshotDate string) error {
 	tableName := "operator_avs_strategy_snapshots"
-	err := r.generateAndInsertFromQuery(tableName, operatorAvsStrategyWindowsQuery, map[string]interface{}{
-		"avsDirectoryAddress": r.globalConfig.GetContractsMapForChain().AvsDirectory,
+	contractAddresses := r.globalConfig.GetContractsMapForChain()
+
+	query, err := renderQueryTemplate(operatorAvsStrategyWindowsQuery, map[string]string{
+		"cutoffDate": snapshotDate,
+	})
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to render operator AVS strategy snapshots query", "error", err)
+		return err
+	}
+
+	err = r.generateAndInsertFromQuery(tableName, query, map[string]interface{}{
+		"avsDirectoryAddress": contractAddresses.AvsDirectory,
 	})
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate operator_avs_registration_snapshots", "error", err)
