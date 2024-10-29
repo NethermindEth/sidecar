@@ -37,8 +37,7 @@ type Migrator struct {
 }
 
 func NewMigrator(db *sql.DB, gDb *gorm.DB, l *zap.Logger) *Migrator {
-
-	gDb.AutoMigrate(&Migrations{})
+	_ = gDb.AutoMigrate(&Migrations{})
 	return &Migrator{
 		Db:     db,
 		GDb:    gDb,

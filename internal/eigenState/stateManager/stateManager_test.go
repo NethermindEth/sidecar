@@ -33,10 +33,6 @@ func setup() (
 	return dbname, grm, l, cfg, nil
 }
 
-func teardown(grm *gorm.DB) {
-	grm.Exec("truncate table state_roots cascade")
-}
-
 func Test_StateManager(t *testing.T) {
 	dbName, grm, l, cfg, err := setup()
 

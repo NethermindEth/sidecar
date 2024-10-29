@@ -459,8 +459,6 @@ func Test_RewardSubmissions(t *testing.T) {
 		model, err := NewRewardSubmissionsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
-		submissionCounter := 0
-
 		blockNumber := uint64(100)
 		// create first block
 		if err := createBlock(model, blockNumber); err != nil {
@@ -492,8 +490,6 @@ func Test_RewardSubmissions(t *testing.T) {
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
-
-		submissionCounter += len(typedChange.Submissions)
 
 		query := `select count(*) from reward_submissions where block_number = ?`
 		var count int
@@ -541,8 +537,6 @@ func Test_RewardSubmissions(t *testing.T) {
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
-		submissionCounter += len(typedChange.Submissions)
-
 		stateRoot, err = model.GenerateStateRoot(blockNumber)
 		assert.Nil(t, err)
 		assert.NotNil(t, stateRoot)
@@ -587,8 +581,6 @@ func Test_RewardSubmissions(t *testing.T) {
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
-		submissionCounter += len(typedChange.Submissions)
-
 		stateRoot, err = model.GenerateStateRoot(blockNumber)
 		assert.Nil(t, err)
 		assert.NotNil(t, stateRoot)
@@ -632,8 +624,6 @@ func Test_RewardSubmissions(t *testing.T) {
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
-
-		submissionCounter += len(typedChange.Submissions)
 
 		stateRoot, err = model.GenerateStateRoot(blockNumber)
 		assert.Nil(t, err)

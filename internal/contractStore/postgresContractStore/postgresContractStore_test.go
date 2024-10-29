@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"os"
 	"testing"
 )
 
@@ -34,9 +33,8 @@ func setup() (
 }
 
 func Test_PostgresContractStore(t *testing.T) {
-	os.Setenv("SIDECAR_CHAIN", "holesky")
-	cfg := config.NewConfig()
 	dbName, db, l, cfg, err := setup()
+	cfg.Chain = config.Chain_Holesky
 
 	if err != nil {
 		t.Fatal(err)

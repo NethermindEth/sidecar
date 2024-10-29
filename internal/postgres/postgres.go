@@ -137,7 +137,7 @@ func CreateDatabaseIfNotExists(cfg *PostgresConfig) error {
 func NewPostgres(cfg *PostgresConfig) (*Postgres, error) {
 	if cfg.CreateDbIfNotExists {
 		if err := CreateDatabaseIfNotExists(cfg); err != nil {
-			return nil, xerrors.Errorf("Failed to create database if not exists", err)
+			return nil, xerrors.Errorf("Failed to create database if not exists %+v", err)
 		}
 	}
 	authString := ""
@@ -155,7 +155,7 @@ func NewPostgres(cfg *PostgresConfig) (*Postgres, error) {
 	)
 	db, err := sql.Open("postgres", connectString)
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to setup database", err)
+		return nil, xerrors.Errorf("Failed to setup database %+v", err)
 	}
 
 	return &Postgres{
@@ -170,7 +170,7 @@ func NewGormFromPostgresConnection(pgDb *sql.DB) (*gorm.DB, error) {
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to setup database", err)
+		return nil, xerrors.Errorf("Failed to setup database %+v", err)
 	}
 
 	return db, nil

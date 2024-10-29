@@ -132,6 +132,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		assert.Nil(t, err)
 
 		snapshots, err := rewards.ListOperatorAvsRegistrationSnapshots()
+		assert.Nil(t, err)
 		assert.NotNil(t, snapshots)
 
 		t.Logf("Generated %d snapshots", len(snapshots))

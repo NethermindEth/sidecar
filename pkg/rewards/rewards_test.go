@@ -107,42 +107,6 @@ func setupRewards() (
 	return dbname, cfg, grm, l, nil
 }
 
-func teardownRewards(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
-	rawDb, _ := db.DB()
-	_ = rawDb.Close()
-
-	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
-
-	if err := postgres.DeleteTestDatabase(pgConfig, dbname); err != nil {
-		l.Sugar().Errorw("Failed to delete test database", "error", err)
-	}
-}
-
-func generateDateRange(startStr, endStr string) ([]string, error) {
-	start, err := time.Parse(time.DateOnly, startStr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid start date format: %v", err)
-	}
-
-	end, err := time.Parse(time.DateOnly, endStr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid end date format: %v", err)
-	}
-
-	if start.After(end) {
-		return []string{}, nil
-	}
-
-	days := int(end.Sub(start).Hours()/24) + 1
-	dates := make([]string, days)
-
-	for i := 0; i < days; i++ {
-		dates[i] = start.AddDate(0, 0, i).Format(time.DateOnly)
-	}
-
-	return dates, nil
-}
-
 func Test_Rewards(t *testing.T) {
 	if !rewardsTestsEnabled() {
 		t.Skipf("Skipping %s", t.Name())
@@ -199,24 +163,10 @@ func Test_Rewards(t *testing.T) {
 
 		t.Log("Hydrated tables")
 
-		// Each snapshot date present is the cutoff date - 1 day
-		// 0. August 1, 2024 --> August 2, 2024
-		// 1. August 11, 2024 --> August 12, 2024
-		snapshotDates, err := generateDateRange("2024-08-02", "2024-08-10")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		snapshotDates = []string{
+		snapshotDates := []string{
 			"2024-08-02",
 			"2024-08-11",
 			"2024-08-12",
-			// "2024-08-13",
-			// "2024-08-14",
-			// "2024-08-15",
-			// "2024-08-16",
-			// "2024-08-17",
-			// "2024-08-18",
 			"2024-08-19",
 		}
 
@@ -314,7 +264,6 @@ func Test_Rewards(t *testing.T) {
 			rows, err = getRowCountForTable(grm, "gold_table")
 			assert.Nil(t, err)
 			fmt.Printf("\tRows in gold_table: %v - [time: %v]\n", rows, time.Since(testStart))
-			testStart = time.Now()
 
 			goldRows, err := rc.ListGoldRows()
 			assert.Nil(t, err)
