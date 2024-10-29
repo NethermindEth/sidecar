@@ -1,6 +1,7 @@
 package submittedDistributionRoots
 
 import (
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"math/big"
 	"testing"
 	"time"
@@ -8,39 +9,36 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 func setup() (
-	*config.Config,
+	string,
 	*gorm.DB,
 	*zap.Logger,
+	*config.Config,
 	error,
 ) {
-	cfg := tests.GetConfig()
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+	cfg := config.NewConfig()
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	db, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return cfg, db, l, err
+	return dbname, grm, l, cfg, nil
 }
 
 func teardown(model *SubmittedDistributionRootsModel) {
 	queries := []string{
-		`delete from submitted_distribution_roots`,
+		`truncate table submitted_distribution_roots cascade`,
 	}
 	for _, query := range queries {
 		model.DB.Raw(query)
@@ -48,7 +46,7 @@ func teardown(model *SubmittedDistributionRootsModel) {
 }
 
 func Test_SubmittedDistributionRoots(t *testing.T) {
-	cfg, grm, l, err := setup()
+	dbName, grm, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +106,9 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 
 		insertedRoots = append(insertedRoots, roots[0])
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
 	})
 	t.Run("Parse a submitted distribution root with numeric arguments", func(t *testing.T) {
 		blockNumber := uint64(101)
@@ -159,6 +159,11 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 2, len(roots))
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
+	})
+	t.Cleanup(func() {
+		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
 }

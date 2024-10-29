@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/Layr-Labs/go-sidecar/internal/contractStore/postgresContractStore"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
+	postgres2 "github.com/Layr-Labs/go-sidecar/internal/storage/postgres"
 	"log"
 	"testing"
 
@@ -12,7 +15,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/internal/contractManager"
-	"github.com/Layr-Labs/go-sidecar/internal/contractStore/sqliteContractStore"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/avsOperators"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/operatorShares"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/rewardSubmissions"
@@ -24,11 +26,8 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/indexer"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/metrics"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
-	sqliteBlockStore "github.com/Layr-Labs/go-sidecar/internal/storage/sqlite"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -39,16 +38,24 @@ func setup() (
 	*indexer.Indexer,
 	storage.BlockStore,
 	*stateManager.EigenStateManager,
+	*config.Config,
 	*zap.Logger,
 	*gorm.DB,
+	string,
 ) {
 	const (
-		rpcUrl           = "http://54.198.82.217:8545"
-		statsdUrl        = "localhost:8125"
-		etherscanApiKeys = "SOME KEY"
+		rpcUrl    = "http://54.198.82.217:8545"
+		statsdUrl = "localhost:8125"
 	)
-	cfg := tests.GetConfig()
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: false})
+	etherscanApiKeys := []string{"SOME KEY"}
+
+	cfg := config.NewConfig()
+	cfg.EthereumRpcConfig.BaseUrl = rpcUrl
+	cfg.StatsdUrl = statsdUrl
+	cfg.EtherscanConfig.ApiKeys = etherscanApiKeys
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
 
 	sdc, err := metrics.InitStatsdClient(statsdUrl)
 	if err != nil {
@@ -57,30 +64,25 @@ func setup() (
 
 	etherscanClient := etherscan.NewEtherscanClient(&config.Config{
 		EtherscanConfig: config.EtherscanConfig{
-			ApiKeys: []string{etherscanApiKeys},
+			ApiKeys: etherscanApiKeys,
 		},
 		Chain: "holesky",
 	}, l)
 	client := ethereum.NewClient(rpcUrl, l)
 
-	// database
-	grm, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(grm, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		log.Fatal(err)
 	}
 
-	contractStore := postgresContractStore.NewSqliteContractStore(grm, l, cfg)
+	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
 	if err := contractStore.InitializeCoreContracts(); err != nil {
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}
 
 	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
 
-	mds := sqliteBlockStore.NewPostgresBlockStore(grm, l, cfg)
+	mds := postgres2.NewPostgresBlockStore(grm, l, cfg)
 
 	sm := stateManager.NewEigenStateManager(l, grm)
 
@@ -109,11 +111,12 @@ func setup() (
 
 	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, cc, l, cfg)
 
-	return fetchr, idxr, mds, sm, l, grm
+	return fetchr, idxr, mds, sm, cfg, l, grm, dbname
+
 }
 
 func Test_Pipeline_Integration(t *testing.T) {
-	fetchr, idxr, mds, sm, l, grm := setup()
+	fetchr, idxr, mds, sm, cfg, l, grm, dbName := setup()
 	t.Run("Should create a new Pipeline", func(t *testing.T) {
 		p := NewPipeline(fetchr, idxr, mds, sm, l)
 		assert.NotNil(t, p)
@@ -137,5 +140,8 @@ func Test_Pipeline_Integration(t *testing.T) {
 		assert.Nil(t, res.Error)
 
 		assert.Equal(t, 1, len(delegatedStakers))
+	})
+	t.Cleanup(func() {
+		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
 }

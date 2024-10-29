@@ -12,6 +12,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"regexp"
 )
 
 type PostgresConfig struct {
@@ -202,4 +203,10 @@ func TeardownTestDatabase(dbname string, cfg *config.Config, db *gorm.DB, l *zap
 	if err := DeleteTestDatabase(pgConfig, dbname); err != nil {
 		l.Sugar().Errorw("Failed to delete test database", "error", err)
 	}
+}
+
+func IsDuplicateKeyError(err error) bool {
+	r := regexp.MustCompile(`duplicate key value violates unique constraint`)
+
+	return r.MatchString(err.Error())
 }

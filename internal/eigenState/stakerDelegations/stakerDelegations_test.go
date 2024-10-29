@@ -2,50 +2,48 @@ package stakerDelegations
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"testing"
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 func setup() (
-	*config.Config,
+	string,
 	*gorm.DB,
 	*zap.Logger,
+	*config.Config,
 	error,
 ) {
-	cfg := tests.GetConfig()
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+	cfg := config.NewConfig()
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	db, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return cfg, db, l, err
+	return dbname, grm, l, cfg, nil
 }
 
 func teardown(model *StakerDelegationsModel) {
-	model.DB.Exec("delete from staker_delegation_changes")
-	model.DB.Exec("delete from delegated_stakers")
-	model.DB.Exec("delete from staker_delegation_changes")
+	model.DB.Exec("truncate table staker_delegation_changes cascade")
+	model.DB.Exec("truncate table delegated_stakers cascade")
+	model.DB.Exec("truncate table staker_delegation_changes cascade")
 }
 
 func Test_DelegatedStakersState(t *testing.T) {
-	cfg, grm, l, err := setup()
+	dbName, grm, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
@@ -90,7 +88,9 @@ func Test_DelegatedStakersState(t *testing.T) {
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Staker)
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Operator)
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
 	})
 	t.Run("Should register StakerDelegationsModel and generate the table for the block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
@@ -144,7 +144,9 @@ func Test_DelegatedStakersState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.True(t, len(stateRoot) > 0)
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
 	})
 	t.Run("Should correctly generate state across multiple blocks", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
@@ -227,6 +229,11 @@ func Test_DelegatedStakersState(t *testing.T) {
 			assert.True(t, len(stateRoot) > 0)
 		}
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
+	})
+	t.Cleanup(func() {
+		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
 }

@@ -8,14 +8,14 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/internal/contractManager"
+	"github.com/Layr-Labs/go-sidecar/internal/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/go-sidecar/internal/fetcher"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/metrics"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
-	sqliteBlockStore "github.com/Layr-Labs/go-sidecar/internal/storage/sqlite"
+	pgStorage "github.com/Layr-Labs/go-sidecar/internal/storage/postgres"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -24,38 +24,33 @@ import (
 	"time"
 )
 
-var previousEnv = make(map[string]string)
-
 func setup() (
-	*config.Config,
+	string,
 	*gorm.DB,
 	*zap.Logger,
+	*config.Config,
 	error,
 ) {
-	tests.ReplaceEnv(map[string]string{
-		"SIDECAR_CHAIN":              "holesky",
-		"SIDECAR_ETHERSCAN_API_KEYS": "SOME API KEY",
-		"SIDECAR_STATSD_URL":         "localhost:8125",
-		"SIDECAR_DEBUG":              "true",
-	}, &previousEnv)
-	cfg := tests.GetConfig()
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+	cfg := config.NewConfig()
+	cfg.Chain = config.Chain_Holesky
+	cfg.EtherscanConfig.ApiKeys = []string{"some api key"}
+	cfg.StatsdUrl = "localhost:8125"
+	cfg.Debug = true
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	db, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return cfg, db, l, err
+	return dbname, grm, l, cfg, nil
 }
 
 func teardown(grm *gorm.DB) {
 	queries := []string{
-		`delete from operator_restaked_strategies`,
+		`truncate table operator_restaked_strategies`,
 	}
 	for _, query := range queries {
 		res := grm.Exec(query)
@@ -66,7 +61,7 @@ func teardown(grm *gorm.DB) {
 }
 
 func Test_IndexerRestakedStrategies(t *testing.T) {
-	cfg, grm, l, err := setup()
+	dbName, grm, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
@@ -75,12 +70,12 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 	client := ethereum.NewClient("http://34.229.43.36:8545", l)
 	sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
 
-	contractStore := postgresContractStore.NewSqliteContractStore(grm, l, cfg)
+	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
 	if err := contractStore.InitializeCoreContracts(); err != nil {
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}
 
-	mds := sqliteBlockStore.NewPostgresBlockStore(grm, l, cfg)
+	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 
@@ -180,7 +175,6 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 	})
 
 	t.Cleanup(func() {
-		teardown(grm)
-		tests.RestoreEnv(previousEnv)
+		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
 }
