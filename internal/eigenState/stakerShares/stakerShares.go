@@ -245,33 +245,36 @@ func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.Tran
 		return nil, err
 	}
 	query := `
-		with migration as (
-			select
-				json_extract(tl.output_data, '$.nonce') as nonce,
-				coalesce(json_extract(tl.output_data, '$.depositor'), json_extract(tl.output_data, '$.staker')) as staker
-			from transaction_logs tl
-			where
+		WITH migration AS (
+			SELECT
+				(tl.output_data ->> 'nonce') AS nonce,
+				lower(coalesce(tl.output_data ->> 'depositor', tl.output_data ->> 'staker')) AS staker
+			FROM transaction_logs tl
+			WHERE
 				tl.address = @strategyManagerAddress
-				and tl.block_number <= @logBlockNumber
-				and tl.event_name = 'WithdrawalQueued'
-				and bytes_to_hex(json_extract(tl.output_data, '$.withdrawalRoot')) = @oldWithdrawalRoot
+				AND tl.block_number <= @logBlockNumber
+				AND tl.event_name = 'WithdrawalQueued'
+				AND (
+					SELECT lower(string_agg(lpad(to_hex(elem::integer), 2, '0'), ''))
+					FROM jsonb_array_elements_text(tl.output_data->'withdrawalRoot') AS elem
+				) = @oldWithdrawalRoot
 		),
-		share_withdrawal_queued as (
-			select
+		share_withdrawal_queued AS (
+			SELECT
 				tl.*,
-				json_extract(tl.output_data, '$.nonce') as nonce,
-				coalesce(json_extract(tl.output_data, '$.depositor'), json_extract(tl.output_data, '$.staker')) as staker
-			from transaction_logs as tl
-			where
+				(tl.output_data ->> 'nonce') AS nonce,
+				lower(coalesce(tl.output_data ->> 'depositor', tl.output_data ->> 'staker')) AS staker
+			FROM transaction_logs AS tl
+			WHERE
 				tl.address = @strategyManagerAddress
-				and tl.event_name = 'ShareWithdrawalQueued'
+				AND tl.event_name = 'ShareWithdrawalQueued'
 		)
-		select
+		SELECT
 			*
-		from share_withdrawal_queued
-		where
-			nonce = (select nonce from migration)
-			and staker = (select staker from migration)
+		FROM share_withdrawal_queued
+		WHERE
+			nonce = (SELECT nonce FROM migration)
+			AND staker = (SELECT staker FROM migration)
 	`
 	logs := make([]storage.TransactionLog, 0)
 	res := ss.DB.

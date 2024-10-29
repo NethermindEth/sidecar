@@ -13,9 +13,9 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 		`create table if not exists submitted_distribution_roots (
 			root varchar not null,
 			root_index bigint not null,
-			rewards_calculation_end varchar not null,
+			rewards_calculation_end timestamp without time zone not null,
 			rewards_calculation_end_unit varchar not null,
-			activated_at timestamp with time zone not null,
+			activated_at timestamp without time zone not null,
 			activated_at_unit varchar not null,
 			created_at_block_number bigint not null,
 			block_number bigint not null

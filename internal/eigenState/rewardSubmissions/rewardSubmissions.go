@@ -340,7 +340,7 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 		Model(&RewardSubmission{}).
 		Raw(query,
 			sql.Named("previousBlock", blockNumber-1),
-			sql.Named("blockTime", currentBlock.BlockTime.Unix()),
+			sql.Named("blockTime", currentBlock.BlockTime),
 		).
 		Find(&noLongerActiveSubmissions)
 

@@ -65,7 +65,7 @@ func createBlock(model *RewardSubmissionsModel, blockNumber uint64) error {
 }
 
 func Test_RewardSubmissions(t *testing.T) {
-	dbName, grm, l, cfg, err := setup()
+	_, grm, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
@@ -500,7 +500,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		res := model.DB.Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, submissionCounter, count)
+		assert.Equal(t, len(typedChange.Submissions), count)
 
 		stateRoot, err := model.GenerateStateRoot(blockNumber)
 		assert.Nil(t, err)
@@ -552,7 +552,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		res = model.DB.Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, submissionCounter, count)
+		assert.Equal(t, len(typedChange.Submissions), count)
 
 		// -----
 
@@ -598,7 +598,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		res = model.DB.Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, submissionCounter, count)
+		assert.Equal(t, len(typedChange.Submissions), count)
 
 		// -----
 
@@ -644,7 +644,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		res = model.DB.Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, submissionCounter, count)
+		assert.Equal(t, len(typedChange.Submissions), count)
 
 		t.Cleanup(func() {
 			teardown(model)
@@ -758,6 +758,6 @@ func Test_RewardSubmissions(t *testing.T) {
 	})
 
 	t.Cleanup(func() {
-		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+		// postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
 }
