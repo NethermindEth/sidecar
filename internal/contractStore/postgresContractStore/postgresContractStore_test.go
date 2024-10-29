@@ -1,12 +1,11 @@
-package sqliteContractStore
+package postgresContractStore
 
 import (
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/contractStore"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -15,36 +14,35 @@ import (
 )
 
 func setup() (
-	*config.Config,
+	string,
 	*gorm.DB,
 	*zap.Logger,
+	*config.Config,
 	error,
 ) {
-	cfg := tests.GetConfig()
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+	cfg := config.NewConfig()
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	db, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return cfg, db, l, err
+	return dbname, grm, l, cfg, nil
 }
 
-func Test_SqliteContractStore(t *testing.T) {
+func Test_PostgresContractStore(t *testing.T) {
 	os.Setenv("SIDECAR_CHAIN", "holesky")
 	cfg := config.NewConfig()
-	_, db, l, err := setup()
+	dbName, db, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cs := NewSqliteContractStore(db, l, cfg)
+	cs := NewPostgresContractStore(db, l, cfg)
 
 	createdContracts := make([]*contractStore.Contract, 0)
 	createdProxyContracts := make([]*contractStore.ProxyContract, 0)
@@ -238,5 +236,8 @@ func Test_SqliteContractStore(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, address, contract.ContractAddress)
 		assert.Equal(t, matchingContractAddress, contract.MatchingContractAddress)
+	})
+	t.Cleanup(func() {
+		postgres.TeardownTestDatabase(dbName, cfg, db, l)
 	})
 }

@@ -192,3 +192,14 @@ func WrapTxAndCommit[T any](fn func(*gorm.DB) (T, error), db *gorm.DB, tx *gorm.
 	}
 	return res, err
 }
+
+func TeardownTestDatabase(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
+	rawDb, _ := db.DB()
+	_ = rawDb.Close()
+
+	pgConfig := PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
+
+	if err := DeleteTestDatabase(pgConfig, dbname); err != nil {
+		l.Sugar().Errorw("Failed to delete test database", "error", err)
+	}
+}

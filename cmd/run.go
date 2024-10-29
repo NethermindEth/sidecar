@@ -11,7 +11,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/internal/contractManager"
-	"github.com/Layr-Labs/go-sidecar/internal/contractStore/sqliteContractStore"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/avsOperators"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/operatorShares"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/rewardSubmissions"
@@ -76,7 +75,7 @@ var runCmd = &cobra.Command{
 			log.Fatalf("Failed to migrate: %v", err)
 		}
 
-		contractStore := sqliteContractStore.NewSqliteContractStore(grm, l, cfg)
+		contractStore := postgresContractStore.NewSqliteContractStore(grm, l, cfg)
 		if err := contractStore.InitializeCoreContracts(); err != nil {
 			log.Fatalf("Failed to initialize core contracts: %v", err)
 		}

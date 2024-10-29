@@ -51,13 +51,13 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			UNIQUE(transaction_hash, log_index)
     	)`,
 		`CREATE TABLE IF NOT EXISTS contracts (
+    		id SERIAL PRIMARY KEY,
 			contract_address character varying(255) NOT NULL,
 			contract_abi text,
 			bytecode_hash character varying(64) DEFAULT NULL::character varying,
 			verified boolean DEFAULT false,
 			matching_contract_address character varying(255) DEFAULT NULL::character varying,
 			checked_for_proxy boolean DEFAULT false NOT NULL,
-			id integer NOT NULL,
 			checked_for_abi boolean,
     		created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
 			updated_at timestamp without time zone,

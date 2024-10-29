@@ -1,29 +1,29 @@
-package sqliteContractStore
+package postgresContractStore
 
 import (
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"strings"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/contractStore"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-type SqliteContractStore struct {
+type PostgresContractStore struct {
 	Db           *gorm.DB
 	Logger       *zap.Logger
 	globalConfig *config.Config
 }
 
-func NewSqliteContractStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *SqliteContractStore {
-	cs := &SqliteContractStore{
+func NewPostgresContractStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *PostgresContractStore {
+	cs := &PostgresContractStore{
 		Db:           db,
 		Logger:       l,
 		globalConfig: cfg,
@@ -31,7 +31,7 @@ func NewSqliteContractStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *Sql
 	return cs
 }
 
-func (s *SqliteContractStore) GetContractForAddress(address string) (*contractStore.Contract, error) {
+func (s *PostgresContractStore) GetContractForAddress(address string) (*contractStore.Contract, error) {
 	var contract *contractStore.Contract
 
 	result := s.Db.First(&contract, "contract_address = ?", address)
@@ -46,7 +46,7 @@ func (s *SqliteContractStore) GetContractForAddress(address string) (*contractSt
 	return contract, nil
 }
 
-func (s *SqliteContractStore) GetProxyContractForAddressAtBlock(address string, blockNumber uint64) (*contractStore.ProxyContract, error) {
+func (s *PostgresContractStore) GetProxyContractForAddressAtBlock(address string, blockNumber uint64) (*contractStore.ProxyContract, error) {
 	address = strings.ToLower(address)
 
 	var proxyContract *contractStore.ProxyContract
@@ -63,7 +63,7 @@ func (s *SqliteContractStore) GetProxyContractForAddressAtBlock(address string, 
 	return proxyContract, nil
 }
 
-func (s *SqliteContractStore) FindOrCreateContract(
+func (s *PostgresContractStore) FindOrCreateContract(
 	address string,
 	abiJson string,
 	verified bool,
@@ -72,7 +72,7 @@ func (s *SqliteContractStore) FindOrCreateContract(
 	checkedForAbi bool,
 ) (*contractStore.Contract, bool, error) {
 	found := false
-	upsertedContract, err := sqlite.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
+	upsertedContract, err := postgres.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
 		contract := &contractStore.Contract{}
 		result := s.Db.First(&contract, "contract_address = ?", strings.ToLower(address))
 		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -99,11 +99,11 @@ func (s *SqliteContractStore) FindOrCreateContract(
 		}
 
 		return contract, nil
-	}, nil, s.Db)
+	}, s.Db, nil)
 	return upsertedContract, found, err
 }
 
-func (s *SqliteContractStore) FindVerifiedContractWithMatchingBytecodeHash(bytecodeHash string, address string) (*contractStore.Contract, error) {
+func (s *PostgresContractStore) FindVerifiedContractWithMatchingBytecodeHash(bytecodeHash string, address string) (*contractStore.Contract, error) {
 	query := `
 		select
 			*
@@ -113,7 +113,7 @@ func (s *SqliteContractStore) FindVerifiedContractWithMatchingBytecodeHash(bytec
 			and verified = true
 			and matching_contract_address = ''
 			and contract_address != ?
-		order by rowid asc
+		order by id asc
 		limit 1`
 
 	var contract *contractStore.Contract
@@ -128,7 +128,7 @@ func (s *SqliteContractStore) FindVerifiedContractWithMatchingBytecodeHash(bytec
 	return contract, nil
 }
 
-func (s *SqliteContractStore) FindOrCreateProxyContract(
+func (s *PostgresContractStore) FindOrCreateProxyContract(
 	blockNumber uint64,
 	contractAddress string,
 	proxyContractAddress string,
@@ -137,7 +137,7 @@ func (s *SqliteContractStore) FindOrCreateProxyContract(
 	contractAddress = strings.ToLower(contractAddress)
 	proxyContractAddress = strings.ToLower(proxyContractAddress)
 
-	upsertedContract, err := sqlite.WrapTxAndCommit[*contractStore.ProxyContract](func(tx *gorm.DB) (*contractStore.ProxyContract, error) {
+	upsertedContract, err := postgres.WrapTxAndCommit[*contractStore.ProxyContract](func(tx *gorm.DB) (*contractStore.ProxyContract, error) {
 		contract := &contractStore.ProxyContract{}
 		// Proxy contracts are unique on block_number && contract
 		result := tx.First(&contract, "contract_address = ? and block_number = ?", contractAddress, blockNumber)
@@ -162,11 +162,11 @@ func (s *SqliteContractStore) FindOrCreateProxyContract(
 		}
 
 		return proxyContract, nil
-	}, nil, s.Db)
+	}, s.Db, nil)
 	return upsertedContract, found, err
 }
 
-func (s *SqliteContractStore) GetContractWithProxyContract(address string, atBlockNumber uint64) (*contractStore.ContractsTree, error) {
+func (s *PostgresContractStore) GetContractWithProxyContract(address string, atBlockNumber uint64) (*contractStore.ContractsTree, error) {
 	address = strings.ToLower(address)
 
 	query := `select
@@ -213,7 +213,7 @@ func (s *SqliteContractStore) GetContractWithProxyContract(address string, atBlo
 	return contractTree, nil
 }
 
-func (s *SqliteContractStore) SetContractCheckedForProxy(address string) (*contractStore.Contract, error) {
+func (s *PostgresContractStore) SetContractCheckedForProxy(address string) (*contractStore.Contract, error) {
 	contract := &contractStore.Contract{}
 
 	result := s.Db.Model(contract).
@@ -230,7 +230,7 @@ func (s *SqliteContractStore) SetContractCheckedForProxy(address string) (*contr
 	return contract, nil
 }
 
-func (s *SqliteContractStore) SetContractAbi(address string, abi string, verified bool) (*contractStore.Contract, error) {
+func (s *PostgresContractStore) SetContractAbi(address string, abi string, verified bool) (*contractStore.Contract, error) {
 	contract := &contractStore.Contract{}
 
 	result := s.Db.Model(contract).
@@ -249,7 +249,7 @@ func (s *SqliteContractStore) SetContractAbi(address string, abi string, verifie
 	return contract, nil
 }
 
-func (s *SqliteContractStore) SetContractMatchingContractAddress(address string, matchingContractAddress string) (*contractStore.Contract, error) {
+func (s *PostgresContractStore) SetContractMatchingContractAddress(address string, matchingContractAddress string) (*contractStore.Contract, error) {
 	contract := &contractStore.Contract{}
 
 	result := s.Db.Model(&contract).
@@ -266,7 +266,7 @@ func (s *SqliteContractStore) SetContractMatchingContractAddress(address string,
 	return contract, nil
 }
 
-func (s *SqliteContractStore) loadContractData() (*contractStore.CoreContractsData, error) {
+func (s *PostgresContractStore) loadContractData() (*contractStore.CoreContractsData, error) {
 	var filename string
 	switch s.globalConfig.Chain {
 	case config.Chain_Mainnet:
@@ -292,7 +292,7 @@ func (s *SqliteContractStore) loadContractData() (*contractStore.CoreContractsDa
 	return data, nil
 }
 
-func (s *SqliteContractStore) InitializeCoreContracts() error {
+func (s *PostgresContractStore) InitializeCoreContracts() error {
 	coreContracts, err := s.loadContractData()
 	if err != nil {
 		return xerrors.Errorf("Failed to load core contracts: %w", err)

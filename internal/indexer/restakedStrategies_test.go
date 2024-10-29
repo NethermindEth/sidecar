@@ -8,7 +8,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/internal/contractManager"
-	"github.com/Layr-Labs/go-sidecar/internal/contractStore/sqliteContractStore"
 	"github.com/Layr-Labs/go-sidecar/internal/fetcher"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/metrics"
@@ -76,7 +75,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 	client := ethereum.NewClient("http://34.229.43.36:8545", l)
 	sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
 
-	contractStore := sqliteContractStore.NewSqliteContractStore(grm, l, cfg)
+	contractStore := postgresContractStore.NewSqliteContractStore(grm, l, cfg)
 	if err := contractStore.InitializeCoreContracts(); err != nil {
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}

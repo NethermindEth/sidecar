@@ -58,7 +58,7 @@ func main() {
 		log.Fatalf("Failed to migrate: %v", err)
 	}
 
-	contractStore := sqliteContractStore.NewSqliteContractStore(grm, l, cfg)
+	contractStore := postgresContractStore.NewSqliteContractStore(grm, l, cfg)
 	if err := contractStore.InitializeCoreContracts(); err != nil {
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}
