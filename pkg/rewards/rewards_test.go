@@ -6,7 +6,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -327,13 +326,23 @@ func Test_Rewards(t *testing.T) {
 			assert.Equal(t, len(expectedRows), len(goldStagingRows))
 			t.Logf("Expected rows: %d, Gold staging rows: %d", len(expectedRows), len(goldStagingRows))
 
+			expectedRowsMap := make(map[string]*tests.GoldStagingExpectedResult)
+
+			for _, row := range expectedRows {
+				key := fmt.Sprintf("%s_%s_%s_%s", row.Earner, row.Snapshot, row.RewardHash, row.Token)
+				if _, ok := expectedRowsMap[key]; !ok {
+					expectedRowsMap[key] = row
+				} else {
+					t.Logf("Duplicate expected row found: %+v", row)
+				}
+			}
+
 			missingRows := 0
 			invalidAmounts := 0
 			for i, row := range goldStagingRows {
-				foundRow := utils.Find(expectedRows, func(r *tests.GoldStagingExpectedResult) bool {
-					return row.Earner == r.Earner && row.Snapshot == r.Snapshot && row.RewardHash == r.RewardHash && row.Token == r.Token
-				})
-				if foundRow == nil {
+				key := fmt.Sprintf("%s_%s_%s_%s", row.Earner, row.Snapshot, row.RewardHash, row.Token)
+				foundRow, ok := expectedRowsMap[key]
+				if !ok {
 					missingRows++
 					if missingRows < 100 {
 						fmt.Printf("[%d] Row not found in expected results: %+v\n", i, row)
