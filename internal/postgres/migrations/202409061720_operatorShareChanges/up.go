@@ -26,7 +26,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			log_index bigint not null,
 			block_time timestamp not null,
 			block_date varchar not null,
-			block_number bigint not null,
+			block_number bigint not null
 		)`,
 	}
 	for _, query := range queries {
