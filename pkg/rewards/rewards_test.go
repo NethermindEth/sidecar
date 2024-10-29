@@ -207,7 +207,7 @@ func Test_Rewards(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		snapshotDates = []string{"2024-08-02", "2024-08-11", "2024-08-12"}
+		snapshotDates = []string{"2024-08-02", "2024-08-11", "2024-08-12", "2024-08-19"}
 
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
 		testStart = time.Now()

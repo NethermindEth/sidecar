@@ -29,7 +29,7 @@ Mainnet reduced
 select
     *
 from dbt_mainnet_ethereum_rewards.operator_shares
-where block_time < '2024-08-13'
+where block_time < '2024-08-20'
 ```
 
 ## Expected results
