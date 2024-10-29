@@ -18,6 +18,16 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 			created_at timestamp with time zone DEFAULT current_timestamp,
 			unique (operator, strategy, block_number)
 		)`,
+		`create table if not exists operator_share_deltas (
+    		operator varchar not null,
+			strategy varchar not null,
+			shares numeric not null,
+			transaction_hash varchar not null,
+			log_index bigint not null,
+			block_time timestamp not null,
+			block_date varchar not null,
+			block_number bigint not null,
+		)`,
 	}
 	for _, query := range queries {
 		if res := grm.Exec(query); res.Error != nil {

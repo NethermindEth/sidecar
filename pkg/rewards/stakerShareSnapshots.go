@@ -1,23 +1,12 @@
 package rewards
 
 const stakerShareSnapshotsQuery = `
-with staker_shares_with_block_info as (
-	select
-		ss.staker,
-		ss.strategy,
-		ss.shares,
-		ss.block_number,
-		b.block_time::timestamp(6) as block_time,
-		to_char(b.block_time, 'YYYY-MM-DD') AS block_date
-	from staker_shares as ss
-	left join blocks as b on (b.number = ss.block_number)
-	-- pipeline bronze table uses this to filter the correct records
-	where b.block_time < TIMESTAMP '{{.cutoffDate}}'
-),
-ranked_staker_records as (
+WITH ranked_staker_records as (
     SELECT *,
-           ROW_NUMBER() OVER (PARTITION BY staker, strategy, cast(block_time AS DATE) ORDER BY block_time DESC) AS rn
-    FROM staker_shares_with_block_info
+           ROW_NUMBER() OVER (PARTITION BY staker, strategy, cast(block_time AS DATE) ORDER BY block_time DESC, log_index DESC) AS rn
+    FROM staker_share_deltas
+	-- pipeline bronze table uses this to filter the correct records
+	where block_time < TIMESTAMP '{{.cutoffDate}}'
 ),
 -- Get the latest record for each day & round up to the snapshot day
 snapshotted_records as (
@@ -42,21 +31,18 @@ staker_share_windows as (
  FROM snapshotted_records
 ),
 cleaned_records as (
-	SELECT * FROM staker_share_windows
-	WHERE start_time < end_time
-),
-final_results as (
-	SELECT
-		staker,
-		strategy,
-		shares,
-		d AS snapshot
-	FROM
-		cleaned_records
-	CROSS JOIN
-		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
+  SELECT * FROM staker_share_windows
+  WHERE start_time < end_time
 )
-select * from final_results
+SELECT
+    staker,
+    strategy,
+    shares,
+    cast(day AS DATE) AS snapshot
+FROM
+    cleaned_records
+CROSS JOIN
+    generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 `
 
 func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(startDate string, snapshotDate string) error {
