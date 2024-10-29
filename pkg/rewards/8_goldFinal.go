@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"go.uber.org/zap"
+	"time"
 )
 
 const _8_goldFinalQuery = `
@@ -14,6 +15,14 @@ SELECT
     amount
 FROM {{.goldStagingTable}}
 `
+
+type GoldRow struct {
+	Earner     string
+	Snapshot   time.Time
+	RewardHash string
+	Token      string
+	Amount     string
+}
 
 func (rc *RewardsCalculator) GenerateGold8FinalTable(startDate string, snapshotDate string) error {
 	allTableNames := getGoldTableNames(snapshotDate)
@@ -37,4 +46,14 @@ func (rc *RewardsCalculator) GenerateGold8FinalTable(startDate string, snapshotD
 		return res.Error
 	}
 	return nil
+}
+
+func (rc *RewardsCalculator) ListGoldRows() ([]*GoldRow, error) {
+	var goldRows []*GoldRow
+	res := rc.grm.Raw("select * from gold_table").Scan(&goldRows)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to list gold rows", "error", res.Error)
+		return nil, res.Error
+	}
+	return goldRows, nil
 }

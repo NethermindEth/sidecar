@@ -207,7 +207,18 @@ func Test_Rewards(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		snapshotDates = []string{"2024-08-02", "2024-08-11", "2024-08-12", "2024-08-19"}
+		snapshotDates = []string{
+			"2024-08-02",
+			"2024-08-11",
+			"2024-08-12",
+			// "2024-08-13",
+			// "2024-08-14",
+			// "2024-08-15",
+			// "2024-08-16",
+			// "2024-08-17",
+			// "2024-08-18",
+			"2024-08-19",
+		}
 
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
 		testStart = time.Now()
@@ -305,26 +316,21 @@ func Test_Rewards(t *testing.T) {
 			fmt.Printf("\tRows in gold_table: %v - [time: %v]\n", rows, time.Since(testStart))
 			testStart = time.Now()
 
-			goldStagingRows, err := rc.ListGoldStagingRowsForSnapshot(snapshotDate)
+			goldRows, err := rc.ListGoldRows()
 			assert.Nil(t, err)
 
-			t.Logf("Gold staging rows for snapshot %s: %d", snapshotDate, len(goldStagingRows))
+			t.Logf("Gold staging rows for snapshot %s: %d", snapshotDate, len(goldRows))
 
 			fmt.Printf("Total duration for rewards compute %s: %v\n", snapshotDate, time.Since(snapshotStartTime))
 			testStart = time.Now()
 
-			//if !slices.Contains([]string{"2024-08-02", "2024-08-12"}, snapshotDate) {
-			//	t.Logf("Skipping gold staging validation for snapshot date: %s", snapshotDate)
-			//	continue
-			//}
-
-			expectedRows, err := tests.GetGoldStagingExpectedResults(projectRoot, snapshotDate)
+			expectedRows, err := tests.GetGoldExpectedResults(projectRoot, snapshotDate)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			assert.Equal(t, len(expectedRows), len(goldStagingRows))
-			t.Logf("Expected rows: %d, Gold staging rows: %d", len(expectedRows), len(goldStagingRows))
+			assert.Equal(t, len(expectedRows), len(goldRows))
+			t.Logf("Expected rows: %d, Gold staging rows: %d", len(expectedRows), len(goldRows))
 
 			expectedRowsMap := make(map[string]*tests.GoldStagingExpectedResult)
 
@@ -339,8 +345,8 @@ func Test_Rewards(t *testing.T) {
 
 			missingRows := 0
 			invalidAmounts := 0
-			for i, row := range goldStagingRows {
-				key := fmt.Sprintf("%s_%s_%s_%s", row.Earner, row.Snapshot, row.RewardHash, row.Token)
+			for i, row := range goldRows {
+				key := fmt.Sprintf("%s_%s_%s_%s", row.Earner, row.Snapshot.Format(time.DateOnly), row.RewardHash, row.Token)
 				foundRow, ok := expectedRowsMap[key]
 				if !ok {
 					missingRows++
