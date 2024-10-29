@@ -1,6 +1,8 @@
 package rewards
 
-import "time"
+import (
+	"time"
+)
 
 type CombinedRewards struct {
 	Avs            string
@@ -50,4 +52,16 @@ type StakerShareSnapshot struct {
 	Strategy string
 	Snapshot time.Time
 	Shares   string
+}
+
+type StakerShareDeltas struct {
+	Staker          string
+	Strategy        string
+	Shares          string
+	StrategyIndex   string
+	TransactionHash string
+	LogIndex        string
+	BlockTime       time.Time
+	BlockDate       string
+	BlockNumber     uint64
 }

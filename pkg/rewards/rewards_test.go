@@ -12,7 +12,6 @@ import (
 	"gorm.io/gorm"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -315,10 +314,10 @@ func Test_Rewards(t *testing.T) {
 			fmt.Printf("Total duration for rewards compute %s: %v\n", snapshotDate, time.Since(snapshotStartTime))
 			testStart = time.Now()
 
-			if !slices.Contains([]string{"2024-08-02", "2024-08-12"}, snapshotDate) {
-				t.Logf("Skipping gold staging validation for snapshot date: %s", snapshotDate)
-				continue
-			}
+			//if !slices.Contains([]string{"2024-08-02", "2024-08-12"}, snapshotDate) {
+			//	t.Logf("Skipping gold staging validation for snapshot date: %s", snapshotDate)
+			//	continue
+			//}
 
 			expectedRows, err := tests.GetGoldStagingExpectedResults(projectRoot, snapshotDate)
 			if err != nil {
