@@ -3,6 +3,7 @@ package sidecar
 import (
 	"context"
 	"fmt"
+	"github.com/syndtr/goleveldb/leveldb/errors"
 	"sync/atomic"
 	"time"
 
@@ -42,12 +43,16 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 
 		// Get the latest block stored in the db
 		latestIndexedBlock, err := s.GetLastIndexedBlock()
+		if err != nil {
+			s.Logger.Sugar().Errorw("Failed to get last indexed block", zap.Error(err))
+			return errors.New("Failed to get last indexed block")
+		}
 
 		// Get the latest block known from the ethereum node
 		latestTip, err := s.EthereumClient.GetBlockNumberUint64(ctx)
 		if err != nil {
-			s.Logger.Sugar().Errorw("Failed to get latest tip", zap.Error(err))
-			continue
+			s.Logger.Sugar().Fatalw("Failed to get latest tip", zap.Error(err))
+			return errors.New("Failed to get latest tip")
 		}
 
 		// If the latest tip is behind what we have indexed, sleep for a bit
