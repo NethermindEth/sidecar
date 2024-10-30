@@ -94,7 +94,12 @@ mkdir ./sidecar-data || true
 ./bin/sidecar run \
     --ethereum.rpc-url="http://34.229.43.36:8545" \
     --chain="holesky" \
-    --statsd.url="localhost:8125" \
+    --statsd.url="localhost:8125"
+    --database.host="localhost" \
+    --database.port="5432" \
+    --database.user="sidecar" \
+    --database.password="..." \
+    --database.db_name="sidecar"
 
 ```
 
@@ -108,7 +113,11 @@ docker run -it --rm \
   -e SIDECAR_ETHEREUM_RPC_BASE_URL="http://34.229.43.36:8545" \
   -e SIDECAR_CHAIN="holesky" \
   -e SIDECAR_STATSD_URL="localhost:8125" \
-  -v "$(pwd)/sqlite:/sidecar" \
+  -e SIDECAR_DATABASE_HOST="localhost" \
+  -e SIDECAR_DATABASE_PORT="5432" \
+  -e SIDECAR_DATABASE_USER="sidecar" \
+  -e SIDECAR_DATABASE_PASSWORD="..." \
+  -e SIDECAR_DATABASE_DB_NAME="sidecar" \
   --tty -i \
   public.ecr.aws/z6g0f8n7/go-sidecar:latest run
 ```
@@ -125,6 +134,11 @@ docker run \
   -e "SIDECAR_ETHEREUM_RPC_BASE_URL=http://34.229.43.36:8545" \
   -e "SIDECAR_CHAIN=holesky" \
   -e "SIDECAR_STATSD_URL=localhost:8125" \
+  -e SIDECAR_DATABASE_HOST="localhost" \
+  -e SIDECAR_DATABASE_PORT="5432" \
+  -e SIDECAR_DATABASE_USER="sidecar" \
+  -e SIDECAR_DATABASE_PASSWORD="..." \
+  -e SIDECAR_DATABASE_DB_NAME="sidecar" \
   --tty -i \
   go-sidecar:latest run
 ```
