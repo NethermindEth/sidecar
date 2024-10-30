@@ -33,25 +33,6 @@ const (
 	ENV_PREFIX = "SIDECAR"
 )
 
-func parseListEnvVar(envVar string) []string {
-	if envVar == "" {
-		return []string{}
-	}
-	// split on commas
-	stringList := strings.Split(envVar, ",")
-
-	for i, s := range stringList {
-		stringList[i] = strings.TrimSpace(s)
-	}
-	l := make([]string, 0)
-	for _, s := range stringList {
-		if s != "" {
-			l = append(l, s)
-		}
-	}
-	return l
-}
-
 func normalizeFlagName(name string) string {
 	return strings.ReplaceAll(name, "-", "_")
 }
