@@ -23,6 +23,65 @@ func (s *Sidecar) StartIndexing(ctx context.Context) {
 	if err := s.IndexFromCurrentToTip(ctx); err != nil {
 		s.Logger.Sugar().Fatalw("Failed to index from current to tip", zap.Error(err))
 	}
+
+	s.Logger.Sugar().Info("Backfill complete, transitioning to listening for new blocks")
+
+	if err := s.ProcessNewBlocks(ctx); err != nil {
+		s.Logger.Sugar().Fatalw("Failed to process new blocks", zap.Error(err))
+	}
+}
+
+const BLOCK_POLL_INTERVAL = 6 * time.Second
+
+func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
+	for {
+		if s.shouldShutdown.Load() {
+			s.Logger.Sugar().Infow("Shutting down block listener...")
+			return nil
+		}
+
+		// Get the latest block stored in the db
+		latestIndexedBlock, err := s.GetLastIndexedBlock()
+
+		// Get the latest block known from the ethereum node
+		latestTip, err := s.EthereumClient.GetBlockNumberUint64(ctx)
+		if err != nil {
+			s.Logger.Sugar().Errorw("Failed to get latest tip", zap.Error(err))
+			continue
+		}
+
+		// If the latest tip is behind what we have indexed, sleep for a bit
+		if latestTip < uint64(latestIndexedBlock) {
+			s.Logger.Sugar().Infow("Latest tip is behind latest indexed block, sleeping for a bit")
+			time.Sleep(BLOCK_POLL_INTERVAL)
+			continue
+		}
+
+		// If the latest tip is equal to the latest indexed block, sleep for a bit
+		if latestTip == uint64(latestIndexedBlock) {
+			s.Logger.Sugar().Infow("Latest tip is equal to latest indexed block, sleeping for a bit")
+			time.Sleep(BLOCK_POLL_INTERVAL)
+			continue
+		}
+
+		// Handle new potential blocks. This is likely to be a single block, but in the event that we
+		// had to pause for a few minutes to reconstitute a rewards root, this may be more than one block
+		// and we'll have to catch up.
+		blockDiff := latestTip - uint64(latestIndexedBlock)
+		s.Logger.Sugar().Infow(fmt.Sprintf("%d new blocks detected, processing", blockDiff))
+
+		for i := uint64(latestIndexedBlock + 1); i <= latestTip; i++ {
+			if err := s.Pipeline.RunForBlock(ctx, i); err != nil {
+				s.Logger.Sugar().Errorw("Failed to run pipeline for block",
+					zap.Uint64("blockNumber", i),
+					zap.Error(err),
+				)
+				return err
+			}
+		}
+		s.Logger.Sugar().Infow("Processed new blocks, sleeping for a bit")
+		time.Sleep(BLOCK_POLL_INTERVAL)
+	}
 }
 
 func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
