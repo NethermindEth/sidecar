@@ -87,10 +87,10 @@ See [PostgreSQL Setup](docs/postgresql_setup.md) for instructions on setting up 
 
 ### Directly using Go
 
-```bash
-# Create the directory to hold the sqlite database
-mkdir ./sidecar-data || true
+_Assumes you have PosgresSQL running locally already_
 
+```bash
+make build
 ./bin/sidecar run \
     --ethereum.rpc-url="http://34.229.43.36:8545" \
     --chain="holesky" \
@@ -101,13 +101,23 @@ mkdir ./sidecar-data || true
     --database.password="..." \
     --database.db_name="sidecar"
 
+# OR with go run
+go run main.go run \
+    --ethereum.rpc-url="http://34.229.43.36:8545" \
+    --chain="holesky" \
+    --statsd.url="localhost:8125"
+    --database.host="localhost" \
+    --database.port="5432" \
+    --database.user="sidecar" \
+    --database.password="..." \
+    --database.db_name="sidecar"
 ```
 
 ### Using the public Docker container
-```bash
-# Create the directory to hold the sqlite database
-mkdir ./sqlite || true
 
+_Assumes you have PosgresSQL running locally already_
+
+```bash
 docker run -it --rm \
   -e SIDECAR_DEBUG=false \
   -e SIDECAR_ETHEREUM_RPC_BASE_URL="http://34.229.43.36:8545" \
@@ -123,10 +133,10 @@ docker run -it --rm \
 ```
 
 ### Build and run a container locally
-```bash
-# Create the directory to hold the sqlite database
-mkdir ./sqlite || true
 
+_Assumes you have PosgresSQL running locally already_
+
+```bash
 make docker-buildx-self
 
 docker run \
