@@ -81,6 +81,10 @@ make build
 
 # Running
 
+### Bring Your Own PostgreSQL database
+
+See [PostgreSQL Setup](docs/postgresql_setup.md) for instructions on setting up a PostgreSQL database.
+
 ### Directly using Go
 
 ```bash
