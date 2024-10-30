@@ -25,7 +25,6 @@ func init() {
 	initConfig(rootCmd)
 
 	rootCmd.PersistentFlags().Bool("debug", false, `"true" or "false"`)
-	rootCmd.PersistentFlags().StringP("datadir", "d", "~/.sidecar", "The data directory")
 	rootCmd.PersistentFlags().StringP("chain", "c", "mainnet", "The chain to use (mainnet, holesky, preprod")
 	rootCmd.PersistentFlags().String("statsd.url", "", `e.g. "localhost:8125"`)
 

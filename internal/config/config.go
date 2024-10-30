@@ -63,7 +63,6 @@ type Config struct {
 	DatabaseConfig    DatabaseConfig
 	RpcConfig         RpcConfig
 	Chain             Chain
-	DataDir           string
 }
 
 type EthereumRpcConfig struct {
@@ -122,8 +121,6 @@ func NewConfig() *Config {
 			GrpcPort: viper.GetInt(normalizeFlagName("rpc.grpc_port")),
 			HttpPort: viper.GetInt(normalizeFlagName("rpc.http_port")),
 		},
-
-		DataDir: viper.GetString(normalizeFlagName("datadir")),
 	}
 }
 
