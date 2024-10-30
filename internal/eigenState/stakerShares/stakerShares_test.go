@@ -426,7 +426,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		change, err = model.HandleStateChange(&withdrawalQueued)
 		assert.Nil(t, err)
-		assert.Nil(t, change) // should be nil since the handler doesnt care about this event
+		assert.NotNil(t, change)
 
 		err = model.CommitFinalState(originBlockNumber)
 		assert.Nil(t, err)
