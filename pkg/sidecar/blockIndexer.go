@@ -102,24 +102,13 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 
 	ct := currentTip{CurrentTip: blockNumber}
 
-	shouldShutdown := false
-
-	// Spin up a goroutine that listens on a channel for a shutdown signal.
-	// When the signal is received, set shouldShutdown to true and return.
-	go func() {
-		for range s.ShutdownChan {
-			s.Logger.Sugar().Infow("Received shutdown signal")
-			shouldShutdown = true
-		}
-	}()
-
-	// Every 30 seconds, check to see if the current tip has changed while the backfill/sync
+	// Every 10 seconds, check to see if the current tip has changed while the backfill/sync
 	// process is still running. If it has changed, update the value which will extend the loop
 	// to include the newly discovered blocks.
 	go func() {
 		for {
-			time.Sleep(time.Second * 30)
-			if shouldShutdown {
+			time.Sleep(time.Second * 10)
+			if s.shouldShutdown.Load() {
 				s.Logger.Sugar().Infow("Shutting down block listener...")
 				return
 			}
@@ -144,7 +133,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	lastBlockParsed := latestBlock
 
 	for i := latestBlock; i <= int64(ct.Get()); i++ {
-		if shouldShutdown {
+		if s.shouldShutdown.Load() {
 			s.Logger.Sugar().Infow("Shutting down block processor")
 			return nil
 		}

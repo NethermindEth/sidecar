@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"sync/atomic"
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
@@ -38,6 +39,7 @@ type Sidecar struct {
 	EthereumClient *ethereum.Client
 	StateManager   *stateManager.EigenStateManager
 	ShutdownChan   chan bool
+	shouldShutdown *atomic.Bool
 }
 
 func NewSidecar(
@@ -49,6 +51,8 @@ func NewSidecar(
 	l *zap.Logger,
 	ethClient *ethereum.Client,
 ) *Sidecar {
+	shouldShutdown := &atomic.Bool{}
+	shouldShutdown.Store(false)
 	return &Sidecar{
 		Logger:         l,
 		Config:         cfg,
@@ -58,11 +62,21 @@ func NewSidecar(
 		EthereumClient: ethClient,
 		StateManager:   em,
 		ShutdownChan:   make(chan bool),
+		shouldShutdown: shouldShutdown,
 	}
 }
 
 func (s *Sidecar) Start(ctx context.Context) {
 	s.Logger.Info("Starting sidecar")
+
+	// Spin up a goroutine that listens on a channel for a shutdown signal.
+	// When the signal is received, set shouldShutdown to true and return.
+	go func() {
+		for range s.ShutdownChan {
+			s.Logger.Sugar().Infow("Received shutdown signal")
+			s.shouldShutdown.Store(true)
+		}
+	}()
 
 	s.StartIndexing(ctx)
 	/*
