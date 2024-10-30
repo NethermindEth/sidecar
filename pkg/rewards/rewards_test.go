@@ -128,7 +128,7 @@ func Test_Rewards(t *testing.T) {
 	// }
 
 	t.Run("Should initialize the rewards calculator", func(t *testing.T) {
-		rc, err := NewRewardsCalculator(cfg, grm, l)
+		rc, err := NewRewardsCalculator(cfg, grm, nil, l)
 		assert.Nil(t, err)
 		if err != nil {
 			t.Fatal(err)

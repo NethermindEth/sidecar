@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
@@ -18,17 +19,20 @@ import (
 type RewardsCalculator struct {
 	logger       *zap.Logger
 	grm          *gorm.DB
+	blockStore   storage.BlockStore
 	globalConfig *config.Config
 }
 
 func NewRewardsCalculator(
 	cfg *config.Config,
 	grm *gorm.DB,
+	bs storage.BlockStore,
 	l *zap.Logger,
 ) (*RewardsCalculator, error) {
 	rc := &RewardsCalculator{
 		logger:       l,
 		grm:          grm,
+		blockStore:   bs,
 		globalConfig: cfg,
 	}
 
@@ -52,6 +56,36 @@ func (rc *RewardsCalculator) CalculateRewardsForSnapshotDate(snapshotDate string
 		return fmt.Errorf("invalid snapshot date '%s'", snapshotDate)
 	}
 
+	status, err := rc.GetRewardSnapshotStatus(snapshotDate)
+	if err != nil {
+		return err
+	}
+	if status != nil {
+		if status.Status == storage.RewardSnapshotStatusCompleted.String() {
+			rc.logger.Sugar().Infow("Rewards already calculated for snapshot date", zap.String("snapshotDate", snapshotDate))
+			return errors.New("rewards already calculated for snapshot date")
+		}
+		if status.Status == storage.RewardSnapshotStatusProcessing.String() {
+			rc.logger.Sugar().Infow("Rewards calculation already in progress for snapshot date", zap.String("snapshotDate", snapshotDate))
+			return errors.New("rewards calculation already in progress for snapshot date")
+		}
+		rc.logger.Sugar().Infow("Rewards calculation failed for snapshot date", zap.String("snapshotDate", snapshotDate))
+		return errors.New("rewards calculation failed for snapshot date")
+	}
+
+	latestBlock, err := rc.blockStore.GetLatestBlock()
+	if err != nil {
+		return err
+	}
+	if latestBlock == nil {
+		return errors.New("no blocks found in blockStore")
+	}
+
+	// Check if the latest block is before the snapshot date.
+	if latestBlock.BlockTime.Before(snapshotDateTime) {
+		return fmt.Errorf("latest block is before the snapshot date")
+	}
+
 	rc.logger.Sugar().Infow("Calculating rewards for snapshot date",
 		zap.String("snapshot_date", snapshotDate),
 	)
@@ -60,15 +94,15 @@ func (rc *RewardsCalculator) CalculateRewardsForSnapshotDate(snapshotDate string
 	return rc.calculateRewards(snapshotDate)
 }
 
-func GetSnapshotFromCurrentDateTime() string {
-	snapshotDateTime := time.Now().UTC().Add(-24 * time.Hour).Truncate(24 * time.Hour)
-	return snapshotDateTime.Format(time.DateOnly)
-}
-
 func (rc *RewardsCalculator) CalculateRewardsForLatestSnapshot() (string, error) {
 	snapshotDate := GetSnapshotFromCurrentDateTime()
 
 	return snapshotDate, rc.CalculateRewardsForSnapshotDate(snapshotDate)
+}
+
+func GetSnapshotFromCurrentDateTime() string {
+	snapshotDateTime := time.Now().UTC().Add(-24 * time.Hour).Truncate(24 * time.Hour)
+	return snapshotDateTime.Format(time.DateOnly)
 }
 
 func (rc *RewardsCalculator) CreateRewardSnapshotStatus(snapshotDate string) (*storage.GeneratedRewardsSnapshots, error) {
@@ -87,6 +121,18 @@ func (rc *RewardsCalculator) CreateRewardSnapshotStatus(snapshotDate string) (*s
 func (rc *RewardsCalculator) UpdateRewardSnapshotStatus(snapshotDate string, status storage.RewardSnapshotStatus) error {
 	res := rc.grm.Model(&storage.GeneratedRewardsSnapshots{}).Where("snapshot_date = ?", snapshotDate).Update("status", status.String())
 	return res.Error
+}
+
+func (rc *RewardsCalculator) GetRewardSnapshotStatus(snapshotDate string) (*storage.GeneratedRewardsSnapshots, error) {
+	var r = &storage.GeneratedRewardsSnapshots{}
+	res := rc.grm.Model(&storage.GeneratedRewardsSnapshots{}).Where("snapshot_date = ?", snapshotDate).First(&r)
+	if res.Error != nil {
+		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, res.Error
+	}
+	return r, nil
 }
 
 func (rc *RewardsCalculator) calculateRewards(snapshotDate string) error {

@@ -99,7 +99,7 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 		}
 	})
 	t.Run("Should generate operator share snapshots", func(t *testing.T) {
-		rewards, _ := NewRewardsCalculator(cfg, grm, l)
+		rewards, _ := NewRewardsCalculator(cfg, grm, nil, l)
 
 		t.Log("Generating operator share snapshots")
 		err := rewards.GenerateAndInsertOperatorShareSnapshots(snapshotDate)

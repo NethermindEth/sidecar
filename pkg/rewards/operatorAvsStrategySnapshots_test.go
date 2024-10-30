@@ -118,7 +118,7 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 	})
 
 	t.Run("Should calculate correct operatorAvsStrategy windows", func(t *testing.T) {
-		rewards, _ := NewRewardsCalculator(cfg, grm, l)
+		rewards, _ := NewRewardsCalculator(cfg, grm, nil, l)
 
 		t.Log("Generating snapshots")
 		err := rewards.GenerateAndInsertOperatorAvsStrategySnapshots(snapshotDate)

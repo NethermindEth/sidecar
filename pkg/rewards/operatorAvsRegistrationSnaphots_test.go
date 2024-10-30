@@ -124,7 +124,7 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		}
 	})
 	t.Run("Should generate the proper operatorAvsRegistrationWindows", func(t *testing.T) {
-		rewards, _ := NewRewardsCalculator(cfg, grm, l)
+		rewards, _ := NewRewardsCalculator(cfg, grm, nil, l)
 
 		err := rewards.GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate)
 		assert.Nil(t, err)

@@ -100,7 +100,7 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 		}
 	})
 	t.Run("Should generate staker share snapshots", func(t *testing.T) {
-		rewards, _ := NewRewardsCalculator(cfg, grm, l)
+		rewards, _ := NewRewardsCalculator(cfg, grm, nil, l)
 
 		t.Log("Generating staker delegation snapshots")
 		err = rewards.GenerateAndInsertStakerDelegationSnapshots(snapshotDate)

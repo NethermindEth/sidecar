@@ -96,7 +96,7 @@ func Test_StakerShareSnapshots(t *testing.T) {
 		}
 	})
 	t.Run("Should generate staker share snapshots", func(t *testing.T) {
-		rewards, _ := NewRewardsCalculator(cfg, grm, l)
+		rewards, _ := NewRewardsCalculator(cfg, grm, nil, l)
 
 		t.Log("Generating staker share snapshots")
 		err := rewards.GenerateAndInsertStakerShareSnapshots(snapshotDate)
