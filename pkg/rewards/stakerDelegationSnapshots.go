@@ -1,7 +1,5 @@
 package rewards
 
-import "database/sql"
-
 const stakerDelegationSnapshotsQuery = `
 with staker_delegations_with_block_info as (
 	select
@@ -9,123 +7,81 @@ with staker_delegations_with_block_info as (
 		case when sdc.delegated = false then '0x0000000000000000000000000000000000000000' else sdc.operator end as operator,
 		sdc.log_index,
 		sdc.block_number,
-		b.block_time,
-		DATE(b.block_time) as block_date
+		b.block_time::timestamp(6) as block_time,
+		to_char(b.block_time, 'YYYY-MM-DD') AS block_date
 	from staker_delegation_changes as sdc
 	left join blocks as b on (b.number = sdc.block_number)
+	-- pipeline bronze table uses this to filter the correct records
+	where b.block_time < TIMESTAMP '{{.cutoffDate}}'
 ),
-ranked_staker_records as (
-SELECT *,
-	ROW_NUMBER() OVER (PARTITION BY staker, block_date ORDER BY block_time DESC, log_index desc) AS rn
-FROM staker_delegations_with_block_info
+ranked_delegations as (
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY staker, cast(block_time AS DATE) ORDER BY block_time DESC, log_index DESC) AS rn
+    FROM staker_delegations_with_block_info
 ),
 -- Get the latest record for each day & round up to the snapshot day
 snapshotted_records as (
-	SELECT
-		staker,
-		operator,
-		block_time,
-		DATE(block_date, '+1 day') as snapshot_time
-	from ranked_staker_records
-	where rn = 1
+ SELECT
+	 staker,
+	 operator,
+	 block_time,
+	 date_trunc('day', block_time) + INTERVAL '1' day AS snapshot_time
+ from ranked_delegations
+ where rn = 1
 ),
--- Get the range for each operator, strategy pairing
-staker_share_windows as (
-	SELECT
-		staker, operator, snapshot_time as start_time,
-		CASE
-			-- If the range does not have the end, use the current timestamp truncated to 0 UTC
-			WHEN LEAD(snapshot_time) OVER (PARTITION BY staker ORDER BY snapshot_time) is null THEN DATE(@cutoffDate)
-			ELSE LEAD(snapshot_time) OVER (PARTITION BY staker ORDER BY snapshot_time)
-		END AS end_time
-	FROM snapshotted_records
+-- Get the range for each staker
+staker_delegation_windows as (
+ SELECT
+	 staker, operator, snapshot_time as start_time,
+	 CASE
+		 -- If the range does not have the end, use the cutoff date truncated to 0 UTC
+		 WHEN LEAD(snapshot_time) OVER (PARTITION BY staker ORDER BY snapshot_time) is null THEN date_trunc('day', TIMESTAMP '{{.cutoffDate}}')
+		 ELSE LEAD(snapshot_time) OVER (PARTITION BY staker ORDER BY snapshot_time)
+		 END AS end_time
+ FROM snapshotted_records
 ),
 cleaned_records as (
-	SELECT * FROM staker_share_windows
+	SELECT * FROM staker_delegation_windows
 	WHERE start_time < end_time
-),
-date_bounds as (
-	select
-		min(start_time) as min_start,
-		max(end_time) as max_end
-	from cleaned_records
-),
-day_series AS (
-	with RECURSIVE day_series_inner AS (
-		SELECT DATE(min_start) AS day
-		FROM date_bounds
-		UNION ALL
-		SELECT DATE(day, '+1 day')
-		FROM day_series_inner
-		WHERE day < (SELECT max_end FROM date_bounds)
-	)
-	select * from day_series_inner
 ),
 final_results as (
 	SELECT
 		staker,
 		operator,
-		day as snapshot
-	FROM cleaned_records
-	cross join day_series
-		where DATE(day) between DATE(start_time) and DATE(end_time, '-1 day')
+		d AS snapshot
+	FROM
+		cleaned_records
+			CROSS JOIN
+		generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
 )
 select * from final_results
 `
 
-type StakerDelegationSnapshot struct {
-	Staker   string
-	Operator string
-	Snapshot string
-}
+func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(startDate string, snapshotDate string) error {
+	tableName := "staker_delegation_snapshots"
 
-func (r *RewardsCalculator) GenerateStakerDelegationSnapshots(snapshotDate string) ([]*StakerDelegationSnapshot, error) {
-	results := make([]*StakerDelegationSnapshot, 0)
-
-	res := r.grm.Raw(stakerDelegationSnapshotsQuery, sql.Named("cutoffDate", snapshotDate)).Scan(&results)
-
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", res.Error)
-		return nil, res.Error
-	}
-	return results, nil
-}
-
-func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(snapshotDate string) error {
-	snapshots, err := r.GenerateStakerDelegationSnapshots(snapshotDate)
+	query, err := renderQueryTemplate(stakerDelegationSnapshotsQuery, map[string]string{
+		"cutoffDate": snapshotDate,
+	})
 	if err != nil {
-		r.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", err)
+		r.logger.Sugar().Errorw("Failed to render operator share snapshots query", "error", err)
+		return nil
+	}
+
+	err = r.generateAndInsertFromQuery(tableName, query, nil)
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to generate staker_delegation_snapshots", "error", err)
 		return err
 	}
-
-	r.logger.Sugar().Infow("Inserting staker delegation snapshots", "count", len(snapshots))
-	res := r.grm.Model(&StakerDelegationSnapshot{}).CreateInBatches(snapshots, 100)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to insert staker delegation snapshots", "error", res.Error)
-		return res.Error
-	}
-
 	return nil
 }
 
-func (r *RewardsCalculator) CreateStakerDelegationSnapshotsTable() error {
-	queries := []string{
-		`
-			CREATE TABLE IF NOT EXISTS staker_delegation_snapshots (
-				staker TEXT,
-				operator TEXT,
-				snapshot TEXT
-			)
-		`,
-		`create index idx_staker_delegation_snapshots_operator_snapshot on staker_delegation_snapshots (operator, snapshot)`,
+func (rc *RewardsCalculator) ListStakerDelegationSnapshots() ([]*StakerDelegationSnapshot, error) {
+	var stakerDelegationSnapshots []*StakerDelegationSnapshot
+	res := rc.grm.Model(&StakerDelegationSnapshot{}).Find(&stakerDelegationSnapshots)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to list staker delegation snapshots", "error", res.Error)
+		return nil, res.Error
 	}
-
-	for _, query := range queries {
-		res := r.grm.Exec(query)
-		if res.Error != nil {
-			r.logger.Sugar().Errorw("Failed to create staker delegation snapshots table", "error", res.Error)
-			return res.Error
-		}
-	}
-	return nil
+	return stakerDelegationSnapshots, nil
 }

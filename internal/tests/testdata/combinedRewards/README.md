@@ -53,25 +53,19 @@ select * from expanded
 
 Mainnet, reduced
 ```sql
-with filtered as (
-    select * from dbt_mainnet_ethereum_rewards.rewards_combined
-    where block_time < '2024-08-13'
-),
-expanded as (
-    select
-        f.avs,
-        f.reward_hash,
-        f.token,
-        f.amount::text as amount,
-        f.strategy,
-        f.strategy_index,
-        f.multiplier::text as multiplier,
-        f.start_timestamp,
-        f.end_timestamp,
-        f.reward_type,
-        f.duration,
-        f.block_number as block_number
-    from filtered as f
-)
-select * from expanded
+select
+    avs,
+    reward_hash,
+    token,
+    amount as amount,
+    strategy,
+    strategy_index,
+    multiplier as multiplier,
+    start_timestamp::timestamp(6) as start_timestamp,
+    end_timestamp::timestamp(6) as end_timestamp,
+    reward_type,
+    duration,
+    block_number as block_number
+from dbt_mainnet_ethereum_rewards.rewards_combined
+where block_time < '2024-08-20'
 ```

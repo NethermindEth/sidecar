@@ -34,9 +34,11 @@ func init() {
 
 	rootCmd.PersistentFlags().String("etherscan.api-keys", "", `Comma-separated string of keys. e.g. "key1,key2,key3"`)
 
-	rootCmd.PersistentFlags().Bool("sqlite.in-memory", false, `"true" or "false"`)
-	rootCmd.PersistentFlags().String("sqlite.db-file-path", "", `e.g. "/tmp/sidecar.db"`)
-	rootCmd.PersistentFlags().StringArray("sqlite.extensions-path", []string{}, `e.g. "./sqlite-extensions"`)
+	rootCmd.PersistentFlags().String(config.DatabaseHost, "localhost", `Defaults to 'localhost'. Set to something else if you are running PostgreSQL on your own`)
+	rootCmd.PersistentFlags().Int(config.DatabasePort, 5432, `Defaults to '5432'`)
+	rootCmd.PersistentFlags().String(config.DatabaseUser, "sidecar", `Defaults to 'sidecar'`)
+	rootCmd.PersistentFlags().String(config.DatabasePassword, "", ``)
+	rootCmd.PersistentFlags().String(config.DatabaseDbName, "sidecar", `Defaults to 'sidecar'`)
 
 	rootCmd.PersistentFlags().Int("rpc.grpc-port", 7100, `e.g. 7100`)
 	rootCmd.PersistentFlags().Int("rpc.http-port", 7101, `e.g. 7101`)
@@ -51,7 +53,7 @@ func init() {
 }
 
 func initConfig(cmd *cobra.Command) {
-	viper.SetEnvPrefix("sidecar")
+	viper.SetEnvPrefix(config.ENV_PREFIX)
 
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
 

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/base"
@@ -26,9 +27,9 @@ type SubmittedDistributionRoot struct {
 	Root                      string
 	BlockNumber               uint64
 	RootIndex                 uint64
-	RewardsCalculationEnd     string
+	RewardsCalculationEnd     time.Time
 	RewardsCalculationEndUnit string
-	ActivatedAt               string
+	ActivatedAt               time.Time
 	ActivatedAtUnit           string
 	CreatedAtBlockNumber      uint64
 }
@@ -128,7 +129,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 
 		root := arguments[1].Value.(string)
 
-		var rewardsCalculationEnd string
+		var rewardsCalculationEnd int64
 		calcualtionEndType := reflect.TypeOf(arguments[2].Value)
 		switch calcualtionEndType.Kind() {
 		case reflect.String:
@@ -137,9 +138,9 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 			if err != nil {
 				return nil, xerrors.Errorf("Failed to decode rewardsCalculationEnd: %v", err)
 			}
-			rewardsCalculationEnd = fmt.Sprintf("%d", decoded)
+			rewardsCalculationEnd = int64(decoded)
 		case reflect.Float64:
-			rewardsCalculationEnd = fmt.Sprintf("%d", uint64(arguments[2].Value.(float64)))
+			rewardsCalculationEnd = int64(arguments[2].Value.(float64))
 		default:
 			return nil, xerrors.Errorf("Invalid type for rewardsCalculationEnd: %s", calcualtionEndType.Kind())
 		}
@@ -158,9 +159,9 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 			Root:                      root,
 			BlockNumber:               log.BlockNumber,
 			RootIndex:                 rootIndex,
-			RewardsCalculationEnd:     rewardsCalculationEnd,
+			RewardsCalculationEnd:     time.Unix(rewardsCalculationEnd, 0),
 			RewardsCalculationEndUnit: "snapshot",
-			ActivatedAt:               fmt.Sprintf("%d", activatedAt),
+			ActivatedAt:               time.Unix(int64(activatedAt), 0),
 			ActivatedAtUnit:           "timestamp",
 			CreatedAtBlockNumber:      log.BlockNumber,
 		}

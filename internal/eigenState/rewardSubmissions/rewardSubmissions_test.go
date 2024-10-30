@@ -2,6 +2,7 @@ package rewardSubmissions
 
 import (
 	"fmt"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"math/big"
 	"strings"
 	"testing"
@@ -10,40 +11,37 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 func setup() (
-	*config.Config,
+	string,
 	*gorm.DB,
 	*zap.Logger,
+	*config.Config,
 	error,
 ) {
-	cfg := tests.GetConfig()
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+	cfg := config.NewConfig()
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	db, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return cfg, db, l, err
+	return dbname, grm, l, cfg, nil
 }
 
 func teardown(model *RewardSubmissionsModel) {
 	queries := []string{
-		`delete from reward_submissions`,
-		`delete from blocks`,
+		`truncate table reward_submissions`,
+		`truncate table blocks cascade`,
 	}
 	for _, query := range queries {
 		res := model.DB.Exec(query)
@@ -67,7 +65,7 @@ func createBlock(model *RewardSubmissionsModel, blockNumber uint64) error {
 }
 
 func Test_RewardSubmissions(t *testing.T) {
-	cfg, grm, l, err := setup()
+	_, grm, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
@@ -461,8 +459,6 @@ func Test_RewardSubmissions(t *testing.T) {
 		model, err := NewRewardSubmissionsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
-		submissionCounter := 0
-
 		blockNumber := uint64(100)
 		// create first block
 		if err := createBlock(model, blockNumber); err != nil {
@@ -495,14 +491,12 @@ func Test_RewardSubmissions(t *testing.T) {
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
-		submissionCounter += len(typedChange.Submissions)
-
 		query := `select count(*) from reward_submissions where block_number = ?`
 		var count int
 		res := model.DB.Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, submissionCounter, count)
+		assert.Equal(t, len(typedChange.Submissions), count)
 
 		stateRoot, err := model.GenerateStateRoot(blockNumber)
 		assert.Nil(t, err)
@@ -543,8 +537,6 @@ func Test_RewardSubmissions(t *testing.T) {
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
-		submissionCounter += len(typedChange.Submissions)
-
 		stateRoot, err = model.GenerateStateRoot(blockNumber)
 		assert.Nil(t, err)
 		assert.NotNil(t, stateRoot)
@@ -554,7 +546,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		res = model.DB.Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, submissionCounter, count)
+		assert.Equal(t, len(typedChange.Submissions), count)
 
 		// -----
 
@@ -589,8 +581,6 @@ func Test_RewardSubmissions(t *testing.T) {
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
-		submissionCounter += len(typedChange.Submissions)
-
 		stateRoot, err = model.GenerateStateRoot(blockNumber)
 		assert.Nil(t, err)
 		assert.NotNil(t, stateRoot)
@@ -600,7 +590,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		res = model.DB.Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, submissionCounter, count)
+		assert.Equal(t, len(typedChange.Submissions), count)
 
 		// -----
 
@@ -635,8 +625,6 @@ func Test_RewardSubmissions(t *testing.T) {
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
-		submissionCounter += len(typedChange.Submissions)
-
 		stateRoot, err = model.GenerateStateRoot(blockNumber)
 		assert.Nil(t, err)
 		assert.NotNil(t, stateRoot)
@@ -646,7 +634,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		res = model.DB.Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, submissionCounter, count)
+		assert.Equal(t, len(typedChange.Submissions), count)
 
 		t.Cleanup(func() {
 			teardown(model)
@@ -759,4 +747,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		})
 	})
 
+	t.Cleanup(func() {
+		// postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+	})
 }

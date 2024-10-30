@@ -4,10 +4,32 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/gocarina/gocsv"
+	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+func GenerateTestDbName() (string, error) {
+	fileName, err := uuid.NewRandom()
+	if err != nil {
+		return "", err
+	}
+	// remove dashes
+	fileNameStr := strings.ReplaceAll(fileName.String(), "-", "")
+	return fmt.Sprintf("test_%s_%v", fileNameStr, time.Now().Unix()), nil
+}
+
+func GetDbConfigFromEnv() *config.DatabaseConfig {
+	return &config.DatabaseConfig{
+		Host:     os.Getenv(config.GetEnvVarVar(config.DatabaseHost)),
+		Port:     config.StringVarToInt(os.Getenv(config.GetEnvVarVar(config.DatabasePort))),
+		User:     os.Getenv(config.GetEnvVarVar(config.DatabaseUser)),
+		Password: os.Getenv(config.GetEnvVarVar(config.DatabasePassword)),
+		DbName:   os.Getenv(config.GetEnvVarVar(config.DatabaseDbName)),
+	}
+}
 
 func GetConfig() *config.Config {
 	return config.NewConfig()
@@ -73,7 +95,6 @@ func getExpectedResultsCsvFile[T any](filePath string) ([]*T, error) {
 
 func GetAllBlocksSqlFile(projectBase string) (string, error) {
 	path := getTestdataPathFromProjectRoot(projectBase, "/allBlocks.sql")
-	fmt.Printf("Path: %v\n", path)
 	return getSqlFile(path)
 }
 
@@ -167,4 +188,17 @@ func GetStakerDelegationExpectedResults(projectBase string) ([]*StakerDelegation
 func GetCombinedRewardsSqlFile(projectBase string) (string, error) {
 	path := getTestdataPathFromProjectRoot(projectBase, "/combinedRewards/combinedRewards.sql")
 	return getSqlFile(path)
+}
+
+type GoldStagingExpectedResult struct {
+	Earner     string `csv:"earner"`
+	Snapshot   string `csv:"snapshot"`
+	RewardHash string `csv:"reward_hash"`
+	Token      string `csv:"token"`
+	Amount     string `csv:"amount"`
+}
+
+func GetGoldExpectedResults(projectBase string, snapshotDate string) ([]*GoldStagingExpectedResult, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, fmt.Sprintf("/7_goldStaging/expectedResults_%s.csv", snapshotDate))
+	return getExpectedResultsCsvFile[GoldStagingExpectedResult](path)
 }

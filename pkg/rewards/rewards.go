@@ -1,7 +1,11 @@
 package rewards
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
+	"github.com/Layr-Labs/go-sidecar/internal/utils"
+	"text/template"
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
@@ -27,10 +31,6 @@ func NewRewardsCalculator(
 		globalConfig: cfg,
 	}
 
-	if err := rc.initializeRewardsSchema(); err != nil {
-		l.Sugar().Errorw("Failed to initialize rewards schema", zap.Error(err))
-		return nil, err
-	}
 	return rc, nil
 }
 
@@ -98,68 +98,40 @@ func (rc *RewardsCalculator) getMostRecentDistributionRoot() (*submittedDistribu
 	return distributionRoot, nil
 }
 
-func (rc *RewardsCalculator) initializeRewardsSchema() error {
-	funcs := []func() error{
-		rc.CreateOperatorAvsRegistrationSnapshotsTable,
-		rc.CreateOperatorAvsStrategySnapshotsTable,
-		rc.CreateOperatorSharesSnapshotsTable,
-		rc.CreateStakerShareSnapshotsTable,
-		rc.CreateStakerDelegationSnapshotsTable,
-		rc.CreateCombinedRewardsTable,
-
-		// Gold tables
-		rc.CreateGold1ActiveRewardsTable,
-		rc.CreateGold2RewardAmountsTable,
-		rc.CreateGold3OperatorRewardsTable,
-		rc.CreateGold4RewardsForAllTable,
-		rc.CreateGold5RfaeStakersTable,
-		rc.CreateGold6RfaeOperatorsTable,
-		rc.CreateGold7StagingTable,
-		rc.Create8GoldTable,
-	}
-	for _, f := range funcs {
-		err := f()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
+func (rc *RewardsCalculator) generateSnapshotData(startDate string, snapshotDate string) error {
 	var err error
 
-	if err = rc.GenerateAndInsertCombinedRewards(); err != nil {
+	if err = rc.GenerateAndInsertCombinedRewards(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate combined rewards", "error", err)
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated combined rewards")
 
-	if err = rc.GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertOperatorAvsRegistrationSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator AVS registration snapshots", "error", err)
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated operator AVS registration snapshots")
 
-	if err = rc.GenerateAndInsertOperatorAvsStrategySnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertOperatorAvsStrategySnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator AVS strategy snapshots", "error", err)
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated operator AVS strategy snapshots")
 
-	if err = rc.GenerateAndInsertOperatorShareSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertOperatorShareSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator share snapshots", "error", err)
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated operator share snapshots")
 
-	if err = rc.GenerateAndInsertStakerShareSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertStakerShareSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker share snapshots", "error", err)
 		return err
 	}
 	rc.logger.Sugar().Debugw("Generated staker share snapshots")
 
-	if err = rc.GenerateAndInsertStakerDelegationSnapshots(snapshotDate); err != nil {
+	if err = rc.GenerateAndInsertStakerDelegationSnapshots(startDate, snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker delegation snapshots", "error", err)
 		return err
 	}
@@ -171,4 +143,102 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 func (rc *RewardsCalculator) calculateRewards(previousSnapshotDate string, snapshotDate time.Time) error {
 
 	return nil
+}
+
+// GetNextSnapshotDate retrieves the next snapshot date from the gold_table
+// If no snapshot exists, it returns a default date of '1970-01-01'
+func (rc *RewardsCalculator) GetNextSnapshotDate() (string, error) {
+	var maxDate string
+	query := `
+		with max_date as (
+			select max(snapshot) as snapshot from gold_table
+		)
+		SELECT
+			CASE WHEN md.snapshot IS NULL
+			THEN '1970-01-01' ELSE to_char(md.snapshot + interval '1' day, 'YYYY-MM-DD') END as snapshot
+		FROM max_date as md
+	`
+	res := rc.grm.Raw(query).Scan(&maxDate)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to get max snapshot date", "error", res.Error)
+		return "", res.Error
+	}
+	return maxDate, nil
+}
+
+func formatTableName(tableName string, snapshotDate string) string {
+	return fmt.Sprintf("%s_%s", tableName, utils.SnakeCase(snapshotDate))
+}
+
+var (
+	Table_1_ActiveRewards         = "gold_1_active_rewards"
+	Table_2_StakerRewardAmounts   = "gold_2_staker_reward_amounts"
+	Table_3_OperatorRewardAmounts = "gold_3_operator_reward_amounts"
+	Table_4_RewardsForAll         = "gold_4_rewards_for_all"
+	Table_5_RfaeStakers           = "gold_5_rfae_stakers"
+	Table_6_RfaeOperators         = "gold_6_rfae_operators"
+	Table_7_GoldStaging           = "gold_7_staging"
+	Table_8_GoldTable             = "gold_table"
+)
+
+var goldTableBaseNames = map[string]string{
+	Table_1_ActiveRewards:         "gold_1_active_rewards",
+	Table_2_StakerRewardAmounts:   "gold_2_staker_reward_amounts",
+	Table_3_OperatorRewardAmounts: "gold_3_operator_reward_amounts",
+	Table_4_RewardsForAll:         "gold_4_rewards_for_all",
+	Table_5_RfaeStakers:           "gold_5_rfae_stakers",
+	Table_6_RfaeOperators:         "gold_6_rfae_operators",
+	Table_7_GoldStaging:           "gold_7_staging",
+	Table_8_GoldTable:             "gold_table",
+}
+
+func getGoldTableNames(snapshotDate string) map[string]string {
+	tableNames := make(map[string]string)
+	for key, baseName := range goldTableBaseNames {
+		tableNames[key] = formatTableName(baseName, snapshotDate)
+	}
+	return tableNames
+}
+
+func renderQueryTemplate(query string, variables map[string]string) (string, error) {
+	queryTmpl := template.Must(template.New("").Parse(query))
+
+	var dest bytes.Buffer
+	if err := queryTmpl.Execute(&dest, variables); err != nil {
+		return "", err
+	}
+	return dest.String(), nil
+}
+
+func (rc *RewardsCalculator) generateAndInsertFromQuery(
+	tableName string,
+	query string,
+	variables map[string]interface{},
+) error {
+	tmpTableName := fmt.Sprintf("%s_tmp", tableName)
+
+	queryWithInsert := fmt.Sprintf("CREATE TABLE %s AS %s", tmpTableName, query)
+
+	_, err := postgres.WrapTxAndCommit(func(tx *gorm.DB) (interface{}, error) {
+		queries := []string{
+			queryWithInsert,
+			fmt.Sprintf(`drop table if exists %s`, tableName),
+			fmt.Sprintf(`alter table %s rename to %s`, tmpTableName, tableName),
+		}
+		for i, query := range queries {
+			var res *gorm.DB
+			if i == 0 && variables != nil {
+				res = tx.Exec(query, variables)
+			} else {
+				res = tx.Exec(query)
+			}
+			if res.Error != nil {
+				rc.logger.Sugar().Errorw("Failed to execute query", "query", query, "error", res.Error)
+				return nil, res.Error
+			}
+		}
+		return nil, nil
+	}, rc.grm, nil)
+
+	return err
 }

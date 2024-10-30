@@ -1,9 +1,5 @@
 package rewards
 
-import (
-	"time"
-)
-
 const rewardsCombinedQuery = `
 	with combined_rewards as (
 		select
@@ -18,83 +14,57 @@ const rewardsCombinedQuery = `
 			rs.end_timestamp,
 			rs.duration,
 			rs.block_number,
-			b.block_time,
-			DATE(b.block_time) as block_date,
-			rs.reward_type,
-			ROW_NUMBER() OVER (PARTITION BY reward_hash, strategy_index ORDER BY block_number asc) as rn
+			b.block_time::timestamp(6),
+			to_char(b.block_time, 'YYYY-MM-DD') AS block_date,
+			rs.reward_type
 		from reward_submissions as rs
 		left join blocks as b on (b.number = rs.block_number) 
+		-- pipeline bronze table uses this to filter the correct records
+		where b.block_time < TIMESTAMP '{{.cutoffDate}}'
 	)
-	select * from combined_rewards
-	where rn = 1
+	select
+		avs,
+		reward_hash,
+		token,
+		amount,
+		start_timestamp,
+		duration,
+		end_timestamp,
+		strategy,
+		multiplier,
+		strategy_index,
+		block_number,
+		block_time,
+		block_date,
+		reward_type
+	from combined_rewards
 `
 
-type CombinedRewards struct {
-	Avs            string
-	RewardHash     string
-	Token          string
-	Amount         string
-	Strategy       string
-	StrategyIndex  uint64
-	Multiplier     string
-	StartTimestamp *time.Time `gorm:"type:DATETIME"`
-	EndTimestamp   *time.Time `gorm:"type:DATETIME"`
-	Duration       uint64
-	BlockNumber    uint64
-	BlockDate      string
-	BlockTime      *time.Time `gorm:"type:DATETIME"`
-	RewardType     string     // avs, all_stakers, all_earners
-}
+func (r *RewardsCalculator) GenerateAndInsertCombinedRewards(snapshotDate string) error {
+	tableName := "combined_rewards"
 
-func (r *RewardsCalculator) GenerateCombinedRewards() ([]*CombinedRewards, error) {
-	combinedRewards := make([]*CombinedRewards, 0)
-
-	res := r.grm.Raw(rewardsCombinedQuery).Scan(&combinedRewards)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to generate combined rewards", "error", res.Error)
-		return nil, res.Error
+	query, err := renderQueryTemplate(rewardsCombinedQuery, map[string]string{
+		"cutoffDate": snapshotDate,
+	})
+	if err != nil {
+		r.logger.Sugar().Errorw("Failed to render rewards combined query", "error", err)
+		return err
 	}
-	return combinedRewards, nil
-}
 
-func (r *RewardsCalculator) GenerateAndInsertCombinedRewards() error {
-	combinedRewards, err := r.GenerateCombinedRewards()
+	err = r.generateAndInsertFromQuery(tableName, query, nil)
 	if err != nil {
 		r.logger.Sugar().Errorw("Failed to generate combined rewards", "error", err)
 		return err
 	}
-
-	r.logger.Sugar().Infow("Inserting combined rewards", "count", len(combinedRewards))
-	res := r.grm.Model(&CombinedRewards{}).CreateInBatches(combinedRewards, 500)
-	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to insert combined rewards", "error", res.Error)
-		return res.Error
-	}
 	return nil
 }
 
-func (r *RewardsCalculator) CreateCombinedRewardsTable() error {
-	res := r.grm.Exec(`
-		CREATE TABLE IF NOT EXISTS combined_rewards (
-			avs TEXT,
-			reward_hash TEXT,
-			token TEXT,
-			amount TEXT,
-			strategy TEXT,
-			strategy_index INTEGER,
-			multiplier TEXT,
-			start_timestamp DATETIME,
-			end_timestamp DATETIME,
-			duration INTEGER,
-			block_number INTEGER,
-			block_time DATETIME,
-			block_date DATE,
-			reward_type string
-		)`,
-	)
+func (rc *RewardsCalculator) ListCombinedRewards() ([]*CombinedRewards, error) {
+	var combinedRewards []*CombinedRewards
+	res := rc.grm.Model(&CombinedRewards{}).Find(&combinedRewards)
 	if res.Error != nil {
-		r.logger.Sugar().Errorw("Failed to create combined_rewards table", "error", res.Error)
-		return res.Error
+		rc.logger.Sugar().Errorw("Failed to list combined rewards", "error", res.Error)
+		return nil, res.Error
 	}
-	return nil
+	return combinedRewards, nil
 }

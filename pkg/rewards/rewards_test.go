@@ -4,18 +4,16 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
-	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // const TOTAL_BLOCK_COUNT = 1229187
@@ -53,7 +51,7 @@ func getSnapshotDate() (string, error) {
 	case "testnet-reduced":
 		return "2024-07-25", nil
 	case "mainnet-reduced":
-		return "2024-08-01", nil
+		return "2024-08-12", nil
 	}
 	return "", fmt.Errorf("Unknown context: %s", context)
 }
@@ -95,38 +93,24 @@ func setupRewards() (
 	error,
 ) {
 	cfg := tests.GetConfig()
-	cfg.Chain = config.Chain_Holesky
-	cfg.Debug = true
+	cfg.Chain = config.Chain_Mainnet
+
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return dbFileName, cfg, db, l, err
-}
-
-func teardownRewards(grm *gorm.DB) {
-	teardownOperatorAvsRegistrationSnapshot(grm)
-	teardownOperatorAvsStrategyWindows(grm)
-	teardownOperatorShareSnapshot(grm)
-	teardownStakerDelegationSnapshot(grm)
-	teardownStakerShareSnapshot(grm)
+	return dbname, cfg, grm, l, nil
 }
 
 func Test_Rewards(t *testing.T) {
 	if !rewardsTestsEnabled() {
 		t.Skipf("Skipping %s", t.Name())
 		return
-	}
-
-	if err := numbers.InitPython(); err != nil {
-		t.Fatal(err)
 	}
 
 	dbFileName, cfg, grm, l, err := setupRewards()
@@ -136,10 +120,12 @@ func Test_Rewards(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	snapshotDate, err := getSnapshotDate()
-	if err != nil {
-		t.Fatal(err)
-	}
+	projectRoot := getProjectRootPath()
+
+	// snapshotDate, err := getSnapshotDate()
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 
 	t.Run("Should initialize the rewards calculator", func(t *testing.T) {
 		rc, err := NewRewardsCalculator(l, grm, cfg)
@@ -149,39 +135,9 @@ func Test_Rewards(t *testing.T) {
 		}
 		assert.NotNil(t, rc)
 
-		fmt.Printf("DB Path: %+v", dbFileName)
+		fmt.Printf("DB Path: %+v\n", dbFileName)
 
-		query := `select name from main.sqlite_master where type = 'table' order by name asc`
-		type row struct{ Name string }
-		var tables []row
-		res := rc.grm.Raw(query).Scan(&tables)
-		assert.Nil(t, res.Error)
-
-		expectedTables := []string{
-			"combined_rewards",
-			"gold_1_active_rewards",
-			"gold_2_staker_reward_amounts",
-			"gold_3_operator_reward_amounts",
-			"gold_4_rewards_for_all",
-			"gold_5_rfae_stakers",
-			"gold_6_rfae_operators",
-			"gold_7_staging",
-			"gold_table",
-			"operator_avs_registration_snapshots",
-			"operator_avs_strategy_snapshots",
-			"operator_share_snapshots",
-			"staker_delegation_snapshots",
-			"staker_share_snapshots",
-		}
-		tablesList := make([]string, 0)
-		for i, table := range tables {
-			fmt.Printf("[%v]: %+v\n", i, table.Name)
-			tablesList = append(tablesList, table.Name)
-		}
-
-		for _, table := range expectedTables {
-			assert.True(t, slices.Contains(tablesList, table))
-		}
+		testStart := time.Now()
 
 		// Setup all tables and source data
 		_, err = hydrateAllBlocksTable(grm, l)
@@ -207,67 +163,164 @@ func Test_Rewards(t *testing.T) {
 
 		t.Log("Hydrated tables")
 
-		// Generate snapshots
-		err = rc.generateSnapshotData(snapshotDate)
-		assert.Nil(t, err)
+		snapshotDates := []string{
+			"2024-08-02",
+			"2024-08-11",
+			"2024-08-12",
+			"2024-08-19",
+		}
 
-		t.Log("Generated and inserted snapshots")
-		forks, err := cfg.GetForkDates()
-		assert.Nil(t, err)
+		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
+		testStart = time.Now()
 
-		startDate := "1970-01-01"
-		err = rc.Generate1ActiveRewards(snapshotDate, startDate)
-		assert.Nil(t, err)
-		rows, err := getRowCountForTable(grm, "gold_1_active_rewards")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_1_active_rewards: %v\n", rows)
+		for i, snapshotDate := range snapshotDates {
+			t.Log("-----------------------------\n")
+			var startDate string
+			if i == 0 {
+				startDate = "1970-01-01"
+			} else {
+				startDate, err = rc.GetNextSnapshotDate()
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Logf("Max snapshot date: %s", startDate)
+			}
 
-		err = rc.GenerateGold2StakerRewardAmountsTable(forks)
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_2_staker_reward_amounts")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_2_staker_reward_amounts: %v\n", rows)
+			snapshotStartTime := time.Now()
 
-		err = rc.GenerateGold3OperatorRewardAmountsTable()
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_3_operator_reward_amounts")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_3_operator_reward_amounts: %v\n", rows)
+			t.Logf("Generating rewards - startDate %s, snapshotDate: %s", startDate, snapshotDate)
+			// Generate snapshots
+			err = rc.generateSnapshotData(startDate, snapshotDate)
+			assert.Nil(t, err)
 
-		err = rc.GenerateGold4RewardsForAllTable()
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_4_rewards_for_all")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_4_rewards_for_all: %v\n", rows)
+			goldTableNames := getGoldTableNames(snapshotDate)
 
-		err = rc.GenerateGold5RfaeStakersTable()
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_5_rfae_stakers")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_5_rfae_stakers: %v\n", rows)
+			fmt.Printf("Snapshot duration: %v\n", time.Since(testStart))
+			testStart = time.Now()
 
-		err = rc.GenerateGold6RfaeOperatorsTable()
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_6_rfae_operators")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_6_rfae_operators: %v\n", rows)
+			t.Log("Generated and inserted snapshots")
+			forks, err := cfg.GetForkDates()
+			assert.Nil(t, err)
 
-		err = rc.GenerateGold7StagingTable()
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_7_staging")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_7_staging: %v\n", rows)
+			fmt.Printf("Running gold_1_active_rewards\n")
+			err = rc.Generate1ActiveRewards(startDate, snapshotDate)
+			assert.Nil(t, err)
+			rows, err := getRowCountForTable(grm, goldTableNames[Table_1_ActiveRewards])
+			assert.Nil(t, err)
+			fmt.Printf("\tRows in gold_1_active_rewards: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
 
-		err = rc.GenerateGold8FinalTable()
-		assert.Nil(t, err)
-		rows, err = getRowCountForTable(grm, "gold_table")
-		assert.Nil(t, err)
-		fmt.Printf("Rows in gold_table: %v\n", rows)
+			fmt.Printf("Running gold_2_staker_reward_amounts %+v\n", time.Now())
+			err = rc.GenerateGold2StakerRewardAmountsTable(startDate, snapshotDate, forks)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, goldTableNames[Table_2_StakerRewardAmounts])
+			assert.Nil(t, err)
+			fmt.Printf("\tRows in gold_2_staker_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
+
+			fmt.Printf("Running gold_3_operator_reward_amounts\n")
+			err = rc.GenerateGold3OperatorRewardAmountsTable(startDate, snapshotDate)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, goldTableNames[Table_3_OperatorRewardAmounts])
+			assert.Nil(t, err)
+			fmt.Printf("\tRows in gold_3_operator_reward_amounts: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
+
+			fmt.Printf("Running gold_4_rewards_for_all\n")
+			err = rc.GenerateGold4RewardsForAllTable(startDate, snapshotDate)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, goldTableNames[Table_4_RewardsForAll])
+			assert.Nil(t, err)
+			fmt.Printf("\tRows in gold_4_rewards_for_all: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
+
+			fmt.Printf("Running gold_5_rfae_stakers\n")
+			err = rc.GenerateGold5RfaeStakersTable(startDate, snapshotDate, forks)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, goldTableNames[Table_5_RfaeStakers])
+			assert.Nil(t, err)
+			fmt.Printf("\tRows in gold_5_rfae_stakers: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
+
+			fmt.Printf("Running gold_6_rfae_operators\n")
+			err = rc.GenerateGold6RfaeOperatorsTable(startDate, snapshotDate)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, goldTableNames[Table_6_RfaeOperators])
+			assert.Nil(t, err)
+			fmt.Printf("\tRows in gold_6_rfae_operators: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
+
+			fmt.Printf("Running gold_7_staging\n")
+			err = rc.GenerateGold7StagingTable(startDate, snapshotDate)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, goldTableNames[Table_7_GoldStaging])
+			assert.Nil(t, err)
+			fmt.Printf("\tRows in gold_7_staging: %v - [time: %v]\n", rows, time.Since(testStart))
+			testStart = time.Now()
+
+			fmt.Printf("Running gold_8_final_table\n")
+			err = rc.GenerateGold8FinalTable(startDate, snapshotDate)
+			assert.Nil(t, err)
+			rows, err = getRowCountForTable(grm, "gold_table")
+			assert.Nil(t, err)
+			fmt.Printf("\tRows in gold_table: %v - [time: %v]\n", rows, time.Since(testStart))
+
+			goldRows, err := rc.ListGoldRows()
+			assert.Nil(t, err)
+
+			t.Logf("Gold staging rows for snapshot %s: %d", snapshotDate, len(goldRows))
+
+			fmt.Printf("Total duration for rewards compute %s: %v\n", snapshotDate, time.Since(snapshotStartTime))
+			testStart = time.Now()
+
+			expectedRows, err := tests.GetGoldExpectedResults(projectRoot, snapshotDate)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Equal(t, len(expectedRows), len(goldRows))
+			t.Logf("Expected rows: %d, Gold staging rows: %d", len(expectedRows), len(goldRows))
+
+			expectedRowsMap := make(map[string]*tests.GoldStagingExpectedResult)
+
+			for _, row := range expectedRows {
+				key := fmt.Sprintf("%s_%s_%s_%s", row.Earner, row.Snapshot, row.RewardHash, row.Token)
+				if _, ok := expectedRowsMap[key]; !ok {
+					expectedRowsMap[key] = row
+				} else {
+					t.Logf("Duplicate expected row found: %+v", row)
+				}
+			}
+
+			missingRows := 0
+			invalidAmounts := 0
+			for i, row := range goldRows {
+				key := fmt.Sprintf("%s_%s_%s_%s", row.Earner, row.Snapshot.Format(time.DateOnly), row.RewardHash, row.Token)
+				foundRow, ok := expectedRowsMap[key]
+				if !ok {
+					missingRows++
+					if missingRows < 100 {
+						fmt.Printf("[%d] Row not found in expected results: %+v\n", i, row)
+					}
+					continue
+				}
+				if foundRow.Amount != row.Amount {
+					invalidAmounts++
+					if invalidAmounts < 100 {
+						fmt.Printf("[%d] Amount mismatch: expected '%s', got '%s' for row: %+v\n", i, foundRow.Amount, row.Amount, row)
+					}
+				}
+			}
+			assert.Zero(t, missingRows)
+			t.Logf("Missing rows: %d", missingRows)
+
+			assert.Zero(t, invalidAmounts)
+			t.Logf("Invalid amounts: %d", invalidAmounts)
+		}
 
 		fmt.Printf("Done!\n\n")
 		t.Cleanup(func() {
-			teardownRewards(grm)
-			// tests.DeleteTestSqliteDB(dbFileName)
+			// teardownRewards(dbFileName, cfg, grm, l)
 		})
 	})
 }

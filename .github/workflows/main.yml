@@ -3,12 +3,32 @@ on: push
 jobs:
   test:
     runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: sidecar
+          POSTGRES_USER: sidecar
+          POSTGRES_PASSWORD: sidecar
+        ports:
+          - 5432:5432
+        # Add health check to ensure postgres is ready before running tests
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install dependencies
         run: make deps
       - name: Run tests
+        env: # Pass the database connection details to the tests
+          SIDECAR_DATABASE_HOST: localhost
+          SIDECAR_DATABASE_PORT: 5432
+          SIDECAR_DATABASE_USER: sidecar
+          SIDECAR_DATABASE_PASSWORD: sidecar
         run: make ci-test
   lint:
     runs-on: ubuntu-24.04

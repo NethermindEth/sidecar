@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/hex"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -27,4 +28,9 @@ func StripLeading0x(s string) string {
 		s = s[2:]
 	}
 	return s
+}
+
+func SnakeCase(s string) string {
+	notSnake := regexp.MustCompile(`[_-]`)
+	return notSnake.ReplaceAllString(s, "_")
 }

@@ -1,12 +1,10 @@
 package rewards
 
 import (
-	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -21,29 +19,26 @@ func setupCombinedRewards() (
 	error,
 ) {
 	cfg := tests.GetConfig()
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return dbName, cfg, db, l, err
+	return dbname, cfg, grm, l, nil
 }
 
-func teardownCombinedRewards(grm *gorm.DB) {
-	queries := []string{
-		`delete from reward_submissions`,
-		`delete from blocks`,
-	}
-	for _, query := range queries {
-		if res := grm.Exec(query); res.Error != nil {
-			fmt.Printf("Failed to run query: %v\n", res.Error)
-		}
+func teardownCombinedRewards(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
+	rawDb, _ := db.DB()
+	_ = rawDb.Close()
+
+	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
+
+	if err := postgres.DeleteTestDatabase(pgConfig, dbname); err != nil {
+		l.Sugar().Errorw("Failed to delete test database", "error", err)
 	}
 }
 
@@ -73,6 +68,11 @@ func Test_CombinedRewards(t *testing.T) {
 
 	testContext := getRewardsTestContext()
 
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	snapshotDate, err := getSnapshotDate()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,8 +111,12 @@ func Test_CombinedRewards(t *testing.T) {
 	t.Run("Should generate the proper combinedRewards", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
-		combinedRewards, err := rewards.GenerateCombinedRewards()
+		err = rewards.GenerateAndInsertCombinedRewards(snapshotDate)
 		assert.Nil(t, err)
+
+		combinedRewards, err := rewards.ListCombinedRewards()
+		assert.Nil(t, err)
+
 		assert.NotNil(t, combinedRewards)
 
 		t.Logf("Generated %d combinedRewards", len(combinedRewards))
@@ -130,7 +134,6 @@ func Test_CombinedRewards(t *testing.T) {
 
 	})
 	t.Cleanup(func() {
-		tests.DeleteTestSqliteDB(dbFileName)
-		teardownCombinedRewards(grm)
+		teardownCombinedRewards(dbFileName, cfg, grm, l)
 	})
 }

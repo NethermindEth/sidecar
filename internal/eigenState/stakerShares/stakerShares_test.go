@@ -1,6 +1,7 @@
 package stakerShares
 
 import (
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"math/big"
 	"strings"
 	"testing"
@@ -9,10 +10,8 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/Layr-Labs/go-sidecar/internal/types/numbers"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -20,40 +19,52 @@ import (
 )
 
 func setup() (
-	*config.Config,
+	string,
 	*gorm.DB,
 	*zap.Logger,
+	*config.Config,
 	error,
 ) {
-	cfg := tests.GetConfig()
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+	cfg := config.NewConfig()
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	db, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return cfg, db, l, err
+	return dbname, grm, l, cfg, nil
 }
 
 func teardown(model *StakerSharesModel) {
 	queries := []string{
-		`delete from staker_shares`,
-		`delete from blocks`,
-		`delete from transactions`,
-		`delete from transaction_logs`,
+		`truncate table staker_shares cascade`,
+		`truncate table blocks cascade`,
+		`truncate table transactions cascade`,
+		`truncate table transaction_logs cascade`,
 	}
 	for _, query := range queries {
 		model.DB.Raw(query)
 	}
 }
 
+func createBlock(model *StakerSharesModel, blockNumber uint64) error {
+	block := &storage.Block{
+		Number:    blockNumber,
+		Hash:      "some hash",
+		BlockTime: time.Now().Add(time.Hour * time.Duration(blockNumber)),
+	}
+	res := model.DB.Model(&storage.Block{}).Create(block)
+	if res.Error != nil {
+		return res.Error
+	}
+	return nil
+}
+
 func Test_StakerSharesState(t *testing.T) {
-	cfg, grm, l, err := setup()
+	dbName, grm, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +112,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0xaf6fb48ac4a60c61a64124ce9dc28f508dc8de8d", typedChange.Changes[0].Staker)
 		assert.Equal(t, "0x7d704507b76571a51d9cae8addabbfd0ba0e63d3", typedChange.Changes[0].Strategy)
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
 	})
 	t.Run("Should capture a staker share M1 Withdrawal", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
@@ -138,7 +151,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", typedChange.Changes[0].Staker)
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", typedChange.Changes[0].Strategy)
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
 	})
 	t.Run("Should capture staker EigenPod shares", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
@@ -175,7 +190,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, strings.ToLower("0x0808D4689B347D499a96f139A5fC5B5101258406"), typedChange.Changes[0].Staker)
 		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", typedChange.Changes[0].Strategy)
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
 	})
 	t.Run("Should capture M2 withdrawals", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
@@ -212,7 +229,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), typedChange.Changes[0].Staker)
 		assert.Equal(t, "0xd523267698c81a372191136e477fdebfa33d9fb4", typedChange.Changes[0].Strategy)
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
 	})
 	t.Run("Should capture M2 migration", func(t *testing.T) {
 		t.Skip()
@@ -323,7 +342,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, len(results))
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
 	})
 	t.Run("Should handle an M1 withdrawal and migration to M2 correctly", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
@@ -418,7 +439,7 @@ func Test_StakerSharesState(t *testing.T) {
 
 		change, err = model.HandleStateChange(&withdrawalQueued)
 		assert.Nil(t, err)
-		assert.Nil(t, change) // should be nil since the handler doesnt care about this event
+		assert.NotNil(t, change)
 
 		err = model.CommitFinalState(originBlockNumber)
 		assert.Nil(t, err)
@@ -437,6 +458,9 @@ func Test_StakerSharesState(t *testing.T) {
 		// setup M2 migration
 		blockNumber := uint64(102)
 		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		err = createBlock(model, blockNumber)
 		assert.Nil(t, err)
 
 		// M2 WithdrawalQueued comes before the M2 WithdrawalMigrated event
@@ -516,6 +540,11 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "-246393621132195985", results[0].Shares)
 		assert.Equal(t, blockNumber, results[0].BlockNumber)
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
+	})
+	t.Cleanup(func() {
+		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
 }

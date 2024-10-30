@@ -83,6 +83,15 @@ type OperatorRestakedStrategies struct {
 	DeletedAt           time.Time
 }
 
+type ExcludedAddresses struct {
+	Address     string
+	Network     string
+	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   time.Time
+}
+
 // Not tables
 
 type ActiveAvsOperator struct {

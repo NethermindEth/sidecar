@@ -50,6 +50,17 @@ type OperatorSharesDiff struct {
 	IsNew       bool
 }
 
+type OperatorShareDeltas struct {
+	Operator        string
+	Strategy        string
+	Shares          string
+	TransactionHash string
+	LogIndex        uint64
+	BlockNumber     uint64
+	BlockTime       time.Time
+	BlockDate       string
+}
+
 func NewSlotID(operator string, strategy string) types.SlotID {
 	return types.SlotID(fmt.Sprintf("%s_%s", operator, strategy))
 }
@@ -64,6 +75,8 @@ type OperatorSharesModel struct {
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
+
+	deltaAccumulator map[uint64][]*OperatorShareDeltas
 }
 
 func NewOperatorSharesModel(
@@ -80,6 +93,7 @@ func NewOperatorSharesModel(
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
+		deltaAccumulator: make(map[uint64][]*OperatorShareDeltas),
 	}
 
 	esm.RegisterState(model, 1)
@@ -158,6 +172,15 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 			record.Shares = record.Shares.Add(record.Shares, shares)
 		}
 
+		osm.deltaAccumulator[log.BlockNumber] = append(osm.deltaAccumulator[log.BlockNumber], &OperatorShareDeltas{
+			Operator:        operator,
+			Strategy:        outputData.Strategy,
+			Shares:          shares.String(),
+			TransactionHash: log.TransactionHash,
+			LogIndex:        log.LogIndex,
+			BlockNumber:     log.BlockNumber,
+		})
+
 		return record, nil
 	}
 
@@ -191,11 +214,13 @@ func (osm *OperatorSharesModel) IsInterestingLog(log *storage.TransactionLog) bo
 
 func (osm *OperatorSharesModel) SetupStateForBlock(blockNumber uint64) error {
 	osm.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
+	osm.deltaAccumulator[blockNumber] = make([]*OperatorShareDeltas, 0)
 	return nil
 }
 
 func (osm *OperatorSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(osm.stateAccumulator, blockNumber)
+	delete(osm.deltaAccumulator, blockNumber)
 	return nil
 }
 
@@ -308,6 +333,33 @@ func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]*OperatorSha
 	return preparedState, nil
 }
 
+func (osm *OperatorSharesModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) error {
+	deltas := osm.deltaAccumulator[blockNumber]
+	if len(deltas) == 0 {
+		return nil
+	}
+
+	var block storage.Block
+	res := osm.DB.Model(&storage.Block{}).Where("number = ?", blockNumber).First(&block)
+	if res.Error != nil {
+		osm.logger.Sugar().Errorw("Failed to fetch block", zap.Error(res.Error))
+		return res.Error
+	}
+
+	for _, d := range deltas {
+		d.BlockTime = block.BlockTime
+		d.BlockDate = block.BlockTime.Format(time.DateOnly)
+	}
+
+	res = osm.DB.Model(&OperatorShareDeltas{}).Clauses(clause.Returning{}).Create(&deltas)
+	if res.Error != nil {
+		osm.logger.Sugar().Errorw("Failed to create new operator_share_deltas records", zap.Error(res.Error))
+		return res.Error
+	}
+
+	return nil
+}
+
 func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
 	records, err := osm.prepareState(blockNumber)
 	if err != nil {
@@ -329,6 +381,10 @@ func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
 			osm.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
 			return res.Error
 		}
+	}
+
+	if err := osm.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
+		return err
 	}
 
 	return nil

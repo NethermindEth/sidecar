@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"testing"
+	"time"
 )
 
 func setupOperatorShareSnapshot() (
@@ -20,30 +20,39 @@ func setupOperatorShareSnapshot() (
 	*zap.Logger,
 	error,
 ) {
+	testContext := getRewardsTestContext()
 	cfg := tests.GetConfig()
+	switch testContext {
+	case "testnet":
+		cfg.Chain = config.Chain_Holesky
+	case "testnet-reduced":
+		cfg.Chain = config.Chain_Holesky
+	case "mainnet-reduced":
+		cfg.Chain = config.Chain_Mainnet
+	default:
+		return "", nil, nil, nil, fmt.Errorf("Unknown test context")
+	}
+
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
+
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-	dbFileName, db, err := sqlite.GetFileBasedSqliteDatabaseConnection(l)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return dbFileName, cfg, db, l, err
+	return dbname, cfg, grm, l, nil
 }
 
-func teardownOperatorShareSnapshot(grm *gorm.DB) {
-	queries := []string{
-		`delete from operator_shares`,
-		`delete from blocks`,
-	}
-	for _, query := range queries {
-		if res := grm.Exec(query); res.Error != nil {
-			fmt.Printf("Failed to run query: %v\n", res.Error)
-		}
+func teardownOperatorShareSnapshot(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
+	rawDb, _ := db.DB()
+	_ = rawDb.Close()
+
+	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
+
+	if err := postgres.DeleteTestDatabase(pgConfig, dbname); err != nil {
+		l.Sugar().Errorw("Failed to delete test database", "error", err)
 	}
 }
 
@@ -81,6 +90,8 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	startDate := "1970-01-01"
+
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
 		if _, err = hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
@@ -93,7 +104,10 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(l, grm, cfg)
 
 		t.Log("Generating operator share snapshots")
-		snapshots, err := rewards.GenerateOperatorShareSnapshots(snapshotDate)
+		err := rewards.GenerateAndInsertOperatorShareSnapshots(startDate, snapshotDate)
+		assert.Nil(t, err)
+
+		snapshots, err := rewards.ListOperatorShareSnapshots()
 		assert.Nil(t, err)
 
 		t.Log("Loading expected results")
@@ -116,8 +130,9 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 			// Go line-by-line in the snapshot results and find the corresponding line in the expected results.
 			// If one doesnt exist, add it to the missing list.
 			for _, snapshot := range snapshots {
+				snapshotStr := snapshot.Snapshot.Format(time.DateOnly)
 
-				slotId := fmt.Sprintf("%s_%s_%s", snapshot.Operator, snapshot.Strategy, snapshot.Snapshot)
+				slotId := fmt.Sprintf("%s_%s_%s", snapshot.Operator, snapshot.Strategy, snapshotStr)
 
 				found, ok := mappedExpectedResults[slotId]
 				if !ok {
@@ -139,7 +154,6 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 		}
 	})
 	t.Cleanup(func() {
-		teardownOperatorShareSnapshot(grm)
-		tests.DeleteTestSqliteDB(dbFileName)
+		teardownOperatorShareSnapshot(dbFileName, cfg, grm, l)
 	})
 }

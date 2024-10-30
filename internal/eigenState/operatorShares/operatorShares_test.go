@@ -2,6 +2,7 @@ package operatorShares
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"math/big"
 	"strings"
 	"testing"
@@ -10,42 +11,52 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite/migrations"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/internal/tests/sqlite"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 func setup() (
-	*config.Config,
+	string,
 	*gorm.DB,
 	*zap.Logger,
+	*config.Config,
 	error,
 ) {
-	cfg := tests.GetConfig()
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+	cfg := config.NewConfig()
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	db, err := sqlite.GetInMemorySqliteDatabaseConnection(l)
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		panic(err)
-	}
-	sqliteMigrator := migrations.NewSqliteMigrator(db, l)
-	if err := sqliteMigrator.MigrateAll(); err != nil {
-		l.Sugar().Fatalw("Failed to migrate", "error", err)
+		return dbname, nil, nil, nil, err
 	}
 
-	return cfg, db, l, err
+	return dbname, grm, l, cfg, nil
 }
 
 func teardown(model *OperatorSharesModel) {
-	model.DB.Exec("delete from operator_shares")
+	model.DB.Exec("truncate table operator_shares")
+}
+
+func createBlock(model *OperatorSharesModel, blockNumber uint64) error {
+	block := &storage.Block{
+		Number:    blockNumber,
+		Hash:      "some hash",
+		BlockTime: time.Now().Add(time.Hour * time.Duration(blockNumber)),
+	}
+	res := model.DB.Model(&storage.Block{}).Create(block)
+	if res.Error != nil {
+		return res.Error
+	}
+	return nil
 }
 
 func Test_OperatorSharesState(t *testing.T) {
-	cfg, grm, l, err := setup()
+	dbName, grm, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
@@ -84,11 +95,23 @@ func Test_OperatorSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
 	})
 	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
 		blockNumber := uint64(200)
+
+		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		err = createBlock(model, blockNumber)
+		assert.Nil(t, err)
+
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
 			TransactionIndex: big.NewInt(100).Uint64(),
@@ -102,12 +125,6 @@ func Test_OperatorSharesState(t *testing.T) {
 			UpdatedAt:        time.Time{},
 			DeletedAt:        time.Time{},
 		}
-
-		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
-		assert.Nil(t, err)
-
-		err = model.SetupStateForBlock(blockNumber)
-		assert.Nil(t, err)
 
 		stateChange, err := model.HandleStateChange(&log)
 		assert.Nil(t, err)
@@ -133,7 +150,9 @@ func Test_OperatorSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.True(t, len(stateRoot) > 0)
 
-		teardown(model)
+		t.Cleanup(func() {
+			teardown(model)
+		})
 	})
 	t.Run("Should handle state transition for operator shares decreased", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
@@ -167,7 +186,8 @@ func Test_OperatorSharesState(t *testing.T) {
 		assert.Equal(t, "-1670000000000000000000", stateChangeTyped.Shares.String())
 		assert.Equal(t, strings.ToLower("0x32f766cf7BC7dEE7F65573587BECd7AdB2a5CC7f"), stateChangeTyped.Operator)
 		assert.Equal(t, "0x80528d6e9a2babfc766965e0e26d5ab08d9cfaf9", stateChangeTyped.Strategy)
-
-		teardown(model)
+	})
+	t.Cleanup(func() {
+		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
 }

@@ -3,11 +3,11 @@ package indexer
 import (
 	"context"
 	"fmt"
+	"github.com/Layr-Labs/go-sidecar/internal/postgres"
 	"sync"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/contractCaller"
-	"github.com/Layr-Labs/go-sidecar/internal/sqlite"
 	"github.com/Layr-Labs/go-sidecar/internal/storage"
 	"go.uber.org/zap"
 )
@@ -82,7 +82,7 @@ func (idx *Indexer) getRestakedStrategiesForAvsOperator(
 	for _, restakedStrategy := range restakedStrategies {
 		_, err := idx.MetadataStore.InsertOperatorRestakedStrategies(avsDirectoryAddress, blockNumber, block.BlockTime, operator, avs, restakedStrategy.String())
 
-		if err != nil && !sqlite.IsDuplicateKeyError(err) {
+		if err != nil && !postgres.IsDuplicateKeyError(err) {
 			idx.Logger.Sugar().Errorw("Failed to save restaked strategy",
 				zap.Error(err),
 				zap.String("restakedStrategy", restakedStrategy.String()),
@@ -162,7 +162,7 @@ func (idx *Indexer) getAndInsertRestakedStrategiesWithMulticall(
 		for _, restakedStrategy := range result.Results {
 			_, err := idx.MetadataStore.InsertOperatorRestakedStrategies(avsDirectoryAddress, blockNumber, block.BlockTime, operator, avs, restakedStrategy.String())
 
-			if err != nil && !sqlite.IsDuplicateKeyError(err) {
+			if err != nil && !postgres.IsDuplicateKeyError(err) {
 				idx.Logger.Sugar().Errorw("Failed to save restaked strategy",
 					zap.Error(err),
 					zap.String("restakedStrategy", restakedStrategy.String()),

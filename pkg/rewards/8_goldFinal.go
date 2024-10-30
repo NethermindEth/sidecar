@@ -1,5 +1,10 @@
 package rewards
 
+import (
+	"go.uber.org/zap"
+	"time"
+)
+
 const _8_goldFinalQuery = `
 insert into gold_table
 SELECT
@@ -8,11 +13,34 @@ SELECT
     reward_hash,
     token,
     amount
-FROM gold_7_staging
+FROM {{.goldStagingTable}}
 `
 
-func (rc *RewardsCalculator) GenerateGold8FinalTable() error {
-	res := rc.grm.Exec(_8_goldFinalQuery)
+type GoldRow struct {
+	Earner     string
+	Snapshot   time.Time
+	RewardHash string
+	Token      string
+	Amount     string
+}
+
+func (rc *RewardsCalculator) GenerateGold8FinalTable(startDate string, snapshotDate string) error {
+	allTableNames := getGoldTableNames(snapshotDate)
+
+	rc.logger.Sugar().Infow("Generating rewards for all table",
+		zap.String("startDate", startDate),
+		zap.String("cutoffDate", snapshotDate),
+	)
+
+	query, err := renderQueryTemplate(_8_goldFinalQuery, map[string]string{
+		"goldStagingTable": allTableNames[Table_7_GoldStaging],
+	})
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
+		return err
+	}
+
+	res := rc.grm.Exec(query)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to create gold_final", "error", res.Error)
 		return res.Error
@@ -20,20 +48,12 @@ func (rc *RewardsCalculator) GenerateGold8FinalTable() error {
 	return nil
 }
 
-func (rc *RewardsCalculator) Create8GoldTable() error {
-	query := `
-		create table if not exists gold_table (
-			earner TEXT NOT NULL,
-			snapshot DATE NOT NULL,
-			reward_hash TEXT NOT NULL,
-			token TEXT NOT NULL,
-			amount TEXT NOT NULL
-		)
-	`
-	res := rc.grm.Exec(query)
+func (rc *RewardsCalculator) ListGoldRows() ([]*GoldRow, error) {
+	var goldRows []*GoldRow
+	res := rc.grm.Raw("select * from gold_table").Scan(&goldRows)
 	if res.Error != nil {
-		rc.logger.Sugar().Errorw("Failed to create gold_table", "error", res.Error)
-		return res.Error
+		rc.logger.Sugar().Errorw("Failed to list gold rows", "error", res.Error)
+		return nil, res.Error
 	}
-	return nil
+	return goldRows, nil
 }
