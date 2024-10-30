@@ -3,30 +3,30 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/Layr-Labs/go-sidecar/internal/contractStore/postgresContractStore"
-	"github.com/Layr-Labs/go-sidecar/internal/eigenState/rewardSubmissions"
-	"github.com/Layr-Labs/go-sidecar/internal/eigenState/submittedDistributionRoots"
-	"github.com/Layr-Labs/go-sidecar/internal/postgres"
-	pgStorage "github.com/Layr-Labs/go-sidecar/internal/storage/postgres"
+	ethereum2 "github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
+	"github.com/Layr-Labs/go-sidecar/pkg/clients/etherscan"
+	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
+	"github.com/Layr-Labs/go-sidecar/pkg/contractManager"
+	"github.com/Layr-Labs/go-sidecar/pkg/contractStore/postgresContractStore"
+	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/rewardSubmissions"
+	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/submittedDistributionRoots"
+	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
+	"github.com/Layr-Labs/go-sidecar/pkg/indexer"
+	"github.com/Layr-Labs/go-sidecar/pkg/pipeline"
+	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
+	"github.com/Layr-Labs/go-sidecar/pkg/sidecar"
+	pgStorage "github.com/Layr-Labs/go-sidecar/pkg/storage/postgres"
 	"log"
 
-	"github.com/Layr-Labs/go-sidecar/internal/clients/ethereum"
-	"github.com/Layr-Labs/go-sidecar/internal/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/internal/contractCaller"
-	"github.com/Layr-Labs/go-sidecar/internal/contractManager"
-	"github.com/Layr-Labs/go-sidecar/internal/eigenState/avsOperators"
-	"github.com/Layr-Labs/go-sidecar/internal/eigenState/operatorShares"
-	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stakerDelegations"
-	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stakerShares"
-	"github.com/Layr-Labs/go-sidecar/internal/eigenState/stateManager"
-	"github.com/Layr-Labs/go-sidecar/internal/fetcher"
-	"github.com/Layr-Labs/go-sidecar/internal/indexer"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/metrics"
-	"github.com/Layr-Labs/go-sidecar/internal/pipeline"
-	"github.com/Layr-Labs/go-sidecar/internal/postgres/migrations"
-	"github.com/Layr-Labs/go-sidecar/internal/sidecar"
+	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/avsOperators"
+	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/operatorShares"
+	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stakerDelegations"
+	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stakerShares"
+	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations"
 	"go.uber.org/zap"
 )
 
@@ -42,7 +42,7 @@ func main() {
 	}
 
 	etherscanClient := etherscan.NewEtherscanClient(cfg, l)
-	client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
+	client := ethereum2.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
 
 	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 	pgConfig.CreateDbIfNotExists = true
@@ -121,7 +121,7 @@ func main() {
 	}
 
 	transactionHash := "0xf6775c38af1d2802bcbc2b7c8959c0d5b48c63a14bfeda0261ba29d76c68c423"
-	transaction := &ethereum.EthereumTransaction{}
+	transaction := &ethereum2.EthereumTransaction{}
 
 	for _, tx := range block.Block.Transactions {
 		if tx.Hash.Value() == transactionHash {
@@ -132,7 +132,7 @@ func main() {
 
 	logIndex := 4
 	receipt := block.TxReceipts[transaction.Hash.Value()]
-	var interestingLog *ethereum.EthereumEventLog
+	var interestingLog *ethereum2.EthereumEventLog
 
 	for _, log := range receipt.Logs {
 		if log.LogIndex.Value() == uint64(logIndex) {

@@ -3,13 +3,13 @@ package rewards
 import (
 	"bytes"
 	"fmt"
-	"github.com/Layr-Labs/go-sidecar/internal/postgres"
-	"github.com/Layr-Labs/go-sidecar/internal/utils"
+	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
+	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"text/template"
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/internal/eigenState/submittedDistributionRoots"
+	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/submittedDistributionRoots"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

@@ -11,7 +11,7 @@ timestamp=$(date +"%Y%m%d%H%M")
 
 migration_name="${timestamp}_${name}"
 
-migrations_dir="./internal/postgres/migrations/${migration_name}"
+migrations_dir="./pkg/postgres/migrations/${migration_name}"
 migration_file="${migrations_dir}/up.go"
 
 mkdir -p $migrations_dir || true
