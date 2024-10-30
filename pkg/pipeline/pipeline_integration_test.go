@@ -1,65 +1,78 @@
-package main
+package pipeline
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractStore/postgresContractStore"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/rewardSubmissions"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/submittedDistributionRoots"
 	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/go-sidecar/pkg/indexer"
-	"github.com/Layr-Labs/go-sidecar/pkg/pipeline"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
-	"github.com/Layr-Labs/go-sidecar/pkg/sidecar"
+	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	pgStorage "github.com/Layr-Labs/go-sidecar/pkg/storage/postgres"
 	"log"
+	"testing"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/metrics"
+	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/avsOperators"
 	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/operatorShares"
+	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/rewardSubmissions"
 	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stakerDelegations"
 	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stakerShares"
 	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stateManager"
-	"github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations"
+	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/submittedDistributionRoots"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
-func main() {
-	ctx := context.Background()
+func setup() (
+	*fetcher.Fetcher,
+	*indexer.Indexer,
+	storage.BlockStore,
+	*stateManager.EigenStateManager,
+	*config.Config,
+	*zap.Logger,
+	*gorm.DB,
+	string,
+) {
+	const (
+		rpcUrl    = "http://54.198.82.217:8545"
+		statsdUrl = "localhost:8125"
+	)
+	etherscanApiKeys := []string{"SOME KEY"}
+
 	cfg := config.NewConfig()
+	cfg.EthereumRpcConfig.BaseUrl = rpcUrl
+	cfg.StatsdUrl = statsdUrl
+	cfg.EtherscanConfig.ApiKeys = etherscanApiKeys
+	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
 
-	sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
+	sdc, err := metrics.InitStatsdClient(statsdUrl)
 	if err != nil {
 		l.Sugar().Fatal("Failed to setup statsd client", zap.Error(err))
 	}
 
-	etherscanClient := etherscan.NewEtherscanClient(cfg, l)
-	client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
+	etherscanClient := etherscan.NewEtherscanClient(&config.Config{
+		EtherscanConfig: config.EtherscanConfig{
+			ApiKeys: etherscanApiKeys,
+		},
+		Chain: "holesky",
+	}, l)
+	client := ethereum.NewClient(rpcUrl, l)
 
-	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
-	pgConfig.CreateDbIfNotExists = true
-
-	pg, err := postgres.NewPostgres(pgConfig)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
-		l.Fatal("Failed to setup postgres connection", zap.Error(err))
-	}
-
-	grm, err := postgres.NewGormFromPostgresConnection(pg.Db)
-	if err != nil {
-		l.Fatal("Failed to create gorm instance", zap.Error(err))
-	}
-
-	migrator := migrations.NewMigrator(pg.Db, grm, l)
-	if err = migrator.MigrateAll(); err != nil {
-		l.Fatal("Failed to migrate", zap.Error(err))
+		log.Fatal(err)
 	}
 
 	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
@@ -70,9 +83,6 @@ func main() {
 	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
-	if err != nil {
-		log.Fatalln(err)
-	}
 
 	sm := stateManager.NewEigenStateManager(l, grm)
 
@@ -101,49 +111,37 @@ func main() {
 
 	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, cc, l, cfg)
 
-	p := pipeline.NewPipeline(fetchr, idxr, mds, sm, l)
+	return fetchr, idxr, mds, sm, cfg, l, grm, dbname
 
-	// Create new sidecar instance
-	sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
-		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
-	}, cfg, mds, p, sm, l, client)
+}
 
-	// RPC channel to notify the RPC server to shutdown gracefully
-	rpcChannel := make(chan bool)
-	err = sidecar.WithRpcServer(ctx, mds, sm, rpcChannel)
-	if err != nil {
-		l.Sugar().Fatalw("Failed to start RPC server", zap.Error(err))
-	}
+func Test_Pipeline_Integration(t *testing.T) {
+	fetchr, idxr, mds, sm, cfg, l, grm, dbName := setup()
+	t.Run("Should create a new Pipeline", func(t *testing.T) {
+		p := NewPipeline(fetchr, idxr, mds, sm, l)
+		assert.NotNil(t, p)
+	})
 
-	block, err := fetchr.FetchBlock(ctx, 1215893)
-	if err != nil {
-		l.Sugar().Fatalw("Failed to fetch block", zap.Error(err))
-	}
+	t.Run("Should index a block, transaction with logs", func(t *testing.T) {
+		blockNumber := uint64(1175560)
+		transactionHash := "0x78cc56f0700e7ba5055f124243e6591fc1199cf3c75a17d50f8ea438254c9a76"
+		logIndex := uint64(14)
 
-	transactionHash := "0xf6775c38af1d2802bcbc2b7c8959c0d5b48c63a14bfeda0261ba29d76c68c423"
-	transaction := &ethereum.EthereumTransaction{}
+		fmt.Printf("transactionHash: %s %d\n", transactionHash, logIndex)
 
-	for _, tx := range block.Block.Transactions {
-		if tx.Hash.Value() == transactionHash {
-			transaction = tx
-			break
-		}
-	}
+		p := NewPipeline(fetchr, idxr, mds, sm, l)
 
-	logIndex := 4
-	receipt := block.TxReceipts[transaction.Hash.Value()]
-	var interestingLog *ethereum.EthereumEventLog
+		err := p.RunForBlock(context.Background(), blockNumber)
+		assert.Nil(t, err)
 
-	for _, log := range receipt.Logs {
-		if log.LogIndex.Value() == uint64(logIndex) {
-			fmt.Printf("Log: %+v\n", log)
-			interestingLog = log
-		}
-	}
+		query := `select * from delegated_stakers where block_number = @blockNumber`
+		delegatedStakers := make([]stakerDelegations.DelegatedStakers, 0)
+		res := grm.Raw(query, sql.Named("blockNumber", blockNumber)).Scan(&delegatedStakers)
+		assert.Nil(t, res.Error)
 
-	decodedLog, err := idxr.DecodeLogWithAbi(nil, receipt, interestingLog)
-	if err != nil {
-		l.Sugar().Fatalw("Failed to decode log", zap.Error(err))
-	}
-	l.Sugar().Infof("Decoded log: %+v", decodedLog)
+		assert.Equal(t, 1, len(delegatedStakers))
+	})
+	t.Cleanup(func() {
+		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+	})
 }
