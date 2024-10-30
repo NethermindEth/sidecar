@@ -35,12 +35,11 @@ distinct_operators AS (
 SELECT * FROM distinct_operators
 `
 
-func (rc *RewardsCalculator) GenerateGold3OperatorRewardAmountsTable(startDate string, snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold3OperatorRewardAmountsTable(snapshotDate string) error {
 	allTableNames := getGoldTableNames(snapshotDate)
 	destTableName := allTableNames[Table_3_OperatorRewardAmounts]
 
 	rc.logger.Sugar().Infow("Generating staker reward amounts",
-		zap.String("startDate", startDate),
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)

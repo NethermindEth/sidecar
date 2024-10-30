@@ -45,7 +45,7 @@ FROM
     generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 `
 
-func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(startDate string, snapshotDate string) error {
+func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(snapshotDate string) error {
 	tableName := "operator_share_snapshots"
 
 	query, err := renderQueryTemplate(operatorShareSnapshotsQuery, map[string]string{

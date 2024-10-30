@@ -128,7 +128,7 @@ func Test_Rewards(t *testing.T) {
 	// }
 
 	t.Run("Should initialize the rewards calculator", func(t *testing.T) {
-		rc, err := NewRewardsCalculator(l, grm, cfg)
+		rc, err := NewRewardsCalculator(cfg, grm, nil, l)
 		assert.Nil(t, err)
 		if err != nil {
 			t.Fatal(err)
@@ -173,24 +173,14 @@ func Test_Rewards(t *testing.T) {
 		fmt.Printf("Hydration duration: %v\n", time.Since(testStart))
 		testStart = time.Now()
 
-		for i, snapshotDate := range snapshotDates {
+		for _, snapshotDate := range snapshotDates {
 			t.Log("-----------------------------\n")
-			var startDate string
-			if i == 0 {
-				startDate = "1970-01-01"
-			} else {
-				startDate, err = rc.GetNextSnapshotDate()
-				if err != nil {
-					t.Fatal(err)
-				}
-				t.Logf("Max snapshot date: %s", startDate)
-			}
 
 			snapshotStartTime := time.Now()
 
-			t.Logf("Generating rewards - startDate %s, snapshotDate: %s", startDate, snapshotDate)
+			t.Logf("Generating rewards - snapshotDate: %s", snapshotDate)
 			// Generate snapshots
-			err = rc.generateSnapshotData(startDate, snapshotDate)
+			err = rc.generateSnapshotData(snapshotDate)
 			assert.Nil(t, err)
 
 			goldTableNames := getGoldTableNames(snapshotDate)
@@ -203,7 +193,7 @@ func Test_Rewards(t *testing.T) {
 			assert.Nil(t, err)
 
 			fmt.Printf("Running gold_1_active_rewards\n")
-			err = rc.Generate1ActiveRewards(startDate, snapshotDate)
+			err = rc.Generate1ActiveRewards(snapshotDate)
 			assert.Nil(t, err)
 			rows, err := getRowCountForTable(grm, goldTableNames[Table_1_ActiveRewards])
 			assert.Nil(t, err)
@@ -211,7 +201,7 @@ func Test_Rewards(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_2_staker_reward_amounts %+v\n", time.Now())
-			err = rc.GenerateGold2StakerRewardAmountsTable(startDate, snapshotDate, forks)
+			err = rc.GenerateGold2StakerRewardAmountsTable(snapshotDate, forks)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[Table_2_StakerRewardAmounts])
 			assert.Nil(t, err)
@@ -219,7 +209,7 @@ func Test_Rewards(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_3_operator_reward_amounts\n")
-			err = rc.GenerateGold3OperatorRewardAmountsTable(startDate, snapshotDate)
+			err = rc.GenerateGold3OperatorRewardAmountsTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[Table_3_OperatorRewardAmounts])
 			assert.Nil(t, err)
@@ -227,7 +217,7 @@ func Test_Rewards(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_4_rewards_for_all\n")
-			err = rc.GenerateGold4RewardsForAllTable(startDate, snapshotDate)
+			err = rc.GenerateGold4RewardsForAllTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[Table_4_RewardsForAll])
 			assert.Nil(t, err)
@@ -235,7 +225,7 @@ func Test_Rewards(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_5_rfae_stakers\n")
-			err = rc.GenerateGold5RfaeStakersTable(startDate, snapshotDate, forks)
+			err = rc.GenerateGold5RfaeStakersTable(snapshotDate, forks)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[Table_5_RfaeStakers])
 			assert.Nil(t, err)
@@ -243,7 +233,7 @@ func Test_Rewards(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_6_rfae_operators\n")
-			err = rc.GenerateGold6RfaeOperatorsTable(startDate, snapshotDate)
+			err = rc.GenerateGold6RfaeOperatorsTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[Table_6_RfaeOperators])
 			assert.Nil(t, err)
@@ -251,7 +241,7 @@ func Test_Rewards(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_7_staging\n")
-			err = rc.GenerateGold7StagingTable(startDate, snapshotDate)
+			err = rc.GenerateGold7StagingTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, goldTableNames[Table_7_GoldStaging])
 			assert.Nil(t, err)
@@ -259,7 +249,7 @@ func Test_Rewards(t *testing.T) {
 			testStart = time.Now()
 
 			fmt.Printf("Running gold_8_final_table\n")
-			err = rc.GenerateGold8FinalTable(startDate, snapshotDate)
+			err = rc.GenerateGold8FinalTable(snapshotDate)
 			assert.Nil(t, err)
 			rows, err = getRowCountForTable(grm, "gold_table")
 			assert.Nil(t, err)

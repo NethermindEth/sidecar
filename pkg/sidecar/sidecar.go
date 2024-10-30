@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/pkg/pipeline"
+	"github.com/Layr-Labs/go-sidecar/pkg/rewards"
 	"github.com/Layr-Labs/go-sidecar/pkg/rpcServer"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	"net"
@@ -31,15 +32,16 @@ type SidecarConfig struct {
 }
 
 type Sidecar struct {
-	Logger         *zap.Logger
-	Config         *SidecarConfig
-	GlobalConfig   *config.Config
-	Storage        storage.BlockStore
-	Pipeline       *pipeline.Pipeline
-	EthereumClient *ethereum.Client
-	StateManager   *stateManager.EigenStateManager
-	ShutdownChan   chan bool
-	shouldShutdown *atomic.Bool
+	Logger            *zap.Logger
+	Config            *SidecarConfig
+	GlobalConfig      *config.Config
+	Storage           storage.BlockStore
+	Pipeline          *pipeline.Pipeline
+	EthereumClient    *ethereum.Client
+	StateManager      *stateManager.EigenStateManager
+	RewardsCalculator *rewards.RewardsCalculator
+	ShutdownChan      chan bool
+	shouldShutdown    *atomic.Bool
 }
 
 func NewSidecar(
@@ -48,21 +50,23 @@ func NewSidecar(
 	s storage.BlockStore,
 	p *pipeline.Pipeline,
 	em *stateManager.EigenStateManager,
+	rc *rewards.RewardsCalculator,
 	l *zap.Logger,
 	ethClient *ethereum.Client,
 ) *Sidecar {
 	shouldShutdown := &atomic.Bool{}
 	shouldShutdown.Store(false)
 	return &Sidecar{
-		Logger:         l,
-		Config:         cfg,
-		GlobalConfig:   gCfg,
-		Storage:        s,
-		Pipeline:       p,
-		EthereumClient: ethClient,
-		StateManager:   em,
-		ShutdownChan:   make(chan bool),
-		shouldShutdown: shouldShutdown,
+		Logger:            l,
+		Config:            cfg,
+		GlobalConfig:      gCfg,
+		Storage:           s,
+		Pipeline:          p,
+		EthereumClient:    ethClient,
+		RewardsCalculator: rc,
+		StateManager:      em,
+		ShutdownChan:      make(chan bool),
+		shouldShutdown:    shouldShutdown,
 	}
 }
 
@@ -117,6 +121,7 @@ func (s *Sidecar) WithRpcServer(
 	ctx context.Context,
 	bs storage.BlockStore,
 	sm *stateManager.EigenStateManager,
+	rc *rewards.RewardsCalculator,
 	gracefulShutdown chan bool,
 ) error {
 	grpc_zap.ReplaceGrpcLoggerV2(s.Logger)
@@ -147,7 +152,7 @@ func (s *Sidecar) WithRpcServer(
 	reflection.Register(grpcServer)
 	mux := runtime.NewServeMux()
 
-	_, err = rpcServer.NewRpcServer(ctx, grpcServer, mux, bs, sm, s.Logger)
+	_, err = rpcServer.NewRpcServer(ctx, grpcServer, mux, bs, sm, rc, s.Logger)
 	if err != nil {
 		s.Logger.Sugar().Errorw("Failed to create rpc server", zap.Error(err))
 		return err

@@ -42,7 +42,6 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		- Index block
 		- Index transactions
 		- Index logs
-		- Check for contract upgrades
 	*/
 
 	block, err := p.Fetcher.FetchBlock(ctx, blockNumber)
@@ -60,12 +59,6 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		p.Logger.Sugar().Infow("Block already indexed", zap.Uint64("blockNumber", blockNumber))
 	}
 
-	if err := p.stateManager.InitProcessingForBlock(blockNumber); err != nil {
-		p.Logger.Sugar().Errorw("Failed to init processing for block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
-		return err
-	}
-	p.Logger.Sugar().Debugw("Initialized processing for block", zap.Uint64("blockNumber", blockNumber))
-
 	// Parse all transactions and logs for the block.
 	// - If a transaction is not calling to a contract, it is ignored
 	// - If a transaction has 0 interesting logs and itself is not interesting, it is ignored
@@ -79,6 +72,12 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		return err
 	}
 	p.Logger.Sugar().Debugw("Parsed transactions", zap.Uint64("blockNumber", blockNumber), zap.Int("count", len(parsedTransactions)))
+
+	if err := p.stateManager.InitProcessingForBlock(blockNumber); err != nil {
+		p.Logger.Sugar().Errorw("Failed to init processing for block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		return err
+	}
+	p.Logger.Sugar().Debugw("Initialized processing for block", zap.Uint64("blockNumber", blockNumber))
 
 	// With only interesting transactions/logs parsed, insert them into the database
 	for _, pt := range parsedTransactions {

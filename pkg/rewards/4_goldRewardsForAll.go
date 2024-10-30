@@ -66,12 +66,11 @@ staker_tokens AS (
 SELECT * from staker_tokens
 `
 
-func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(startDate string, snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string) error {
 	allTableNames := getGoldTableNames(snapshotDate)
 	destTableName := allTableNames[Table_4_RewardsForAll]
 
 	rc.logger.Sugar().Infow("Generating rewards for all table",
-		zap.String("startDate", startDate),
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)

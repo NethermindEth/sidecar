@@ -45,7 +45,7 @@ CROSS JOIN
     generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 `
 
-func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(startDate string, snapshotDate string) error {
+func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(snapshotDate string) error {
 	tableName := "staker_share_snapshots"
 
 	query, err := renderQueryTemplate(stakerShareSnapshotsQuery, map[string]string{

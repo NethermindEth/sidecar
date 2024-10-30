@@ -100,7 +100,7 @@ FROM cleaned_records
 CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS d
 `
 
-func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(startDate string, snapshotDate string) error {
+func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate string) error {
 	tableName := "operator_avs_registration_snapshots"
 
 	query, err := renderQueryTemplate(operatorAvsRegistrationSnapshotsQuery, map[string]string{

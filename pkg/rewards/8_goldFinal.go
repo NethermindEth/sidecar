@@ -24,11 +24,10 @@ type GoldRow struct {
 	Amount     string
 }
 
-func (rc *RewardsCalculator) GenerateGold8FinalTable(startDate string, snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold8FinalTable(snapshotDate string) error {
 	allTableNames := getGoldTableNames(snapshotDate)
 
 	rc.logger.Sugar().Infow("Generating rewards for all table",
-		zap.String("startDate", startDate),
 		zap.String("cutoffDate", snapshotDate),
 	)
 
