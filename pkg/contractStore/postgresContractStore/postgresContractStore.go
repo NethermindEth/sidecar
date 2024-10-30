@@ -46,23 +46,6 @@ func (s *PostgresContractStore) GetContractForAddress(address string) (*contract
 	return contract, nil
 }
 
-func (s *PostgresContractStore) GetProxyContractForAddressAtBlock(address string, blockNumber uint64) (*contractStore.ProxyContract, error) {
-	address = strings.ToLower(address)
-
-	var proxyContract *contractStore.ProxyContract
-
-	result := s.Db.First(&proxyContract, "contract_address = ? and block_number = ?", address, blockNumber)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			s.Logger.Sugar().Debugf("Proxy contract not found in store '%s'", address)
-			return nil, nil
-		}
-		return nil, result.Error
-	}
-
-	return proxyContract, nil
-}
-
 func (s *PostgresContractStore) FindOrCreateContract(
 	address string,
 	abiJson string,
@@ -101,31 +84,6 @@ func (s *PostgresContractStore) FindOrCreateContract(
 		return contract, nil
 	}, s.Db, nil)
 	return upsertedContract, found, err
-}
-
-func (s *PostgresContractStore) FindVerifiedContractWithMatchingBytecodeHash(bytecodeHash string, address string) (*contractStore.Contract, error) {
-	query := `
-		select
-			*
-		from contracts
-		where
-			bytecode_hash = ?
-			and verified = true
-			and matching_contract_address = ''
-			and contract_address != ?
-		order by id asc
-		limit 1`
-
-	var contract *contractStore.Contract
-	result := s.Db.Raw(query, bytecodeHash, address).Scan(&contract)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			s.Logger.Sugar().Debugf("Verified contract not found in store '%s'", bytecodeHash)
-			return nil, nil
-		}
-		return nil, result.Error
-	}
-	return contract, nil
 }
 
 func (s *PostgresContractStore) FindOrCreateProxyContract(
@@ -221,42 +179,6 @@ func (s *PostgresContractStore) SetContractCheckedForProxy(address string) (*con
 		Where("contract_address = ?", strings.ToLower(address)).
 		Updates(&contractStore.Contract{
 			CheckedForProxy: true,
-		})
-
-	if result.Error != nil {
-		return nil, result.Error
-	}
-
-	return contract, nil
-}
-
-func (s *PostgresContractStore) SetContractAbi(address string, abi string, verified bool) (*contractStore.Contract, error) {
-	contract := &contractStore.Contract{}
-
-	result := s.Db.Model(contract).
-		Clauses(clause.Returning{}).
-		Where("contract_address = ?", strings.ToLower(address)).
-		Updates(&contractStore.Contract{
-			ContractAbi:   abi,
-			Verified:      verified,
-			CheckedForAbi: true,
-		})
-
-	if result.Error != nil {
-		return nil, result.Error
-	}
-
-	return contract, nil
-}
-
-func (s *PostgresContractStore) SetContractMatchingContractAddress(address string, matchingContractAddress string) (*contractStore.Contract, error) {
-	contract := &contractStore.Contract{}
-
-	result := s.Db.Model(&contract).
-		Clauses(clause.Returning{}).
-		Where("contract_address = ?", strings.ToLower(address)).
-		Updates(&contractStore.Contract{
-			MatchingContractAddress: matchingContractAddress,
 		})
 
 	if result.Error != nil {

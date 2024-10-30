@@ -28,7 +28,3 @@ func GetStatsdClient() *statsd.Client {
 	}
 	return statsdClient
 }
-
-const (
-	Etherscan_ContractAbi = "etherscan.contract_abi"
-)

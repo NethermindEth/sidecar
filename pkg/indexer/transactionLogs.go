@@ -1,7 +1,6 @@
 package indexer
 
 import (
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -66,7 +65,7 @@ func (idx *Indexer) ParseTransactionLogs(
 	// the log address would be different than the transaction address
 	var a *abi.ABI
 	if idx.IsInterestingAddress(contractAddress.Value()) {
-		contract, err := idx.ContractManager.FindOrCreateContractWithProxy(contractAddress.Value(), transaction.BlockNumber.Value(), receipt.GetBytecodeHash(), false)
+		contract, err := idx.ContractManager.GetContractWithProxy(contractAddress.Value(), transaction.BlockNumber.Value())
 		if err != nil {
 			idx.Logger.Sugar().Errorw(fmt.Sprintf("Failed to get contract for address %s", contractAddress), zap.Error(err))
 			return nil, NewIndexError(IndexError_FailedToFindContract, err).
@@ -170,59 +169,6 @@ func (idx *Indexer) ParseTransactionLogs(
 	return parsedTransaction, nil
 }
 
-func (idx *Indexer) FindContractUpgradedLogs(parsedLogs []*parser.DecodedLog) []*parser.DecodedLog {
-	contractUpgradedLogs := make([]*parser.DecodedLog, 0)
-	for _, parsedLog := range parsedLogs {
-		if parsedLog.EventName == "Upgraded" && idx.IsInterestingAddress(parsedLog.Address) {
-			contractUpgradedLogs = append(contractUpgradedLogs, parsedLog)
-		}
-	}
-	return contractUpgradedLogs
-}
-
-func (idx *Indexer) IndexContractUpgrade(blockNumber uint64, upgradedLog *parser.DecodedLog, reindexContract bool) {
-	// the new address that the contract points to
-	newProxiedAddress := ""
-
-	// Check the arguments for the new address. EIP-1967 contracts include this as an argument.
-	// Otherwise, we'll check the storage slot
-	for _, arg := range upgradedLog.Arguments {
-		if arg.Name == "implementation" && arg.Value != "" {
-			newProxiedAddress = arg.Value.(common.Address).String()
-		}
-	}
-
-	// check the storage slot at the provided block number of the transaction
-	if newProxiedAddress == "" {
-		storageValue, err := idx.Fetcher.GetContractStorageSlot(context.Background(), upgradedLog.Address, blockNumber)
-		if err != nil || storageValue == "" {
-			idx.Logger.Sugar().Errorw("Failed to get storage value", zap.Error(err))
-		} else if len(storageValue) != 66 {
-			idx.Logger.Sugar().Errorw("Invalid storage value", zap.String("storageValue", storageValue))
-		} else {
-			newProxiedAddress = storageValue[26:]
-		}
-	}
-
-	if newProxiedAddress == "" {
-		idx.Logger.Sugar().Debugw("No new proxied address found", zap.String("address", upgradedLog.Address))
-		return
-	}
-
-	_, err := idx.ContractManager.CreateProxyContract(upgradedLog.Address, newProxiedAddress, blockNumber, reindexContract)
-	if err != nil {
-		idx.Logger.Sugar().Errorw("Failed to create proxy contract", zap.Error(err))
-		return
-	}
-	idx.Logger.Sugar().Infow("Upgraded proxy contract", zap.String("contractAddress", upgradedLog.Address), zap.String("proxyContractAddress", newProxiedAddress))
-}
-
-func (idx *Indexer) IndexContractUpgrades(blockNumber uint64, upgradedContractLogs []*parser.DecodedLog, reindexContract bool) {
-	for _, log := range upgradedContractLogs {
-		idx.IndexContractUpgrade(blockNumber, log, reindexContract)
-	}
-}
-
 // DecodeLogWithAbi determines if the provided contract ABI matches that of the log
 // For example, if the target contract performs a token transfer, that token may emit an
 // event that will be captured in the list of logs. That ABI however is different and will
@@ -243,7 +189,7 @@ func (idx *Indexer) DecodeLogWithAbi(
 		idx.Logger.Sugar().Debugw("Log address does not match contract address", zap.String("logAddress", logAddress.String()), zap.String("contractAddress", txReceipt.GetTargetAddress().Value()))
 		// TODO - need a way to get the bytecode hash
 		// Find/create the log address and attempt to determine if it is a proxy address
-		foundOrCreatedContract, err := idx.ContractManager.FindOrCreateContractWithProxy(logAddress.String(), txReceipt.BlockNumber.Value(), "", false)
+		foundOrCreatedContract, err := idx.ContractManager.GetContractWithProxy(logAddress.String(), txReceipt.BlockNumber.Value())
 		if err != nil {
 			return idx.DecodeLog(nil, lg)
 		}

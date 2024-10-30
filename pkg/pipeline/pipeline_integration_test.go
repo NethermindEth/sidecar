@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
-	"github.com/Layr-Labs/go-sidecar/pkg/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractStore/postgresContractStore"
@@ -47,12 +46,10 @@ func setup() (
 		rpcUrl    = "http://54.198.82.217:8545"
 		statsdUrl = "localhost:8125"
 	)
-	etherscanApiKeys := []string{"SOME KEY"}
 
 	cfg := config.NewConfig()
 	cfg.EthereumRpcConfig.BaseUrl = rpcUrl
 	cfg.StatsdUrl = statsdUrl
-	cfg.EtherscanConfig.ApiKeys = etherscanApiKeys
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
@@ -62,12 +59,6 @@ func setup() (
 		l.Sugar().Fatal("Failed to setup statsd client", zap.Error(err))
 	}
 
-	etherscanClient := etherscan.NewEtherscanClient(&config.Config{
-		EtherscanConfig: config.EtherscanConfig{
-			ApiKeys: etherscanApiKeys,
-		},
-		Chain: "holesky",
-	}, l)
 	client := ethereum.NewClient(rpcUrl, l)
 
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
@@ -80,7 +71,7 @@ func setup() (
 		log.Fatalf("Failed to initialize core contracts: %v", err)
 	}
 
-	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
+	cm := contractManager.NewContractManager(contractStore, client, sdc, l)
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
@@ -109,7 +100,7 @@ func setup() (
 
 	cc := contractCaller.NewContractCaller(client, l)
 
-	idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, cc, l, cfg)
+	idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, l, cfg)
 
 	return fetchr, idxr, mds, sm, cfg, l, grm, dbname
 

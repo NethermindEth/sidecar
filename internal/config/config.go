@@ -33,25 +33,6 @@ const (
 	ENV_PREFIX = "SIDECAR"
 )
 
-func parseListEnvVar(envVar string) []string {
-	if envVar == "" {
-		return []string{}
-	}
-	// split on commas
-	stringList := strings.Split(envVar, ",")
-
-	for i, s := range stringList {
-		stringList[i] = strings.TrimSpace(s)
-	}
-	l := make([]string, 0)
-	for _, s := range stringList {
-		if s != "" {
-			l = append(l, s)
-		}
-	}
-	return l
-}
-
 func normalizeFlagName(name string) string {
 	return strings.ReplaceAll(name, "-", "_")
 }
@@ -60,20 +41,14 @@ type Config struct {
 	Debug             bool
 	StatsdUrl         string
 	EthereumRpcConfig EthereumRpcConfig
-	EtherscanConfig   EtherscanConfig
 	DatabaseConfig    DatabaseConfig
 	RpcConfig         RpcConfig
 	Chain             Chain
-	DataDir           string
 }
 
 type EthereumRpcConfig struct {
 	BaseUrl string
 	WsUrl   string
-}
-
-type EtherscanConfig struct {
-	ApiKeys []string
 }
 
 type DatabaseConfig struct {
@@ -115,10 +90,6 @@ func NewConfig() *Config {
 			WsUrl:   viper.GetString(normalizeFlagName("ethereum.ws_url")),
 		},
 
-		EtherscanConfig: EtherscanConfig{
-			ApiKeys: parseListEnvVar(viper.GetString(normalizeFlagName("etherscan.api_keys"))),
-		},
-
 		DatabaseConfig: DatabaseConfig{
 			Host:     viper.GetString(normalizeFlagName(DatabaseHost)),
 			Port:     viper.GetInt(normalizeFlagName(DatabasePort)),
@@ -131,8 +102,6 @@ func NewConfig() *Config {
 			GrpcPort: viper.GetInt(normalizeFlagName("rpc.grpc_port")),
 			HttpPort: viper.GetInt(normalizeFlagName("rpc.http_port")),
 		},
-
-		DataDir: viper.GetString(normalizeFlagName("datadir")),
 	}
 }
 

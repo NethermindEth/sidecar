@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
-	"github.com/Layr-Labs/go-sidecar/pkg/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractStore"
@@ -23,7 +22,6 @@ type Indexer struct {
 	MetadataStore   storage.BlockStore
 	ContractStore   contractStore.ContractStore
 	ContractManager *contractManager.ContractManager
-	EtherscanClient *etherscan.EtherscanClient
 	Fetcher         *fetcher.Fetcher
 	EthereumClient  *ethereum.Client
 	Config          *config.Config
@@ -85,7 +83,6 @@ func (e *IndexError) WithMessage(message string) *IndexError {
 func NewIndexer(
 	ms storage.BlockStore,
 	cs contractStore.ContractStore,
-	es *etherscan.EtherscanClient,
 	cm *contractManager.ContractManager,
 	e *ethereum.Client,
 	f *fetcher.Fetcher,
@@ -97,7 +94,6 @@ func NewIndexer(
 		Logger:          l,
 		MetadataStore:   ms,
 		ContractStore:   cs,
-		EtherscanClient: es,
 		ContractManager: cm,
 		Fetcher:         f,
 		EthereumClient:  e,
@@ -190,17 +186,6 @@ func (idx *Indexer) ParseAndIndexTransactionLogs(ctx context.Context, fetchedBlo
 					zap.Uint64("block", tx.BlockNumber.Value()),
 				)
 			}
-		}
-
-		upgradedLogs := idx.FindContractUpgradedLogs(parsedTransactionLogs.Logs)
-		if len(upgradedLogs) > 0 {
-			idx.Logger.Sugar().Debugw("Found contract upgrade logs",
-				zap.String("txHash", tx.Hash.Value()),
-				zap.Uint64("block", tx.BlockNumber.Value()),
-				zap.Int("count", len(upgradedLogs)),
-			)
-
-			idx.IndexContractUpgrades(fetchedBlock.Block.Number.Value(), upgradedLogs, false)
 		}
 	}
 	return nil
@@ -301,89 +286,6 @@ func (idx *Indexer) IndexTransaction(
 		receipt.ContractAddress.Value(),
 		receipt.GetBytecodeHash(),
 	)
-}
-
-func (idx *Indexer) FindAndHandleContractCreationForTransactions(
-	transactions []*ethereum.EthereumTransaction,
-	receipts map[string]*ethereum.EthereumTransactionReceipt,
-	contractStorage map[string]string,
-	blockNumber uint64,
-) {
-	for _, tx := range transactions {
-		txReceipt, ok := receipts[tx.Hash.Value()]
-		if !ok {
-			continue
-		}
-
-		idx.Logger.Sugar().Debugw("processing transaction", zap.String("txHash", tx.Hash.Value()))
-		contractAddress := txReceipt.ContractAddress.Value()
-		eip1197StoredValue := ""
-		if contractAddress != "" {
-			eip1197StoredValue = contractStorage[contractAddress]
-		}
-
-		if txReceipt.ContractAddress.Value() != "" {
-			idx.handleContractCreation(
-				txReceipt.ContractAddress.Value(),
-				txReceipt.GetBytecodeHash(),
-				eip1197StoredValue,
-				blockNumber,
-				false,
-			)
-		}
-	}
-}
-
-// Handles indexing a contract created by a transaction
-// Does NOT include contracts that are part of logs.
-func (idx *Indexer) IndexContractsForBlock(
-	block *storage.Block,
-	fetchedBlock *fetcher.FetchedBlock,
-	reindexContract bool,
-) {
-	for _, tx := range fetchedBlock.Block.Transactions {
-		txReceipt, ok := fetchedBlock.TxReceipts[tx.Hash.Value()]
-		if !ok {
-			continue
-		}
-
-		idx.Logger.Sugar().Debug("processing transaction", zap.String("txHash", tx.Hash.Value()))
-		contractAddress := txReceipt.ContractAddress.Value()
-		eip1967StoredValue := ""
-		if contractAddress != "" {
-			eip1967StoredValue = fetchedBlock.ContractStorage[contractAddress]
-		}
-
-		// If the transaction created a contract, index it
-		if txReceipt.ContractAddress.Value() != "" {
-			idx.handleContractCreation(
-				txReceipt.ContractAddress.Value(),
-				txReceipt.GetBytecodeHash(),
-				eip1967StoredValue,
-				block.Number,
-				reindexContract,
-			)
-		}
-	}
-}
-
-func (idx *Indexer) handleContractCreation(
-	contractAddress string,
-	bytecodeHash string,
-	eip1197StoredValue string,
-	blockNumber uint64,
-	reindexContract bool,
-) {
-	_, err := idx.ContractManager.CreateContract(contractAddress, bytecodeHash, reindexContract)
-	if err != nil {
-		idx.Logger.Sugar().Errorw("Failed to get find or create address",
-			zap.Error(err),
-			zap.String("contractAddress", contractAddress),
-		)
-	}
-	if len(eip1197StoredValue) == 66 {
-		idx.ContractManager.HandleProxyContractCreation(contractAddress, eip1197StoredValue, blockNumber, reindexContract)
-	}
 }
 
 func (idx *Indexer) IndexLog(

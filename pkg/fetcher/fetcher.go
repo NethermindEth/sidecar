@@ -2,13 +2,11 @@ package fetcher
 
 import (
 	"context"
-	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
-	"slices"
-	"sync"
-
 	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
+	"slices"
 )
 
 type Fetcher struct {
@@ -29,8 +27,6 @@ type FetchedBlock struct {
 	Block *ethereum.EthereumBlock
 	// map[transactionHash] => transactionReceipt
 	TxReceipts map[string]*ethereum.EthereumTransactionReceipt
-	// map[contractAddress] => stored value
-	ContractStorage map[string]string
 }
 
 func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedBlock, error) {
@@ -71,78 +67,9 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 		receipts[r.TransactionHash.Value()] = r
 	}
 
-	// Use a map to get only unique contract addresses
-	createdContractMap := make(map[string]bool, 0)
-	for _, r := range receipts {
-		if r.To == "" && r.ContractAddress != "" && f.IsInterestingAddress(r.ContractAddress.Value()) {
-			createdContractMap[r.ContractAddress.Value()] = true
-		}
-	}
-
-	// Convert keys back into a list
-	createdContracts := make([]string, 0)
-	for k := range createdContractMap {
-		createdContracts = append(createdContracts, k)
-	}
-
-	contractStorage := make(map[string]string)
-
-	// address -> bytecode
-	contractBytecodeMap := make(map[string]string)
-
-	mapMutex := sync.Mutex{}
-
-	if len(createdContracts) > 0 {
-		wg := sync.WaitGroup{}
-		for _, contractAddress := range createdContracts {
-			wg.Add(1)
-			go func(contractAddress string) {
-				defer wg.Done()
-				// block 0 implies latest block
-				storageValue, err := f.GetContractStorageSlot(ctx, contractAddress, 0)
-				if err != nil {
-					f.Logger.Sugar().Errorw("failed to get storage value",
-						zap.Error(err),
-						zap.String("contractAddress", contractAddress),
-					)
-				} else {
-					f.Logger.Sugar().Debugw("Fetched storage value",
-						zap.String("contractAddress", contractAddress),
-						zap.String("storageValue", storageValue),
-					)
-					mapMutex.Lock()
-					contractStorage[contractAddress] = storageValue
-					mapMutex.Unlock()
-				}
-
-				contractBytecode, err := f.EthClient.GetCode(ctx, contractAddress)
-				if err != nil {
-					f.Logger.Sugar().Errorw("failed to get contract bytecode",
-						zap.Error(err),
-						zap.String("contractAddress", contractAddress),
-					)
-				} else {
-					mapMutex.Lock()
-					contractBytecodeMap[contractAddress] = contractBytecode
-					mapMutex.Unlock()
-				}
-			}(contractAddress)
-		}
-		wg.Wait()
-		// Attach bytecode to receipt
-		for _, receipt := range receipts {
-			if receipt.ContractAddress != "" {
-				if cb, ok := contractBytecodeMap[receipt.ContractAddress.Value()]; ok {
-					receipt.ContractBytecode = ethereum.EthereumHexString(cb)
-				}
-			}
-		}
-	}
-
 	return &FetchedBlock{
-		Block:           block,
-		TxReceipts:      receipts,
-		ContractStorage: contractStorage,
+		Block:      block,
+		TxReceipts: receipts,
 	}, nil
 }
 

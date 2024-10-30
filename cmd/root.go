@@ -25,14 +25,11 @@ func init() {
 	initConfig(rootCmd)
 
 	rootCmd.PersistentFlags().Bool("debug", false, `"true" or "false"`)
-	rootCmd.PersistentFlags().StringP("datadir", "d", "~/.sidecar", "The data directory")
 	rootCmd.PersistentFlags().StringP("chain", "c", "mainnet", "The chain to use (mainnet, holesky, preprod")
 	rootCmd.PersistentFlags().String("statsd.url", "", `e.g. "localhost:8125"`)
 
 	rootCmd.PersistentFlags().String("ethereum.rpc-url", "", `e.g. "http://34.229.43.36:8545"`)
 	rootCmd.PersistentFlags().String("ethereum.ws-url", "", `e.g. "ws://34.229.43.36:8546"`)
-
-	rootCmd.PersistentFlags().String("etherscan.api-keys", "", `Comma-separated string of keys. e.g. "key1,key2,key3"`)
 
 	rootCmd.PersistentFlags().String(config.DatabaseHost, "localhost", `Defaults to 'localhost'. Set to something else if you are running PostgreSQL on your own`)
 	rootCmd.PersistentFlags().Int(config.DatabasePort, 5432, `Defaults to '5432'`)
