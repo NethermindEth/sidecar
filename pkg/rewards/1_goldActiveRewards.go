@@ -96,7 +96,7 @@ select * from active_rewards_final
 // @param snapshotDate: The upper bound of when to calculate rewards to
 // @param startDate: The lower bound of when to calculate rewards from. If we're running rewards for the first time,
 // this will be "1970-01-01". If this is a subsequent run, this will be the last snapshot date.
-func (r *RewardsCalculator) Generate1ActiveRewards(startDate string, snapshotDate string) error {
+func (r *RewardsCalculator) Generate1ActiveRewards(snapshotDate string) error {
 	allTableNames := getGoldTableNames(snapshotDate)
 	destTableName := allTableNames[Table_1_ActiveRewards]
 

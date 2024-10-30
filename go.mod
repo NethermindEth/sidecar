@@ -4,7 +4,7 @@ go 1.22.2
 
 require (
 	github.com/DataDog/datadog-go/v5 v5.5.0
-	github.com/Layr-Labs/sidecar-apis v0.0.0-20241008133938-7596231e046f
+	github.com/Layr-Labs/protocol-apis v0.1.0-beta.1
 	github.com/ethereum/go-ethereum v1.14.9
 	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
 	github.com/google/uuid v1.6.0

@@ -117,12 +117,11 @@ SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
 `
 
-func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(startDate string, snapshotDate string, forks config.ForkMap) error {
+func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, forks config.ForkMap) error {
 	allTableNames := getGoldTableNames(snapshotDate)
 	destTableName := allTableNames[Table_5_RfaeStakers]
 
 	rc.logger.Sugar().Infow("Generating rewards for all table",
-		zap.String("startDate", startDate),
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)

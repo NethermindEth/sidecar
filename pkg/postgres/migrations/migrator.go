@@ -20,6 +20,7 @@ import (
 	_202410241450_stakerDelegationSnapshots "github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations/202410241450_stakerDelegationSnapshots"
 	_202410241456_stakerShareSnapshots "github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations/202410241456_stakerShareSnapshots"
 	_202410241539_goldTables "github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations/202410241539_goldTables"
+	_202410301449_generatedRewardsSnapshots "github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations/202410301449_generatedRewardsSnapshots"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -64,6 +65,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202410241450_stakerDelegationSnapshots.Migration{},
 		&_202410241456_stakerShareSnapshots.Migration{},
 		&_202410241539_goldTables.Migration{},
+		&_202410301449_generatedRewardsSnapshots.Migration{},
 	}
 
 	for _, migration := range migrations {

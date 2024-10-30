@@ -208,6 +208,7 @@ func (idx *Indexer) IndexFetchedBlock(fetchedBlock *fetcher.FetchedBlock) (*stor
 		return foundBlock, true, nil
 	}
 
+	// TODO(seanmcgary): store previous block hash
 	insertedBlock, err := idx.MetadataStore.InsertBlockAtHeight(blockNumber, blockHash, fetchedBlock.Block.Timestamp.Value())
 	if err != nil {
 		idx.Logger.Sugar().Errorw("Failed to insert block at height",

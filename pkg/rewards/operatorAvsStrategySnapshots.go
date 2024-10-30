@@ -138,7 +138,7 @@ final_results as (
 select * from final_results
 `
 
-func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(startDate string, snapshotDate string) error {
+func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(snapshotDate string) error {
 	tableName := "operator_avs_strategy_snapshots"
 	contractAddresses := r.globalConfig.GetContractsMapForChain()
 

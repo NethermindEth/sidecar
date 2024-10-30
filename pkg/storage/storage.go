@@ -91,6 +91,26 @@ type ExcludedAddresses struct {
 	DeletedAt   time.Time
 }
 
+type RewardSnapshotStatus string
+
+func (r RewardSnapshotStatus) String() string {
+	return r.String()
+}
+
+var (
+	RewardSnapshotStatusProcessing RewardSnapshotStatus = "processing"
+	RewardSnapshotStatusCompleted  RewardSnapshotStatus = "completed"
+	RewardSnapshotStatusFailed     RewardSnapshotStatus = "failed"
+)
+
+type GeneratedRewardsSnapshots struct {
+	Id           uint64 `gorm:"type:serial"`
+	SnapshotDate string
+	Status       string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
 // Not tables
 
 type ActiveAvsOperator struct {

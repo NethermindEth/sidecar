@@ -13,6 +13,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/pkg/indexer"
 	"github.com/Layr-Labs/go-sidecar/pkg/pipeline"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
+	"github.com/Layr-Labs/go-sidecar/pkg/rewards"
 	"github.com/Layr-Labs/go-sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/go-sidecar/pkg/storage/postgres"
 	"log"
@@ -100,14 +101,19 @@ func main() {
 
 	p := pipeline.NewPipeline(fetchr, idxr, mds, sm, l)
 
+	rc, err := rewards.NewRewardsCalculator(cfg, grm, l)
+	if err != nil {
+		l.Sugar().Fatalw("Failed to create rewards calculator", zap.Error(err))
+	}
+
 	// Create new sidecar instance
 	sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
 		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
-	}, cfg, mds, p, sm, l, client)
+	}, cfg, mds, p, sm, rc, l, client)
 
 	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)
-	err = sidecar.WithRpcServer(ctx, mds, sm, rpcChannel)
+	err = sidecar.WithRpcServer(ctx, mds, sm, rc, rpcChannel)
 	if err != nil {
 		l.Sugar().Fatalw("Failed to start RPC server", zap.Error(err))
 	}

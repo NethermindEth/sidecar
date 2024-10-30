@@ -84,12 +84,11 @@ SELECT *
 FROM deduped_earners
 `
 
-func (rc *RewardsCalculator) GenerateGold7StagingTable(startDate string, snapshotDate string) error {
+func (rc *RewardsCalculator) GenerateGold7StagingTable(snapshotDate string) error {
 	allTableNames := getGoldTableNames(snapshotDate)
 	destTableName := allTableNames[Table_7_GoldStaging]
 
 	rc.logger.Sugar().Infow("Generating rewards for all table",
-		zap.String("startDate", startDate),
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
