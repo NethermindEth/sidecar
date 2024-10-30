@@ -2,7 +2,7 @@ package fetcher
 
 import (
 	"context"
-	ethereum2 "github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
+	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
 	"slices"
 	"sync"
 
@@ -12,12 +12,12 @@ import (
 )
 
 type Fetcher struct {
-	EthClient *ethereum2.Client
+	EthClient *ethereum.Client
 	Logger    *zap.Logger
 	Config    *config.Config
 }
 
-func NewFetcher(ethClient *ethereum2.Client, cfg *config.Config, l *zap.Logger) *Fetcher {
+func NewFetcher(ethClient *ethereum.Client, cfg *config.Config, l *zap.Logger) *Fetcher {
 	return &Fetcher{
 		EthClient: ethClient,
 		Logger:    l,
@@ -26,9 +26,9 @@ func NewFetcher(ethClient *ethereum2.Client, cfg *config.Config, l *zap.Logger) 
 }
 
 type FetchedBlock struct {
-	Block *ethereum2.EthereumBlock
+	Block *ethereum.EthereumBlock
 	// map[transactionHash] => transactionReceipt
-	TxReceipts map[string]*ethereum2.EthereumTransactionReceipt
+	TxReceipts map[string]*ethereum.EthereumTransactionReceipt
 	// map[contractAddress] => stored value
 	ContractStorage map[string]string
 }
@@ -40,11 +40,11 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 		return nil, err
 	}
 
-	txReceiptRequests := make([]*ethereum2.RPCRequest, 0)
+	txReceiptRequests := make([]*ethereum.RPCRequest, 0)
 	f.Logger.Sugar().Debugf("Fetching '%d' transactions from block '%d'", len(block.Transactions), blockNumber)
 
 	for i, tx := range block.Transactions {
-		txReceiptRequests = append(txReceiptRequests, ethereum2.GetTransactionReceiptRequest(tx.Hash.Value(), uint(i)))
+		txReceiptRequests = append(txReceiptRequests, ethereum.GetTransactionReceiptRequest(tx.Hash.Value(), uint(i)))
 	}
 
 	f.Logger.Sugar().Debugw("Fetching transaction receipts",
@@ -58,9 +58,9 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 		return nil, err
 	}
 
-	receipts := make(map[string]*ethereum2.EthereumTransactionReceipt)
+	receipts := make(map[string]*ethereum.EthereumTransactionReceipt)
 	for _, response := range receiptResponses {
-		r, err := ethereum2.RPCMethod_getTransactionReceipt.ResponseParser(response.Result)
+		r, err := ethereum.RPCMethod_getTransactionReceipt.ResponseParser(response.Result)
 		if err != nil {
 			f.Logger.Sugar().Errorw("failed to parse transaction receipt",
 				zap.Error(err),
@@ -133,7 +133,7 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 		for _, receipt := range receipts {
 			if receipt.ContractAddress != "" {
 				if cb, ok := contractBytecodeMap[receipt.ContractAddress.Value()]; ok {
-					receipt.ContractBytecode = ethereum2.EthereumHexString(cb)
+					receipt.ContractBytecode = ethereum.EthereumHexString(cb)
 				}
 			}
 		}
@@ -158,5 +158,5 @@ func (f *Fetcher) GetContractStorageSlot(ctx context.Context, contractAddress st
 		stringBlock = hexutil.EncodeUint64(blockNumber)
 	}
 
-	return f.EthClient.GetStorageAt(ctx, contractAddress, ethereum2.EIP1967_STORAGE_SLOT, stringBlock)
+	return f.EthClient.GetStorageAt(ctx, contractAddress, ethereum.EIP1967_STORAGE_SLOT, stringBlock)
 }

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	ethereum2 "github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
+	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractManager"
@@ -42,7 +42,7 @@ func main() {
 	}
 
 	etherscanClient := etherscan.NewEtherscanClient(cfg, l)
-	client := ethereum2.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
+	client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
 
 	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 	pgConfig.CreateDbIfNotExists = true
@@ -121,7 +121,7 @@ func main() {
 	}
 
 	transactionHash := "0xf6775c38af1d2802bcbc2b7c8959c0d5b48c63a14bfeda0261ba29d76c68c423"
-	transaction := &ethereum2.EthereumTransaction{}
+	transaction := &ethereum.EthereumTransaction{}
 
 	for _, tx := range block.Block.Transactions {
 		if tx.Hash.Value() == transactionHash {
@@ -132,7 +132,7 @@ func main() {
 
 	logIndex := 4
 	receipt := block.TxReceipts[transaction.Hash.Value()]
-	var interestingLog *ethereum2.EthereumEventLog
+	var interestingLog *ethereum.EthereumEventLog
 
 	for _, log := range receipt.Logs {
 		if log.LogIndex.Value() == uint64(logIndex) {

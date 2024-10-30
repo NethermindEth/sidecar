@@ -3,7 +3,7 @@ package contractManager
 import (
 	"context"
 	"fmt"
-	ethereum2 "github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
+	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractStore"
 	"github.com/Layr-Labs/go-sidecar/pkg/utils"
@@ -16,7 +16,7 @@ import (
 type ContractManager struct {
 	ContractStore   contractStore.ContractStore
 	EtherscanClient *etherscan.EtherscanClient
-	EthereumClient  *ethereum2.Client
+	EthereumClient  *ethereum.Client
 	Statsd          *statsd.Client
 	Logger          *zap.Logger
 }
@@ -24,7 +24,7 @@ type ContractManager struct {
 func NewContractManager(
 	cs contractStore.ContractStore,
 	ec *etherscan.EtherscanClient,
-	e *ethereum2.Client,
+	e *ethereum.Client,
 	s *statsd.Client,
 	l *zap.Logger,
 ) *ContractManager {
@@ -69,7 +69,7 @@ func (cm *ContractManager) FindOrCreateContractWithProxy(
 		return nil, err
 	}
 
-	storageValue, err := cm.EthereumClient.GetStorageAt(context.Background(), contractAddress, ethereum2.EIP1967_STORAGE_SLOT, "latest")
+	storageValue, err := cm.EthereumClient.GetStorageAt(context.Background(), contractAddress, ethereum.EIP1967_STORAGE_SLOT, "latest")
 	if err != nil {
 		cm.Logger.Sugar().Errorw("Failed to get storage value", zap.Error(err), zap.String("contractAddress", contractAddress))
 	} else {
@@ -97,7 +97,7 @@ func (cm *ContractManager) CreateContract(
 				zap.String("contractAddress", contractAddress),
 			)
 		} else {
-			bytecodeHash = ethereum2.HashBytecode(bytecode)
+			bytecodeHash = ethereum.HashBytecode(bytecode)
 			cm.Logger.Sugar().Debugw("Fetched contract bytecode",
 				zap.String("contractAddress", contractAddress),
 				zap.String("bytecodeHash", bytecodeHash),

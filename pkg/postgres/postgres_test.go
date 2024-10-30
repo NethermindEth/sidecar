@@ -2,7 +2,7 @@ package postgres
 
 import (
 	"github.com/Layr-Labs/go-sidecar/internal/config"
-	logger2 "github.com/Layr-Labs/go-sidecar/internal/logger"
+	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations"
 	"testing"
@@ -18,7 +18,7 @@ func Test_Postgres(t *testing.T) {
 	}
 	cfg.DatabaseConfig.DbName = testDbName
 
-	l, _ := logger2.NewLogger(&logger2.LoggerConfig{Debug: true})
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
 
 	pgConfig := PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 	pgConfig.CreateDbIfNotExists = true

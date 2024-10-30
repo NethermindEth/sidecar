@@ -3,7 +3,7 @@ package indexer
 import (
 	"context"
 	"fmt"
-	ethereum2 "github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
+	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractManager"
@@ -19,15 +19,15 @@ import (
 )
 
 type Indexer struct {
-	Logger        *zap.Logger
-	MetadataStore storage.BlockStore
-	ContractStore contractStore.ContractStore
+	Logger          *zap.Logger
+	MetadataStore   storage.BlockStore
+	ContractStore   contractStore.ContractStore
 	ContractManager *contractManager.ContractManager
 	EtherscanClient *etherscan.EtherscanClient
 	Fetcher         *fetcher.Fetcher
-	EthereumClient  *ethereum2.Client
-	Config         *config.Config
-	ContractCaller contractCaller.IContractCaller
+	EthereumClient  *ethereum.Client
+	Config          *config.Config
+	ContractCaller  contractCaller.IContractCaller
 }
 
 type IndexErrorType int
@@ -41,8 +41,8 @@ const (
 )
 
 type IndexError struct {
-	Type IndexErrorType
-	Err  error
+	Type            IndexErrorType
+	Err             error
 	BlockNumber     uint64
 	TransactionHash string
 	LogIndex        int
@@ -87,7 +87,7 @@ func NewIndexer(
 	cs contractStore.ContractStore,
 	es *etherscan.EtherscanClient,
 	cm *contractManager.ContractManager,
-	e *ethereum2.Client,
+	e *ethereum.Client,
 	f *fetcher.Fetcher,
 	cc contractCaller.IContractCaller,
 	l *zap.Logger,
@@ -240,7 +240,7 @@ func (idx *Indexer) IsInterestingAddress(addr string) bool {
 	return slices.Contains(idx.Config.GetInterestingAddressForConfigEnv(), addr)
 }
 
-func (idx *Indexer) IsInterestingTransaction(txn *ethereum2.EthereumTransaction, receipt *ethereum2.EthereumTransactionReceipt) bool {
+func (idx *Indexer) IsInterestingTransaction(txn *ethereum.EthereumTransaction, receipt *ethereum.EthereumTransactionReceipt) bool {
 	address := txn.To.Value()
 	contractAddress := receipt.ContractAddress.Value()
 
@@ -254,8 +254,8 @@ func (idx *Indexer) IsInterestingTransaction(txn *ethereum2.EthereumTransaction,
 func (idx *Indexer) FilterInterestingTransactions(
 	block *storage.Block,
 	fetchedBlock *fetcher.FetchedBlock,
-) []*ethereum2.EthereumTransaction {
-	interestingTransactions := make([]*ethereum2.EthereumTransaction, 0)
+) []*ethereum.EthereumTransaction {
+	interestingTransactions := make([]*ethereum.EthereumTransaction, 0)
 	for _, tx := range fetchedBlock.Block.Transactions {
 		txReceipt, ok := fetchedBlock.TxReceipts[tx.Hash.Value()]
 		if !ok {
@@ -289,8 +289,8 @@ func (idx *Indexer) FilterInterestingTransactions(
 
 func (idx *Indexer) IndexTransaction(
 	block *storage.Block,
-	tx *ethereum2.EthereumTransaction,
-	receipt *ethereum2.EthereumTransactionReceipt,
+	tx *ethereum.EthereumTransaction,
+	receipt *ethereum.EthereumTransactionReceipt,
 ) (*storage.Transaction, error) {
 	return idx.MetadataStore.InsertBlockTransaction(
 		block.Number,
@@ -304,8 +304,8 @@ func (idx *Indexer) IndexTransaction(
 }
 
 func (idx *Indexer) FindAndHandleContractCreationForTransactions(
-	transactions []*ethereum2.EthereumTransaction,
-	receipts map[string]*ethereum2.EthereumTransactionReceipt,
+	transactions []*ethereum.EthereumTransaction,
+	receipts map[string]*ethereum.EthereumTransactionReceipt,
 	contractStorage map[string]string,
 	blockNumber uint64,
 ) {

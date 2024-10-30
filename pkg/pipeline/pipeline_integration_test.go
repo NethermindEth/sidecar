@@ -13,7 +13,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/pkg/indexer"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
-	postgres2 "github.com/Layr-Labs/go-sidecar/pkg/storage/postgres"
+	pgStorage "github.com/Layr-Labs/go-sidecar/pkg/storage/postgres"
 	"log"
 	"testing"
 
@@ -82,7 +82,7 @@ func setup() (
 
 	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
 
-	mds := postgres2.NewPostgresBlockStore(grm, l, cfg)
+	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
 	sm := stateManager.NewEigenStateManager(l, grm)
 
