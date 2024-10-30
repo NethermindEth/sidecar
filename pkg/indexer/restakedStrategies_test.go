@@ -8,7 +8,6 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/metrics"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
-	"github.com/Layr-Labs/go-sidecar/pkg/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractStore/postgresContractStore"
@@ -33,7 +32,6 @@ func setup() (
 ) {
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Holesky
-	cfg.EtherscanConfig.ApiKeys = []string{"some api key"}
 	cfg.StatsdUrl = "localhost:8125"
 	cfg.Debug = true
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
@@ -81,11 +79,9 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 
 	cc := contractCaller.NewContractCaller(client, l)
 
-	etherscanClient := etherscan.NewEtherscanClient(cfg, l)
+	cm := contractManager.NewContractManager(contractStore, client, sdc, l)
 
-	cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
-
-	idxr := NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, cc, l, cfg)
+	idxr := NewIndexer(mds, contractStore, cm, client, fetchr, cc, l, cfg)
 
 	t.Run("Integration - gets restaked strategies for avs/operator", func(t *testing.T) {
 		avs := "0xD4A7E1Bd8015057293f0D0A557088c286942e84b"

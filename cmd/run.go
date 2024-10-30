@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
-	"github.com/Layr-Labs/go-sidecar/pkg/clients/etherscan"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractStore/postgresContractStore"
@@ -50,7 +49,6 @@ var runCmd = &cobra.Command{
 			l.Sugar().Fatal("Failed to setup statsd client", zap.Error(err))
 		}
 
-		etherscanClient := etherscan.NewEtherscanClient(cfg, l)
 		client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
 
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
@@ -76,7 +74,7 @@ var runCmd = &cobra.Command{
 			log.Fatalf("Failed to initialize core contracts: %v", err)
 		}
 
-		cm := contractManager.NewContractManager(contractStore, etherscanClient, client, sdc, l)
+		cm := contractManager.NewContractManager(contractStore, client, sdc, l)
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {
@@ -108,7 +106,7 @@ var runCmd = &cobra.Command{
 
 		cc := contractCaller.NewContractCaller(client, l)
 
-		idxr := indexer.NewIndexer(mds, contractStore, etherscanClient, cm, client, fetchr, cc, l, cfg)
+		idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, l, cfg)
 
 		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, l)
 

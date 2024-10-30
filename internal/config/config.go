@@ -60,7 +60,6 @@ type Config struct {
 	Debug             bool
 	StatsdUrl         string
 	EthereumRpcConfig EthereumRpcConfig
-	EtherscanConfig   EtherscanConfig
 	DatabaseConfig    DatabaseConfig
 	RpcConfig         RpcConfig
 	Chain             Chain
@@ -70,10 +69,6 @@ type Config struct {
 type EthereumRpcConfig struct {
 	BaseUrl string
 	WsUrl   string
-}
-
-type EtherscanConfig struct {
-	ApiKeys []string
 }
 
 type DatabaseConfig struct {
@@ -113,10 +108,6 @@ func NewConfig() *Config {
 		EthereumRpcConfig: EthereumRpcConfig{
 			BaseUrl: viper.GetString(normalizeFlagName("ethereum.rpc_url")),
 			WsUrl:   viper.GetString(normalizeFlagName("ethereum.ws_url")),
-		},
-
-		EtherscanConfig: EtherscanConfig{
-			ApiKeys: parseListEnvVar(viper.GetString(normalizeFlagName("etherscan.api_keys"))),
 		},
 
 		DatabaseConfig: DatabaseConfig{

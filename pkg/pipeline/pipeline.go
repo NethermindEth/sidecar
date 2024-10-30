@@ -126,25 +126,6 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 				return err
 			}
 		}
-		// Check the logs for any contract upgrades.
-		upgradedLogs := p.Indexer.FindContractUpgradedLogs(pt.Logs)
-		if len(upgradedLogs) > 0 {
-			p.Logger.Sugar().Debugw("Found contract upgrade logs",
-				zap.String("txHash", pt.Transaction.Hash.Value()),
-				zap.Uint64("block", pt.Transaction.BlockNumber.Value()),
-				zap.Int("count", len(upgradedLogs)),
-			)
-
-			p.Indexer.IndexContractUpgrades(block.Block.Number.Value(), upgradedLogs, false)
-		}
-	}
-
-	interestingTransactions := p.Indexer.FilterInterestingTransactions(indexedBlock, block)
-	if len(interestingTransactions) > 0 {
-		// If we have interesting transactions, check for contract creations.
-		// Really though this probably should never get reached since we only care about interesting transactions
-		// which are hard coded and any implementations of proxies would get get processed above as part of the upgrade check
-		p.Indexer.FindAndHandleContractCreationForTransactions(interestingTransactions, block.TxReceipts, block.ContractStorage, blockNumber)
 	}
 
 	if block.Block.Number.Value()%3600 == 0 {

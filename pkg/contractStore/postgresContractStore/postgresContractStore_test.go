@@ -69,13 +69,6 @@ func Test_PostgresContractStore(t *testing.T) {
 
 		assert.True(t, len(contracts.ProxyContracts) > 0)
 		for _, proxy := range contracts.ProxyContracts {
-			p, err := cs.GetProxyContractForAddressAtBlock(proxy.ContractAddress, uint64(proxy.BlockNumber))
-			assert.Nil(t, err)
-			assert.NotNil(t, p)
-			assert.Equal(t, proxy.ProxyContractAddress, p.ProxyContractAddress)
-			assert.Equal(t, proxy.ContractAddress, p.ContractAddress)
-			assert.Equal(t, proxy.BlockNumber, p.BlockNumber)
-
 			tree, err := cs.GetContractWithProxyContract(proxy.ContractAddress, uint64(proxy.BlockNumber))
 			assert.Nil(t, err)
 			assert.NotNil(t, tree)
@@ -184,14 +177,6 @@ func Test_PostgresContractStore(t *testing.T) {
 		assert.Equal(t, createdContracts[0].BytecodeHash, contract.BytecodeHash)
 		assert.Equal(t, createdContracts[0].MatchingContractAddress, contract.MatchingContractAddress)
 	})
-	t.Run("Find verified contract with matching bytecode hash", func(t *testing.T) {
-		bytecodeHash := createdContracts[0].BytecodeHash
-		address := createdContracts[0].ContractAddress
-
-		contract, err := cs.FindVerifiedContractWithMatchingBytecodeHash(bytecodeHash, address)
-		assert.Nil(t, err)
-		assert.Nil(t, contract)
-	})
 	t.Run("Get contract with proxy contract", func(t *testing.T) {
 		address := createdContracts[0].ContractAddress
 
@@ -214,26 +199,6 @@ func Test_PostgresContractStore(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, address, contract.ContractAddress)
 		assert.True(t, contract.CheckedForProxy)
-	})
-	t.Run("Set contract ABI", func(t *testing.T) {
-		address := createdContracts[0].ContractAddress
-		abi := `[{ "type": "function", "name": "balanceOf", "inputs": [{ "name": "owner", "type": "address" }], "outputs": [{ "name": "balance", "type": "uint256" }] }]`
-		verified := true
-
-		contract, err := cs.SetContractAbi(address, abi, verified)
-		assert.Nil(t, err)
-		assert.Equal(t, address, contract.ContractAddress)
-		assert.Equal(t, abi, contract.ContractAbi)
-		assert.Equal(t, verified, contract.Verified)
-	})
-	t.Run("Set contract matching contract address", func(t *testing.T) {
-		address := createdContracts[0].ContractAddress
-		matchingContractAddress := "0x789"
-
-		contract, err := cs.SetContractMatchingContractAddress(address, matchingContractAddress)
-		assert.Nil(t, err)
-		assert.Equal(t, address, contract.ContractAddress)
-		assert.Equal(t, matchingContractAddress, contract.MatchingContractAddress)
 	})
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbName, cfg, db, l)

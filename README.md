@@ -94,7 +94,6 @@ mkdir ./sidecar-data || true
 ./bin/sidecar run \
     --ethereum.rpc-url="http://34.229.43.36:8545" \
     --chain="holesky" \
-    --etherscan.api-keys="<your etherscan key>" \
     --statsd.url="localhost:8125" \
     --datadir="./sidecar-data"
 
@@ -109,7 +108,6 @@ docker run -it --rm \
   -e SIDECAR_DEBUG=false \
   -e SIDECAR_ETHEREUM_RPC_BASE_URL="http://34.229.43.36:8545" \
   -e SIDECAR_CHAIN="holesky" \
-  -e SIDECAR_ETHERSCAN_API_KEYS="<your etherscan key>" \
   -e SIDECAR_STATSD_URL="localhost:8125" \
   -e SIDECAR_DATADIR="/sidecar" \
   -v "$(pwd)/sqlite:/sidecar" \
@@ -128,7 +126,6 @@ docker run \
   -e "SIDECAR_DEBUG=false" \
   -e "SIDECAR_ETHEREUM_RPC_BASE_URL=http://34.229.43.36:8545" \
   -e "SIDECAR_CHAIN=holesky" \
-  -e "SIDECAR_ETHERSCAN_API_KEYS='<your etherscan key>'" \
   -e "SIDECAR_STATSD_URL=localhost:8125" \
   -e SIDECAR_DATADIR="/sidecar" \
   -v "$(pwd)/sqlite:/sidecar" \
