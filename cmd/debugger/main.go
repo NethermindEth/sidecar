@@ -43,7 +43,6 @@ func main() {
 	client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
 
 	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
-	pgConfig.CreateDbIfNotExists = true
 
 	pg, err := postgres.NewPostgres(pgConfig)
 	if err != nil {

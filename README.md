@@ -81,6 +81,44 @@ make build
 
 # Running
 
+## Commands
+
+```text
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  run         Run the sidecar
+
+```
+
+### `run` options
+
+```text
+Run the sidecar
+
+Usage:
+  sidecar run [flags]
+
+Flags:
+  -h, --help   help for run
+
+Global Flags:
+  -c, --chain string               The chain to use (mainnet, holesky, preprod (default "mainnet")
+      --database.db_name string    Defaults to 'sidecar' (default "sidecar")
+      --database.host string       Defaults to 'localhost'. Set to something else if you are running PostgreSQL on your own (default "localhost")
+      --database.password string   
+      --database.port int          Defaults to '5432' (default 5432)
+      --database.user string       Defaults to 'sidecar' (default "sidecar")
+      --debug                      "true" or "false"
+      --ethereum.rpc-url string    e.g. "http://34.229.43.36:8545"
+      --ethereum.ws-url string     e.g. "ws://34.229.43.36:8546"
+      --rpc.grpc-port int          e.g. 7100 (default 7100)
+      --rpc.http-port int          e.g. 7101 (default 7101)
+      --statsd.url string          e.g. "localhost:8125"
+
+```
+
+
 ### Bring Your Own PostgreSQL database
 
 See [PostgreSQL Setup](docs/postgresql_setup.md) for instructions on setting up a PostgreSQL database.
@@ -94,7 +132,7 @@ make build
 ./bin/sidecar run \
     --ethereum.rpc-url="http://34.229.43.36:8545" \
     --chain="holesky" \
-    --statsd.url="localhost:8125"
+    --statsd.url="localhost:8125" \
     --database.host="localhost" \
     --database.port="5432" \
     --database.user="sidecar" \
@@ -105,7 +143,7 @@ make build
 go run main.go run \
     --ethereum.rpc-url="http://34.229.43.36:8545" \
     --chain="holesky" \
-    --statsd.url="localhost:8125"
+    --statsd.url="localhost:8125" \
     --database.host="localhost" \
     --database.port="5432" \
     --database.user="sidecar" \
