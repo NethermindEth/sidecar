@@ -3,7 +3,7 @@ package sidecar
 import (
 	"context"
 	"fmt"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -23,23 +23,6 @@ func (s *Sidecar) StartIndexing(ctx context.Context) {
 	if err := s.IndexFromCurrentToTip(ctx); err != nil {
 		s.Logger.Sugar().Fatalw("Failed to index from current to tip", zap.Error(err))
 	}
-}
-
-type currentTip struct {
-	sync.RWMutex
-	CurrentTip uint64
-}
-
-func (ct *currentTip) Get() uint64 {
-	ct.RLock()
-	defer ct.RUnlock()
-	return ct.CurrentTip
-}
-
-func (ct *currentTip) Set(tip uint64) {
-	ct.Lock()
-	defer ct.Unlock()
-	ct.CurrentTip = tip
 }
 
 func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
@@ -85,7 +68,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			}
 		} else {
 			// otherwise, start from the latest block + 1
-			latestBlock += 1
+			latestBlock++
 		}
 	}
 
@@ -100,7 +83,9 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		zap.Uint64("difference", blockNumber-uint64(latestBlock)),
 	)
 
-	ct := currentTip{CurrentTip: blockNumber}
+	// Use an atomic variable to track the current tip
+	currentTip := atomic.Uint64{}
+	currentTip.Store(blockNumber)
 
 	// Every 10 seconds, check to see if the current tip has changed while the backfill/sync
 	// process is still running. If it has changed, update the value which will extend the loop
@@ -117,12 +102,13 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 				s.Logger.Sugar().Errorw("Failed to get latest tip", zap.Error(err))
 				continue
 			}
-			if latestTip > ct.Get() {
+			ct := currentTip.Load()
+			if latestTip > ct {
 				s.Logger.Sugar().Infow("New tip found, updating",
 					zap.Uint64("latestTip", latestTip),
-					zap.Uint64("ct", ct.Get()),
+					zap.Uint64("currentTip", ct),
 				)
-				ct.Set(latestTip)
+				currentTip.Store(latestTip)
 			}
 		}
 	}()
@@ -132,18 +118,18 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	totalDurationMs := 0
 	lastBlockParsed := latestBlock
 
-	for i := latestBlock; i <= int64(ct.Get()); i++ {
+	for uint64(latestBlock) <= currentTip.Load() {
 		if s.shouldShutdown.Load() {
 			s.Logger.Sugar().Infow("Shutting down block processor")
 			return nil
 		}
-		tip := ct.Get()
-		blocksRemaining := tip - uint64(i)
+		tip := currentTip.Load()
+		blocksRemaining := tip - uint64(latestBlock)
 		pctComplete := (float64(blocksProcessed) / float64(blocksRemaining)) * 100
 		estTimeRemainingMs := runningAvg * int(blocksRemaining)
 		estTimeRemainingHours := float64(estTimeRemainingMs) / 1000 / 60 / 60
 
-		if i%10 == 0 {
+		if latestBlock%10 == 0 {
 			s.Logger.Sugar().Infow("Progress",
 				zap.String("percentComplete", fmt.Sprintf("%.2f", pctComplete)),
 				zap.Uint64("blocksRemaining", blocksRemaining),
@@ -154,15 +140,15 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		}
 
 		startTime := time.Now()
-		if err := s.Pipeline.RunForBlock(ctx, uint64(i)); err != nil {
+		if err := s.Pipeline.RunForBlock(ctx, uint64(latestBlock)); err != nil {
 			s.Logger.Sugar().Errorw("Failed to run pipeline for block",
-				zap.Int64("currentBlockNumber", i),
+				zap.Int64("currentBlockNumber", latestBlock),
 				zap.Error(err),
 			)
 			return err
 		}
 
-		lastBlockParsed = i
+		lastBlockParsed = latestBlock
 		delta := time.Since(startTime).Milliseconds()
 		blocksProcessed++
 
@@ -170,10 +156,11 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		runningAvg = totalDurationMs / blocksProcessed
 
 		s.Logger.Sugar().Debugw("Processed block",
-			zap.Int64("blockNumber", i),
+			zap.Int64("blockNumber", latestBlock),
 			zap.Int64("duration", delta),
 			zap.Int("avgDuration", runningAvg),
 		)
+		latestBlock++
 	}
 
 	// TODO(seanmcgary): transition to listening for new blocks
