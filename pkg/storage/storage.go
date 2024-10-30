@@ -94,7 +94,7 @@ type ExcludedAddresses struct {
 type RewardSnapshotStatus string
 
 func (r RewardSnapshotStatus) String() string {
-	return r.String()
+	return string(r)
 }
 
 var (

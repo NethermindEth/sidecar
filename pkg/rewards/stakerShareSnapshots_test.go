@@ -87,8 +87,6 @@ func Test_StakerShareSnapshots(t *testing.T) {
 
 	snapshotDate, err := getSnapshotDate()
 
-	startDate := "1970-01-01"
-
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
 		if _, err = hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
@@ -98,10 +96,10 @@ func Test_StakerShareSnapshots(t *testing.T) {
 		}
 	})
 	t.Run("Should generate staker share snapshots", func(t *testing.T) {
-		rewards, _ := NewRewardsCalculator(l, grm, cfg)
+		rewards, _ := NewRewardsCalculator(cfg, grm, l)
 
 		t.Log("Generating staker share snapshots")
-		err := rewards.GenerateAndInsertStakerShareSnapshots(startDate, snapshotDate)
+		err := rewards.GenerateAndInsertStakerShareSnapshots(snapshotDate)
 		assert.Nil(t, err)
 
 		snapshots, err := rewards.ListStakerShareSnapshots()

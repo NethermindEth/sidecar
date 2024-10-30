@@ -92,8 +92,6 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	startDate := "1970-01-01"
-
 	t.Run("Should hydrate blocks and operatorAvsStateChanges tables", func(t *testing.T) {
 		totalBlockCount, err := hydrateAllBlocksTable(grm, l)
 		if err != nil {
@@ -126,9 +124,9 @@ func Test_OperatorAvsRegistrationSnapshots(t *testing.T) {
 		}
 	})
 	t.Run("Should generate the proper operatorAvsRegistrationWindows", func(t *testing.T) {
-		rewards, _ := NewRewardsCalculator(l, grm, cfg)
+		rewards, _ := NewRewardsCalculator(cfg, grm, l)
 
-		err := rewards.GenerateAndInsertOperatorAvsRegistrationSnapshots(startDate, snapshotDate)
+		err := rewards.GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate)
 		assert.Nil(t, err)
 
 		snapshots, err := rewards.ListOperatorAvsRegistrationSnapshots()

@@ -15,10 +15,10 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 		`CREATE TYPE reward_snapshot_status AS ENUM ('processing', 'complete', 'failed');`,
 		`create table if not exists generated_rewards_snapshots (
 			id serial primary key,
-			snapshot_date string not null,
+			snapshot_date varchar not null,
 			status reward_snapshot_status not null,
 			created_at timestamp with time zone default now(),
-    		updated_at timestamp with time zone
+    		updated_at timestamp with time zone,
     		unique(snapshot_date)
 		)
 		`,

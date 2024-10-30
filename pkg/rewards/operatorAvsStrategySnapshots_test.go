@@ -92,8 +92,6 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	startDate := "1970-01-01"
-
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
 		t.Log("Hydrating restaked strategies")
 		err := hydrateOperatorAvsRestakedStrategies(grm, l)
@@ -120,10 +118,10 @@ func Test_OperatorAvsStrategySnapshots(t *testing.T) {
 	})
 
 	t.Run("Should calculate correct operatorAvsStrategy windows", func(t *testing.T) {
-		rewards, _ := NewRewardsCalculator(l, grm, cfg)
+		rewards, _ := NewRewardsCalculator(cfg, grm, l)
 
 		t.Log("Generating snapshots")
-		err := rewards.GenerateAndInsertOperatorAvsStrategySnapshots(startDate, snapshotDate)
+		err := rewards.GenerateAndInsertOperatorAvsStrategySnapshots(snapshotDate)
 		assert.Nil(t, err)
 
 		windows, err := rewards.ListOperatorAvsStrategySnapshots()
