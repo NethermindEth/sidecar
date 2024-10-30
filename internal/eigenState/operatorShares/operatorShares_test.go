@@ -42,6 +42,19 @@ func teardown(model *OperatorSharesModel) {
 	model.DB.Exec("truncate table operator_shares")
 }
 
+func createBlock(model *OperatorSharesModel, blockNumber uint64) error {
+	block := &storage.Block{
+		Number:    blockNumber,
+		Hash:      "some hash",
+		BlockTime: time.Now().Add(time.Hour * time.Duration(blockNumber)),
+	}
+	res := model.DB.Model(&storage.Block{}).Create(block)
+	if res.Error != nil {
+		return res.Error
+	}
+	return nil
+}
+
 func Test_OperatorSharesState(t *testing.T) {
 	dbName, grm, l, cfg, err := setup()
 
@@ -89,6 +102,16 @@ func Test_OperatorSharesState(t *testing.T) {
 	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
 		blockNumber := uint64(200)
+
+		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		err = createBlock(model, blockNumber)
+		assert.Nil(t, err)
+
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
 			TransactionIndex: big.NewInt(100).Uint64(),
@@ -102,12 +125,6 @@ func Test_OperatorSharesState(t *testing.T) {
 			UpdatedAt:        time.Time{},
 			DeletedAt:        time.Time{},
 		}
-
-		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
-		assert.Nil(t, err)
-
-		err = model.SetupStateForBlock(blockNumber)
-		assert.Nil(t, err)
 
 		stateChange, err := model.HandleStateChange(&log)
 		assert.Nil(t, err)

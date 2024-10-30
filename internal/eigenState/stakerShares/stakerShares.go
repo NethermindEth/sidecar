@@ -639,12 +639,25 @@ func (ss *StakerSharesModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) e
 		return errors.New(msg)
 	}
 
-	if len(records) > 0 {
-		res := ss.DB.Model(&StakerShareDeltas{}).Clauses(clause.Returning{}).Create(&records)
-		if res.Error != nil {
-			ss.logger.Sugar().Errorw("Failed to insert delta records", zap.Error(res.Error))
-			return res.Error
-		}
+	if len(records) == 0 {
+		return nil
+	}
+	var block storage.Block
+	res := ss.DB.Model(&storage.Block{}).Where("number = ?", blockNumber).First(&block)
+	if res.Error != nil {
+		ss.logger.Sugar().Errorw("Failed to fetch block", zap.Error(res.Error))
+		return res.Error
+	}
+
+	for _, r := range records {
+		r.BlockTime = block.BlockTime
+		r.BlockDate = block.BlockTime.Format(time.DateOnly)
+	}
+
+	res = ss.DB.Model(&StakerShareDeltas{}).Clauses(clause.Returning{}).Create(&records)
+	if res.Error != nil {
+		ss.logger.Sugar().Errorw("Failed to insert delta records", zap.Error(res.Error))
+		return res.Error
 	}
 	return nil
 }

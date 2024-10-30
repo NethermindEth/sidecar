@@ -50,6 +50,19 @@ func teardown(model *StakerSharesModel) {
 	}
 }
 
+func createBlock(model *StakerSharesModel, blockNumber uint64) error {
+	block := &storage.Block{
+		Number:    blockNumber,
+		Hash:      "some hash",
+		BlockTime: time.Now().Add(time.Hour * time.Duration(blockNumber)),
+	}
+	res := model.DB.Model(&storage.Block{}).Create(block)
+	if res.Error != nil {
+		return res.Error
+	}
+	return nil
+}
+
 func Test_StakerSharesState(t *testing.T) {
 	dbName, grm, l, cfg, err := setup()
 
@@ -445,6 +458,9 @@ func Test_StakerSharesState(t *testing.T) {
 		// setup M2 migration
 		blockNumber := uint64(102)
 		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		err = createBlock(model, blockNumber)
 		assert.Nil(t, err)
 
 		// M2 WithdrawalQueued comes before the M2 WithdrawalMigrated event
