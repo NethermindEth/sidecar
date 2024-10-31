@@ -223,6 +223,9 @@ func (idx *Indexer) IndexFetchedBlock(fetchedBlock *fetcher.FetchedBlock) (*stor
 }
 
 func (idx *Indexer) IsInterestingAddress(addr string) bool {
+	if addr == "" {
+		return false
+	}
 	return slices.Contains(idx.Config.GetInterestingAddressForConfigEnv(), addr)
 }
 

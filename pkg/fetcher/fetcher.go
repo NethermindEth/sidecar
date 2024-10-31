@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
 	"slices"
 )
@@ -75,15 +74,4 @@ func (f *Fetcher) FetchBlock(ctx context.Context, blockNumber uint64) (*FetchedB
 
 func (f *Fetcher) IsInterestingAddress(contractAddress string) bool {
 	return slices.Contains(f.Config.GetInterestingAddressForConfigEnv(), contractAddress)
-}
-
-func (f *Fetcher) GetContractStorageSlot(ctx context.Context, contractAddress string, blockNumber uint64) (string, error) {
-	stringBlock := ""
-	if blockNumber == 0 {
-		stringBlock = "latest"
-	} else {
-		stringBlock = hexutil.EncodeUint64(blockNumber)
-	}
-
-	return f.EthClient.GetStorageAt(ctx, contractAddress, ethereum.EIP1967_STORAGE_SLOT, stringBlock)
 }

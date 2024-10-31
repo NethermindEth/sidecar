@@ -5,6 +5,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/go-sidecar/pkg/indexer"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
+	"time"
 
 	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stateManager"
 	"go.uber.org/zap"
@@ -44,11 +45,18 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		- Index logs
 	*/
 
+	totalRunTime := time.Now()
+	blockFetchTime := time.Now()
 	block, err := p.Fetcher.FetchBlock(ctx, blockNumber)
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to fetch block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err
 	}
+	p.Logger.Sugar().Debugw("Fetched block",
+		zap.Uint64("blockNumber", blockNumber),
+		zap.Int64("fetchTime", time.Since(blockFetchTime).Milliseconds()),
+	)
+	blockFetchTime = time.Now()
 
 	indexedBlock, found, err := p.Indexer.IndexFetchedBlock(block)
 	if err != nil {
@@ -58,6 +66,12 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 	if found {
 		p.Logger.Sugar().Infow("Block already indexed", zap.Uint64("blockNumber", blockNumber))
 	}
+	p.Logger.Sugar().Debugw("Indexed block",
+		zap.Uint64("blockNumber", blockNumber),
+		zap.Int64("indexTime", time.Since(blockFetchTime).Milliseconds()),
+	)
+
+	blockFetchTime = time.Now()
 
 	// Parse all transactions and logs for the block.
 	// - If a transaction is not calling to a contract, it is ignored
@@ -71,7 +85,11 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		)
 		return err
 	}
-	p.Logger.Sugar().Debugw("Parsed transactions", zap.Uint64("blockNumber", blockNumber), zap.Int("count", len(parsedTransactions)))
+	p.Logger.Sugar().Debugw("Parsed transactions",
+		zap.Uint64("blockNumber", blockNumber),
+		zap.Int("count", len(parsedTransactions)),
+		zap.Int64("indexTime", time.Since(blockFetchTime).Milliseconds()),
+	)
 
 	if err := p.stateManager.InitProcessingForBlock(blockNumber); err != nil {
 		p.Logger.Sugar().Errorw("Failed to init processing for block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
@@ -79,8 +97,13 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 	}
 	p.Logger.Sugar().Debugw("Initialized processing for block", zap.Uint64("blockNumber", blockNumber))
 
+	p.Logger.Sugar().Debugw("Handling parsed transactions", zap.Int("count", len(parsedTransactions)), zap.Uint64("blockNumber", blockNumber))
+
 	// With only interesting transactions/logs parsed, insert them into the database
+	blockFetchTime = time.Now()
 	for _, pt := range parsedTransactions {
+		transactionTime := time.Now()
+
 		indexedTransaction, err := p.Indexer.IndexTransaction(indexedBlock, pt.Transaction, pt.Receipt)
 		if err != nil {
 			p.Logger.Sugar().Errorw("Failed to index transaction",
@@ -90,7 +113,10 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 			)
 			return err
 		}
-		p.Logger.Sugar().Debugw("Indexed transaction", zap.Uint64("blockNumber", blockNumber), zap.String("transactionHash", indexedTransaction.TransactionHash))
+		p.Logger.Sugar().Debugw("Indexed transaction",
+			zap.Uint64("blockNumber", blockNumber),
+			zap.String("transactionHash", indexedTransaction.TransactionHash),
+		)
 
 		for _, log := range pt.Logs {
 			indexedLog, err := p.Indexer.IndexLog(
@@ -125,7 +151,16 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 				return err
 			}
 		}
+		p.Logger.Sugar().Debugw("Handled log state changes",
+			zap.Uint64("blockNumber", blockNumber),
+			zap.String("transactionHash", indexedTransaction.TransactionHash),
+			zap.Duration("indexTime", time.Since(transactionTime)),
+		)
 	}
+	p.Logger.Sugar().Debugw("Handled all log state changes",
+		zap.Uint64("blockNumber", blockNumber),
+		zap.Int64("indexTime", time.Since(blockFetchTime).Milliseconds()),
+	)
 
 	if block.Block.Number.Value()%3600 == 0 {
 		p.Logger.Sugar().Infow("Indexing OperatorRestakedStrategies", zap.Uint64("blockNumber", block.Block.Number.Value()))
@@ -135,25 +170,38 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		}
 	}
 
+	blockFetchTime = time.Now()
 	if err := p.stateManager.CommitFinalState(blockNumber); err != nil {
 		p.Logger.Sugar().Errorw("Failed to commit final state", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err
 	}
+	p.Logger.Sugar().Debugw("Committed final state", zap.Uint64("blockNumber", blockNumber), zap.Duration("indexTime", time.Since(blockFetchTime)))
 
+	blockFetchTime = time.Now()
 	stateRoot, err := p.stateManager.GenerateStateRoot(blockNumber, block.Block.Hash.Value())
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to generate state root", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err
 	}
+	p.Logger.Sugar().Debugw("Generated state root", zap.Duration("indexTime", time.Since(blockFetchTime)))
 
+	blockFetchTime = time.Now()
 	sr, err := p.stateManager.WriteStateRoot(blockNumber, block.Block.Hash.Value(), stateRoot)
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to write state root", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 	} else {
 		p.Logger.Sugar().Debugw("Wrote state root", zap.Uint64("blockNumber", blockNumber), zap.Any("stateRoot", sr))
 	}
+	p.Logger.Sugar().Infow("Finished processing block",
+		zap.Uint64("blockNumber", blockNumber),
+		zap.Int64("indexTime", time.Since(blockFetchTime).Milliseconds()),
+		zap.Int64("totalTime", time.Since(totalRunTime).Milliseconds()),
+	)
 
-	_ = p.stateManager.CleanupProcessedStateForBlock(blockNumber)
+	// Push cleanup to the background since it doesnt need to be blocking
+	go func() {
+		_ = p.stateManager.CleanupProcessedStateForBlock(blockNumber)
+	}()
 
 	return err
 }
