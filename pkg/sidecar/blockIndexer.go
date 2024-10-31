@@ -185,7 +185,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	runningAvg := 0
 	totalDurationMs := 0
 	lastBlockParsed := latestBlock
-	time.Sleep(time.Second * 10)
+	
 	s.Logger.Sugar().Infow("Starting indexing process", zap.Int64("latestBlock", latestBlock), zap.Uint64("currentTip", currentTip.Load()))
 
 	for uint64(latestBlock) <= currentTip.Load() {
