@@ -52,7 +52,7 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		p.Logger.Sugar().Errorw("Failed to fetch block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err
 	}
-	p.Logger.Sugar().Infow("Fetched block",
+	p.Logger.Sugar().Debugw("Fetched block",
 		zap.Uint64("blockNumber", blockNumber),
 		zap.Int64("fetchTime", time.Since(blockFetchTime).Milliseconds()),
 	)
