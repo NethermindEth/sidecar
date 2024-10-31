@@ -10,3 +10,4 @@ sidecar.db*
 /sqlite*
 go-sidecar
 !/sqlite-extensions
+/internal/tests/testdata

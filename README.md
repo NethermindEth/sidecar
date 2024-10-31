@@ -158,7 +158,7 @@ _Assumes you have PosgresSQL running locally already_
 ```bash
 docker run -it --rm \
   -e SIDECAR_DEBUG=false \
-  -e SIDECAR_ETHEREUM_RPC_BASE_URL="http://34.229.43.36:8545" \
+  -e SIDECAR_ETHEREUM_RPC_URL="http://34.229.43.36:8545" \
   -e SIDECAR_CHAIN="holesky" \
   -e SIDECAR_STATSD_URL="localhost:8125" \
   -e SIDECAR_DATABASE_HOST="localhost" \
@@ -179,7 +179,7 @@ make docker-buildx-self
 
 docker run \
   -e "SIDECAR_DEBUG=false" \
-  -e "SIDECAR_ETHEREUM_RPC_BASE_URL=http://34.229.43.36:8545" \
+  -e "SIDECAR_ETHEREUM_RPC_URL=http://34.229.43.36:8545" \
   -e "SIDECAR_CHAIN=holesky" \
   -e "SIDECAR_STATSD_URL=localhost:8125" \
   -e SIDECAR_DATABASE_HOST="localhost" \
@@ -189,6 +189,25 @@ docker run \
   -e SIDECAR_DATABASE_DB_NAME="sidecar" \
   --tty -i \
   go-sidecar:latest run
+```
+
+### Running with docker-compose
+
+By default, this will build the sidecar locally with Docker and run it.
+
+If you wish to use the pre-built image, uncomment the `image` property in the `sidecar` service in `docker-compose.yml` and remove the `build` section
+
+```yaml
+services:
+  sidecar:
+    image: public.ecr.aws/z6g0f8n7/sidecar:latest run
+    #build:
+    #  context: .
+    #  dockerfile: Dockerfile
+```
+
+```bash
+POSTGRES_DATA_PATH=<path to store postgres data> docker-compose up
 ```
 
 ## RPC Routes
