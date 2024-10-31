@@ -43,6 +43,8 @@ var runCmd = &cobra.Command{
 		cfg := config.NewConfig()
 		ctx := context.Background()
 
+		fmt.Printf("Config: %+v\n", cfg)
+
 		l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
 		sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
