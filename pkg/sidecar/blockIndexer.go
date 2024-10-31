@@ -141,6 +141,10 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		s.Logger.Sugar().Fatalw("Failed to get current tip", zap.Error(err))
 	}
 
+	if blockNumber < uint64(latestBlock) {
+		return errors.New("Current tip is less than latest block. Please make sure your node is synced to tip.")
+	}
+
 	s.Logger.Sugar().Infow("Indexing from current to tip",
 		zap.Uint64("currentTip", blockNumber),
 		zap.Int64("latestBlock", latestBlock),
@@ -181,6 +185,8 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	runningAvg := 0
 	totalDurationMs := 0
 	lastBlockParsed := latestBlock
+	time.Sleep(time.Second * 10)
+	s.Logger.Sugar().Infow("Starting indexing process", zap.Int64("latestBlock", latestBlock), zap.Uint64("currentTip", currentTip.Load()))
 
 	for uint64(latestBlock) <= currentTip.Load() {
 		if s.shouldShutdown.Load() {
