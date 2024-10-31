@@ -8,12 +8,11 @@ import (
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/pkg/parser"
 	"github.com/Layr-Labs/go-sidecar/pkg/utils"
-	"regexp"
-
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
+	"regexp"
 )
 
 func (idx *Indexer) getAbi(json string) (*abi.ABI, error) {
@@ -138,22 +137,17 @@ func (idx *Indexer) ParseTransactionLogs(
 		} else {
 			idx.Logger.Sugar().Debugw(fmt.Sprintf("Transaction input is empty %s", contractAddress))
 		}
+	} else {
+		idx.Logger.Sugar().Debugw("Base transaction is not interesting",
+			zap.String("hash", transaction.Hash.Value()),
+			zap.String("contractAddress", contractAddress.Value()),
+		)
 	}
 
 	logs := make([]*parser.DecodedLog, 0)
-	// Attempt to decode each transaction log
-	idx.Logger.Sugar().Debugw(fmt.Sprintf("Decoding '%d' logs for transaction", len(receipt.Logs)),
-		zap.String("transactionHash", transaction.Hash.Value()),
-		zap.Uint64("blockNumber", transaction.BlockNumber.Value()),
-	)
 
 	for i, lg := range receipt.Logs {
 		if !idx.IsInterestingAddress(lg.Address.Value()) {
-			idx.Logger.Sugar().Debugw("Skipping log with non-interesting address",
-				zap.String("address", contractAddress.Value()),
-				zap.String("transactionHash", transaction.Hash.Value()),
-				zap.Uint64("logIndex", lg.LogIndex.Value()),
-			)
 			continue
 		}
 		decodedLog, err := idx.DecodeLogWithAbi(a, receipt, lg)
@@ -165,6 +159,10 @@ func (idx *Indexer) ParseTransactionLogs(
 
 		logs = append(logs, decodedLog)
 	}
+	idx.Logger.Sugar().Debugw("Parsed interesting logs for transaction",
+		zap.Int("count", len(logs)),
+		zap.String("transactionHash", transaction.Hash.Value()),
+	)
 	parsedTransaction.Logs = logs
 	return parsedTransaction, nil
 }

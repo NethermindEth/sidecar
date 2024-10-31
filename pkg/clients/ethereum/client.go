@@ -305,7 +305,7 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 	return destination, nil
 }
 
-const batchSize = 200
+const batchSize = 500
 
 func (c *Client) BatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
 	batches := [][]*RPCRequest{}

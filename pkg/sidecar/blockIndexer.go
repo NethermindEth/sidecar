@@ -160,7 +160,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	// to include the newly discovered blocks.
 	go func() {
 		for {
-			time.Sleep(time.Second * 10)
+			time.Sleep(time.Second * 30)
 			if s.shouldShutdown.Load() {
 				s.Logger.Sugar().Infow("Shutting down block listener...")
 				return
@@ -185,7 +185,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	runningAvg := 0
 	totalDurationMs := 0
 	lastBlockParsed := latestBlock
-	
+
 	s.Logger.Sugar().Infow("Starting indexing process", zap.Int64("latestBlock", latestBlock), zap.Uint64("currentTip", currentTip.Load()))
 
 	for uint64(latestBlock) <= currentTip.Load() {
