@@ -192,7 +192,7 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 	} else {
 		p.Logger.Sugar().Debugw("Wrote state root", zap.Uint64("blockNumber", blockNumber), zap.Any("stateRoot", sr))
 	}
-	p.Logger.Sugar().Infow("Finished processing block",
+	p.Logger.Sugar().Debugw("Finished processing block",
 		zap.Uint64("blockNumber", blockNumber),
 		zap.Int64("indexTime", time.Since(blockFetchTime).Milliseconds()),
 		zap.Int64("totalTime", time.Since(totalRunTime).Milliseconds()),
