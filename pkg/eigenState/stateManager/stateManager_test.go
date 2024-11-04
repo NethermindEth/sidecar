@@ -2,7 +2,9 @@ package stateManager
 
 import (
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
+	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	"testing"
+	"time"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
@@ -51,6 +53,15 @@ func Test_StateManager(t *testing.T) {
 
 		blockNumber := uint64(200)
 		blockHash := "0x123"
+
+		block := &storage.Block{
+			Number:    blockNumber,
+			Hash:      blockHash,
+			BlockTime: time.Unix(1726063248, 0),
+		}
+		res := grm.Model(&storage.Block{}).Create(&block)
+		assert.Nil(t, res.Error)
+
 		stateRoot := types.StateRoot("0x456")
 
 		root, err := esm.WriteStateRoot(blockNumber, blockHash, stateRoot)

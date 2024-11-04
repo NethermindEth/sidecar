@@ -1,6 +1,7 @@
 package stakerShares
 
 import (
+	"database/sql"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	"github.com/Layr-Labs/go-sidecar/pkg/types/numbers"
@@ -41,6 +42,7 @@ func setup() (
 func teardown(model *StakerSharesModel) {
 	queries := []string{
 		`truncate table staker_shares cascade`,
+		`truncate table staker_shaer_deltas cascade`,
 		`truncate table blocks cascade`,
 		`truncate table transactions cascade`,
 		`truncate table transaction_logs cascade`,
@@ -78,7 +80,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 	t.Run("Should capture a staker share Deposit", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(200)
+		blockNumber := uint64(400)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
 			TransactionIndex: big.NewInt(100).Uint64(),
@@ -118,7 +120,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 	t.Run("Should capture a staker share M1 Withdrawal", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(200)
+		blockNumber := uint64(400)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
 			TransactionIndex: big.NewInt(200).Uint64(),
@@ -157,7 +159,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 	t.Run("Should capture staker EigenPod shares", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(200)
+		blockNumber := uint64(400)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
 			TransactionIndex: big.NewInt(300).Uint64(),
@@ -196,7 +198,7 @@ func Test_StakerSharesState(t *testing.T) {
 	})
 	t.Run("Should capture M2 withdrawals", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(200)
+		blockNumber := uint64(400)
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
 			TransactionIndex: big.NewInt(300).Uint64(),
@@ -228,119 +230,6 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, expectedShares, typedChange.Changes[0].Shares)
 		assert.Equal(t, strings.ToLower("0x3c42cd72639e3e8d11ab8d0072cc13bd5d8aa83c"), typedChange.Changes[0].Staker)
 		assert.Equal(t, "0xd523267698c81a372191136e477fdebfa33d9fb4", typedChange.Changes[0].Strategy)
-
-		t.Cleanup(func() {
-			teardown(model)
-		})
-	})
-	t.Run("Should capture M2 migration", func(t *testing.T) {
-		t.Skip()
-		esm := stateManager.NewEigenStateManager(l, grm)
-
-		originBlockNumber := uint64(100)
-
-		block := storage.Block{
-			Number: originBlockNumber,
-			Hash:   "some hash",
-		}
-		res := grm.Model(storage.Block{}).Create(&block)
-		if res.Error != nil {
-			t.Fatal(res.Error)
-		}
-
-		transaction := storage.Transaction{
-			BlockNumber:      block.Number,
-			TransactionHash:  "0x5ff283cb420cdf950036d538e2223d5b504b875828f6e0d243002f429da6faa2",
-			TransactionIndex: big.NewInt(200).Uint64(),
-			FromAddress:      "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78",
-		}
-		res = grm.Model(storage.Transaction{}).Create(&transaction)
-		if res.Error != nil {
-			t.Fatal(res.Error)
-		}
-
-		// setup M1 withdrawal WithdrawalQueued (has root) and N many ShareWithdrawalQueued events (staker, strategy, shares)
-		shareWithdrawalQueued := storage.TransactionLog{
-			TransactionHash:  "0x5ff283cb420cdf950036d538e2223d5b504b875828f6e0d243002f429da6faa2",
-			TransactionIndex: big.NewInt(200).Uint64(),
-			BlockNumber:      originBlockNumber,
-			Address:          cfg.GetContractsMapForChain().StrategyManager,
-			Arguments:        `[{"Name": "depositor", "Type": "address", "Value": null, "Indexed": false}, {"Name": "nonce", "Type": "uint96", "Value": null, "Indexed": false}, {"Name": "strategy", "Type": "address", "Value": null, "Indexed": false}, {"Name": "shares", "Type": "uint256", "Value": null, "Indexed": false}]`,
-			EventName:        "ShareWithdrawalQueued",
-			LogIndex:         big.NewInt(1).Uint64(),
-			OutputData:       `{"nonce": 0, "shares": 246393621132195985, "strategy": "0x298afb19a105d59e74658c4c334ff360bade6dd2", "depositor": "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78"}`,
-			CreatedAt:        time.Time{},
-			UpdatedAt:        time.Time{},
-			DeletedAt:        time.Time{},
-		}
-		res = grm.Model(storage.TransactionLog{}).Create(&shareWithdrawalQueued)
-		if res.Error != nil {
-			t.Fatal(res.Error)
-		}
-
-		withdrawalQueued := storage.TransactionLog{
-			TransactionHash:  "0x5ff283cb420cdf950036d538e2223d5b504b875828f6e0d243002f429da6faa2",
-			TransactionIndex: big.NewInt(200).Uint64(),
-			BlockNumber:      originBlockNumber,
-			Address:          cfg.GetContractsMapForChain().StrategyManager,
-			Arguments:        `[{"Name": "depositor", "Type": "address", "Value": null, "Indexed": false}, {"Name": "nonce", "Type": "uint96", "Value": null, "Indexed": false}, {"Name": "withdrawer", "Type": "address", "Value": null, "Indexed": false}, {"Name": "delegatedAddress", "Type": "address", "Value": null, "Indexed": false}, {"Name": "withdrawalRoot", "Type": "bytes32", "Value": null, "Indexed": false}]`,
-			EventName:        "WithdrawalQueued",
-			LogIndex:         big.NewInt(2).Uint64(),
-			OutputData:       `{"nonce": 0, "depositor": "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", "withdrawer": "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", "withdrawalRoot": [31, 200, 156, 159, 43, 41, 112, 204, 139, 225, 142, 72, 58, 63, 194, 149, 59, 254, 218, 227, 162, 25, 237, 7, 103, 240, 24, 255, 31, 152, 236, 84], "delegatedAddress": "0x0000000000000000000000000000000000000000"}`,
-			CreatedAt:        time.Time{},
-			UpdatedAt:        time.Time{},
-			DeletedAt:        time.Time{},
-		}
-		res = grm.Model(storage.TransactionLog{}).Create(&withdrawalQueued)
-		if res.Error != nil {
-			t.Fatal(res.Error)
-		}
-
-		blockNumber := uint64(200)
-		log := storage.TransactionLog{
-			TransactionHash:  "some hash",
-			TransactionIndex: big.NewInt(300).Uint64(),
-			BlockNumber:      blockNumber,
-			Address:          cfg.GetContractsMapForChain().DelegationManager,
-			Arguments:        `[{"Name": "oldWithdrawalRoot", "Type": "bytes32", "Value": ""}, {"Name": "newWithdrawalRoot", "Type": "bytes32", "Value": ""}]`,
-			EventName:        "WithdrawalMigrated",
-			LogIndex:         big.NewInt(600).Uint64(),
-			OutputData:       `{"newWithdrawalRoot": [218, 200, 138, 86, 38, 9, 156, 119, 73, 13, 168, 40, 209, 43, 238, 83, 234, 177, 230, 73, 120, 205, 255, 143, 255, 216, 51, 209, 137, 100, 163, 233], "oldWithdrawalRoot": [31, 200, 156, 159, 43, 41, 112, 204, 139, 225, 142, 72, 58, 63, 194, 149, 59, 254, 218, 227, 162, 25, 237, 7, 103, 240, 24, 255, 31, 152, 236, 84]}`,
-			CreatedAt:        time.Time{},
-			UpdatedAt:        time.Time{},
-			DeletedAt:        time.Time{},
-		}
-
-		model, err := NewStakerSharesModel(esm, grm, l, cfg)
-		assert.Nil(t, err)
-
-		err = model.SetupStateForBlock(blockNumber)
-		assert.Nil(t, err)
-
-		change, err := model.HandleStateChange(&log)
-		assert.Nil(t, err)
-		assert.NotNil(t, change)
-
-		typedChange := change.(*AccumulatedStateChanges)
-		assert.Equal(t, 1, len(typedChange.Changes))
-		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", typedChange.Changes[0].Staker)
-		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", typedChange.Changes[0].Strategy)
-		assert.Equal(t, "246393621132195985", typedChange.Changes[0].Shares.String())
-
-		preparedChange, err := model.prepareState(blockNumber)
-		assert.Nil(t, err)
-		assert.Equal(t, "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", preparedChange[0].Staker)
-		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", preparedChange[0].Strategy)
-		assert.Equal(t, "246393621132195985", preparedChange[0].Shares.String())
-
-		err = model.CommitFinalState(blockNumber)
-		assert.Nil(t, err)
-
-		query := `select * from staker_shares where block_number = ?`
-		results := []*StakerShares{}
-		res = model.DB.Raw(query, blockNumber).Scan(&results)
-		assert.Nil(t, res.Error)
-		assert.Equal(t, 1, len(results))
 
 		t.Cleanup(func() {
 			teardown(model)
@@ -424,13 +313,50 @@ func Test_StakerSharesState(t *testing.T) {
 			TransactionIndex: big.NewInt(200).Uint64(),
 			BlockNumber:      originBlockNumber,
 			Address:          cfg.GetContractsMapForChain().StrategyManager,
-			Arguments:        `[{"Name": "depositor", "Type": "address", "Value": null, "Indexed": false}, {"Name": "nonce", "Type": "uint96", "Value": null, "Indexed": false}, {"Name": "withdrawer", "Type": "address", "Value": null, "Indexed": false}, {"Name": "delegatedAddress", "Type": "address", "Value": null, "Indexed": false}, {"Name": "withdrawalRoot", "Type": "bytes32", "Value": null, "Indexed": false}]`,
-			EventName:        "WithdrawalQueued",
-			LogIndex:         big.NewInt(2).Uint64(),
-			OutputData:       `{"nonce": 0, "depositor": "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", "withdrawer": "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", "withdrawalRoot": [31, 200, 156, 159, 43, 41, 112, 204, 139, 225, 142, 72, 58, 63, 194, 149, 59, 254, 218, 227, 162, 25, 237, 7, 103, 240, 24, 255, 31, 152, 236, 84], "delegatedAddress": "0x0000000000000000000000000000000000000000"}`,
-			CreatedAt:        time.Time{},
-			UpdatedAt:        time.Time{},
-			DeletedAt:        time.Time{},
+			Arguments: `[
+								  {
+									"Name": "depositor",
+									"Type": "address",
+									"Value": null,
+									"Indexed": false
+								  },
+								  {
+									"Name": "nonce",
+									"Type": "uint96",
+									"Value": null,
+									"Indexed": false
+								  },
+								  {
+									"Name": "withdrawer",
+									"Type": "address",
+									"Value": null,
+									"Indexed": false
+								  },
+								  {
+									"Name": "delegatedAddress",
+									"Type": "address",
+									"Value": null,
+									"Indexed": false
+								  },
+								  {
+									"Name": "withdrawalRoot",
+									"Type": "bytes32",
+									"Value": null,
+									"Indexed": false
+								  }
+								]`,
+			EventName: "WithdrawalQueued",
+			LogIndex:  big.NewInt(2).Uint64(),
+			OutputData: `{
+								  "nonce": 0,
+								  "depositor": "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78",
+								  "withdrawer": "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78",
+								  "withdrawalRoot": [ 31,200,156,159,43,41,112,204,139,225,142,72,58,63,194,149,59,254,218,227,162,25,237,7,103,240,24,255,31,152,236,84],
+								  "delegatedAddress": "0x0000000000000000000000000000000000000000"
+								}`,
+			CreatedAt: time.Time{},
+			UpdatedAt: time.Time{},
+			DeletedAt: time.Time{},
 		}
 		res = grm.Model(storage.TransactionLog{}).Create(&withdrawalQueued)
 		if res.Error != nil {
@@ -472,10 +398,25 @@ func Test_StakerSharesState(t *testing.T) {
 			Arguments:        `[{"Name": "withdrawalRoot", "Type": "bytes32", "Value": ""}, {"Name": "withdrawal", "Type": "(address,address,address,uint256,uint32,address[],uint256[])", "Value": ""}]`,
 			EventName:        "WithdrawalQueued",
 			LogIndex:         big.NewInt(600).Uint64(),
-			OutputData:       `{"withdrawal": {"nonce": 0, "shares": [246393621132195985], "staker": "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", "startBlock": 1215690, "strategies": ["0x298afb19a105d59e74658c4c334ff360bade6dd2"], "withdrawer": "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78", "delegatedTo": "0x2177dee1f66d6dbfbf517d9c4f316024c6a21aeb"}, "withdrawalRoot": [24, 23, 49, 137, 14, 63, 119, 12, 234, 225, 63, 35, 109, 249, 112, 24, 241, 118, 212, 52, 22, 107, 202, 56, 105, 37, 68, 47, 169, 23, 142, 135]}`,
-			CreatedAt:        time.Time{},
-			UpdatedAt:        time.Time{},
-			DeletedAt:        time.Time{},
+			OutputData: `{
+								  "withdrawal": {
+									"nonce": 0,
+									"shares": [
+									  246393621132195985
+									],
+									"staker": "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78",
+									"startBlock": 1215690,
+									"strategies": [
+									  "0x298afb19a105d59e74658c4c334ff360bade6dd2"
+									],
+									"withdrawer": "0x9c01148c464cf06d135ad35d3d633ab4b46b9b78",
+									"delegatedTo": "0x2177dee1f66d6dbfbf517d9c4f316024c6a21aeb"
+								  },
+								  "withdrawalRoot": [24, 23, 49, 137, 14, 63, 119, 12, 234, 225, 63, 35, 109, 249, 112, 24, 241, 118, 212, 52, 22, 107, 202, 56, 105, 37, 68, 47, 169, 23, 142, 135]
+								}`,
+			CreatedAt: time.Time{},
+			UpdatedAt: time.Time{},
+			DeletedAt: time.Time{},
 		}
 
 		change, err = model.HandleStateChange(&log)
@@ -497,10 +438,13 @@ func Test_StakerSharesState(t *testing.T) {
 			Arguments:        `[{"Name": "oldWithdrawalRoot", "Type": "bytes32", "Value": ""}, {"Name": "newWithdrawalRoot", "Type": "bytes32", "Value": ""}]`,
 			EventName:        "WithdrawalMigrated",
 			LogIndex:         big.NewInt(600).Uint64(),
-			OutputData:       `{"newWithdrawalRoot": [24, 23, 49, 137, 14, 63, 119, 12, 234, 225, 63, 35, 109, 249, 112, 24, 241, 118, 212, 52, 22, 107, 202, 56, 105, 37, 68, 47, 169, 23, 142, 135], "oldWithdrawalRoot": [31, 200, 156, 159, 43, 41, 112, 204, 139, 225, 142, 72, 58, 63, 194, 149, 59, 254, 218, 227, 162, 25, 237, 7, 103, 240, 24, 255, 31, 152, 236, 84]}`,
-			CreatedAt:        time.Time{},
-			UpdatedAt:        time.Time{},
-			DeletedAt:        time.Time{},
+			OutputData: `{
+  							"newWithdrawalRoot": [24, 23, 49, 137, 14, 63, 119, 12, 234, 225, 63, 35, 109, 249, 112, 24, 241, 118, 212, 52, 22, 107, 202, 56, 105, 37, 68, 47, 169, 23, 142, 135],
+							"oldWithdrawalRoot": [31, 200, 156, 159, 43, 41, 112, 204, 139, 225, 142, 72, 58, 63, 194, 149, 59, 254, 218, 227, 162, 25, 237, 7, 103, 240, 24, 255, 31, 152, 236, 84]
+						}`,
+			CreatedAt: time.Time{},
+			UpdatedAt: time.Time{},
+			DeletedAt: time.Time{},
 		}
 
 		change, err = model.HandleStateChange(&withdrawalMigratedLog)
@@ -539,6 +483,15 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, "0x298afb19a105d59e74658c4c334ff360bade6dd2", results[0].Strategy)
 		assert.Equal(t, "-246393621132195985", results[0].Shares)
 		assert.Equal(t, blockNumber, results[0].BlockNumber)
+
+		query = `
+			select count(*) from staker_share_deltas
+			where block_number = @blockNumber
+		`
+		var count int
+		res = model.DB.Raw(query, sql.Named("blockNumber", blockNumber)).Scan(&count)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, 0, count)
 
 		t.Cleanup(func() {
 			teardown(model)

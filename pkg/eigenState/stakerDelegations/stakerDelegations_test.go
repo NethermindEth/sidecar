@@ -58,6 +58,14 @@ func Test_DelegatedStakersState(t *testing.T) {
 	t.Run("Should register StakerDelegationsModel", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
 		blockNumber := uint64(200)
+		block := &storage.Block{
+			Number:    blockNumber,
+			Hash:      "",
+			BlockTime: time.Unix(1726063248, 0),
+		}
+		res := grm.Model(&storage.Block{}).Create(&block)
+		assert.Nil(t, res.Error)
+
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
 			TransactionIndex: 100,
@@ -80,11 +88,11 @@ func Test_DelegatedStakersState(t *testing.T) {
 		err = model.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		res, err := model.HandleStateChange(&log)
+		result, err := model.HandleStateChange(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
 
-		typedChange := res.(*AccumulatedStateChange)
+		typedChange := result.(*AccumulatedStateChange)
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Staker)
 		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Operator)
 
@@ -94,7 +102,14 @@ func Test_DelegatedStakersState(t *testing.T) {
 	})
 	t.Run("Should register StakerDelegationsModel and generate the table for the block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(200)
+		blockNumber := uint64(201)
+		block := &storage.Block{
+			Number:    blockNumber,
+			Hash:      "",
+			BlockTime: time.Unix(1726063248, 0),
+		}
+		res := grm.Model(&storage.Block{}).Create(&block)
+		assert.Nil(t, res.Error)
 
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
@@ -153,6 +168,16 @@ func Test_DelegatedStakersState(t *testing.T) {
 		blocks := []uint64{
 			300,
 			301,
+		}
+
+		for _, blockNumber := range blocks {
+			block := &storage.Block{
+				Number:    blockNumber,
+				Hash:      "",
+				BlockTime: time.Unix(1726063248, 0),
+			}
+			res := grm.Model(&storage.Block{}).Create(&block)
+			assert.Nil(t, res.Error)
 		}
 
 		logs := []*storage.TransactionLog{

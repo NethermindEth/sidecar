@@ -92,6 +92,8 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 			Hash:      "",
 			BlockTime: time.Unix(1726063248, 0),
 		}
+		res := grm.Model(&storage.Block{}).Create(&block)
+		assert.Nil(t, res.Error)
 
 		contracts := cfg.GetContractsMapForChain()
 
@@ -119,10 +121,12 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		operator := "0xA8C128BD6f5A314b46202Dd7C68E7E2422eD61F2"
 
 		block := &storage.Block{
-			Number:    uint64(1191600),
+			Number:    uint64(1195200),
 			Hash:      "",
 			BlockTime: time.Unix(1726063248, 0),
 		}
+		res := grm.Model(&storage.Block{}).Create(&block)
+		assert.Nil(t, res.Error)
 
 		contracts := cfg.GetContractsMapForChain()
 

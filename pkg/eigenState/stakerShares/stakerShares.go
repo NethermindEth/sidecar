@@ -50,15 +50,16 @@ type StakerSharesDiff struct {
 
 // Table staker_share_deltas
 type StakerShareDeltas struct {
-	Staker          string
-	Strategy        string
-	Shares          string
-	StrategyIndex   uint64
-	TransactionHash string
-	LogIndex        uint64
-	BlockTime       time.Time
-	BlockDate       string
-	BlockNumber     uint64
+	Staker               string
+	Strategy             string
+	Shares               string
+	StrategyIndex        uint64
+	TransactionHash      string
+	LogIndex             uint64
+	BlockTime            time.Time
+	BlockDate            string
+	BlockNumber          uint64
+	WithdrawalRootString string `gorm:"-"`
 }
 
 func NewSlotID(staker string, strategy string) types.SlotID {
@@ -244,6 +245,8 @@ func (ss *StakerSharesModel) handleM1StakerWithdrawals(log *storage.TransactionL
 type m2MigrationOutputData struct {
 	OldWithdrawalRoot       []byte `json:"oldWithdrawalRoot"`
 	OldWithdrawalRootString string
+	NewWithdrawalRoot       []byte `json:"newWithdrawalRoot"`
+	NewWithdrawalRootString string
 }
 
 func parseLogOutputForM2MigrationEvent(outputDataStr string) (*m2MigrationOutputData, error) {
@@ -256,6 +259,7 @@ func parseLogOutputForM2MigrationEvent(outputDataStr string) (*m2MigrationOutput
 		return nil, err
 	}
 	outputData.OldWithdrawalRootString = hex.EncodeToString(outputData.OldWithdrawalRoot)
+	outputData.NewWithdrawalRootString = hex.EncodeToString(outputData.NewWithdrawalRoot)
 	return outputData, err
 }
 
@@ -269,6 +273,8 @@ func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.Tran
 	if err != nil {
 		return nil, err
 	}
+	// Takes the withdrawal root of the current log being processed and finds the corresponding
+	// M1 withdrawal that it migrated.
 	query := `
 		WITH migration AS (
 			SELECT
@@ -316,8 +322,13 @@ func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.Tran
 	}
 
 	changes := make([]*StakerShareDeltas, 0)
+	// if an M1 was found, we need to negate the double M2 withdrawal
 	for _, l := range logs {
 		c, err := ss.handleStakerDepositEvent(&l)
+		c.BlockNumber = log.BlockNumber
+		// store the withdrawal root of the M2 migration event so that we can eventually remove it
+		// from the deltas table
+		c.WithdrawalRootString = outputData.NewWithdrawalRootString
 		if err != nil {
 			return nil, err
 		}
@@ -368,13 +379,14 @@ func (ss *StakerSharesModel) handleM2QueuedWithdrawal(log *storage.TransactionLo
 			return nil, xerrors.Errorf("Failed to convert shares to big.Int: %s", outputData.Withdrawal.Shares[i])
 		}
 		r := &StakerShareDeltas{
-			Staker:          outputData.Withdrawal.Staker,
-			Strategy:        strategy,
-			Shares:          shares.Mul(shares, big.NewInt(-1)).String(),
-			StrategyIndex:   uint64(i),
-			LogIndex:        log.LogIndex,
-			TransactionHash: log.TransactionHash,
-			BlockNumber:     log.BlockNumber,
+			Staker:               outputData.Withdrawal.Staker,
+			Strategy:             strategy,
+			Shares:               shares.Mul(shares, big.NewInt(-1)).String(),
+			StrategyIndex:        uint64(i),
+			LogIndex:             log.LogIndex,
+			TransactionHash:      log.TransactionHash,
+			BlockNumber:          log.BlockNumber,
+			WithdrawalRootString: outputData.WithdrawalRootString,
 		}
 		records = append(records, r)
 	}
@@ -437,9 +449,21 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 			records, err := ss.handleMigratedM2StakerWithdrawals(log)
 			if err == nil {
 				// NOTE: we DONT add these to the delta table because they've already been handled
-
 				for _, record := range records {
 					parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
+
+					// HOWEVER for each record, go find any previously accumulated M2 withdrawal and remove it
+					// from the delta accumulator so we dont double accumulate.
+					//
+					// The massive caveat with this is that it assumes that the M2 withdrawal and corresponding
+					// migration events are processed in the same block, which was in fact the case.
+					filteredDeltas := make([]*StakerShareDeltas, 0)
+					for _, delta := range ss.deltaAccumulator[log.BlockNumber] {
+						if delta.WithdrawalRootString != record.WithdrawalRootString {
+							filteredDeltas = append(filteredDeltas, delta)
+						}
+					}
+					ss.deltaAccumulator[log.BlockNumber] = filteredDeltas
 				}
 			}
 		} else {
