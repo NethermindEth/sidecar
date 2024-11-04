@@ -72,6 +72,14 @@ func Test_AvsOperatorState(t *testing.T) {
 	t.Run("Should register AvsOperatorState", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
 		blockNumber := uint64(200)
+		block := &storage.Block{
+			Number:    blockNumber,
+			Hash:      "",
+			BlockTime: time.Unix(1726063248, 0),
+		}
+		res := grm.Model(&storage.Block{}).Create(&block)
+		assert.Nil(t, res.Error)
+
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
 			TransactionIndex: 100,
@@ -94,9 +102,9 @@ func Test_AvsOperatorState(t *testing.T) {
 		err = avsOperatorState.SetupStateForBlock(blockNumber)
 		assert.Nil(t, err)
 
-		res, err := avsOperatorState.HandleStateChange(&log)
+		result, err := avsOperatorState.HandleStateChange(&log)
 		assert.Nil(t, err)
-		assert.NotNil(t, res)
+		assert.NotNil(t, result)
 
 		err = avsOperatorState.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -117,7 +125,14 @@ func Test_AvsOperatorState(t *testing.T) {
 	})
 	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(200)
+		blockNumber := uint64(201)
+		block := &storage.Block{
+			Number:    blockNumber,
+			Hash:      "",
+			BlockTime: time.Unix(1726063248, 0),
+		}
+		res := grm.Model(&storage.Block{}).Create(&block)
+		assert.Nil(t, res.Error)
 
 		log := storage.TransactionLog{
 			TransactionHash:  "some hash",
@@ -172,6 +187,16 @@ func Test_AvsOperatorState(t *testing.T) {
 		blocks := []uint64{
 			300,
 			301,
+		}
+
+		for _, blockNumber := range blocks {
+			block := &storage.Block{
+				Number:    blockNumber,
+				Hash:      "",
+				BlockTime: time.Unix(1726063248, 0),
+			}
+			res := grm.Model(&storage.Block{}).Create(&block)
+			assert.Nil(t, res.Error)
 		}
 
 		logs := []*storage.TransactionLog{

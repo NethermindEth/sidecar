@@ -59,6 +59,13 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 
 	t.Run("Parse a submitted distribution root with an index of 0x000...", func(t *testing.T) {
 		blockNumber := uint64(100)
+		block := &storage.Block{
+			Number:    blockNumber,
+			Hash:      "",
+			BlockTime: time.Unix(1726063248, 0),
+		}
+		res := grm.Model(&storage.Block{}).Create(&block)
+		assert.Nil(t, res.Error)
 
 		log := &storage.TransactionLog{
 			TransactionHash:  "some hash",
@@ -99,7 +106,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 
 		query := `SELECT * FROM submitted_distribution_roots WHERE block_number = ?`
 		var roots []*SubmittedDistributionRoot
-		res := model.DB.Raw(query, blockNumber).Scan(&roots)
+		res = model.DB.Raw(query, blockNumber).Scan(&roots)
 
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 1, len(roots))
@@ -112,6 +119,13 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 	})
 	t.Run("Parse a submitted distribution root with numeric arguments", func(t *testing.T) {
 		blockNumber := uint64(101)
+		block := &storage.Block{
+			Number:    blockNumber,
+			Hash:      "",
+			BlockTime: time.Unix(1726063248, 0),
+		}
+		res := grm.Model(&storage.Block{}).Create(&block)
+		assert.Nil(t, res.Error)
 
 		log := &storage.TransactionLog{
 			TransactionHash:  "some hash",
@@ -154,7 +168,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 
 		query := `SELECT * FROM submitted_distribution_roots WHERE block_number = ?`
 		var roots []*SubmittedDistributionRoot
-		res := model.DB.Raw(query, blockNumber).Scan(&roots)
+		res = model.DB.Raw(query, blockNumber).Scan(&roots)
 
 		assert.Nil(t, res.Error)
 		assert.Equal(t, 2, len(roots))
