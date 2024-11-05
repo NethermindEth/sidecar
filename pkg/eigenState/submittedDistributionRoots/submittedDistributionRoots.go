@@ -227,33 +227,6 @@ func (sdr *SubmittedDistributionRootsModel) HandleStateChange(log *storage.Trans
 	return nil, nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
-	query := `
-		insert into submitted_distribution_roots (root, root_index, rewards_calculation_end, rewards_calculation_end_unit, activated_at, activated_at_unit, created_at_block_number, block_number)
-			select
-				root,
-				root_index,
-				rewards_calculation_end,
-				rewards_calculation_end_unit,
-				activated_at,
-				activated_at_unit,
-				created_at_block_number,
-				@currentBlock as block_number
-			from submitted_distribution_roots
-			where block_number = @previousBlock
-	`
-	res := sdr.DB.Exec(query,
-		sql.Named("currentBlock", blockNumber),
-		sql.Named("previousBlock", blockNumber-1),
-	)
-
-	if res.Error != nil {
-		sdr.logger.Sugar().Errorw("Failed to clone previous block state to new block", zap.Error(res.Error))
-		return res.Error
-	}
-	return nil
-}
-
 // prepareState prepares the state for commit by adding the new state to the existing state.
 func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]SubmittedDistributionRoot, error) {
 	preparedState := make([]SubmittedDistributionRoot, 0)
@@ -321,11 +294,6 @@ func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]
 }
 
 func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64) error {
-	err := sdr.clonePreviousBlocksToNewBlock(blockNumber)
-	if err != nil {
-		return err
-	}
-
 	records, err := sdr.prepareState(blockNumber)
 	if err != nil {
 		return err

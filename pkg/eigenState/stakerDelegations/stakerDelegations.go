@@ -1,7 +1,6 @@
 package stakerDelegations
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
@@ -210,28 +209,6 @@ func (s *StakerDelegationsModel) HandleStateChange(log *storage.TransactionLog) 
 	return nil, nil //nolint:nilnil
 }
 
-func (s *StakerDelegationsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
-	query := `
-		insert into delegated_stakers (staker, operator, block_number)
-			select
-				staker,
-				operator,
-				@currentBlock as block_number
-			from delegated_stakers
-			where block_number = @previousBlock
-	`
-	res := s.DB.Exec(query,
-		sql.Named("currentBlock", blockNumber),
-		sql.Named("previousBlock", blockNumber-1),
-	)
-
-	if res.Error != nil {
-		s.logger.Sugar().Errorw("Failed to clone previous block state to new block", zap.Error(res.Error))
-		return res.Error
-	}
-	return nil
-}
-
 // prepareState prepares the state for the current block by comparing the accumulated state changes.
 // It separates out the changes into inserts and deletes.
 func (s *StakerDelegationsModel) prepareState(blockNumber uint64) ([]DelegatedStakers, []DelegatedStakers, error) {
@@ -278,42 +255,7 @@ func (s *StakerDelegationsModel) writeDeltaRecordsToDeltaTable(blockNumber uint6
 }
 
 func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
-	// Clone the previous block state to give us a reference point.
-	//
-	// By doing this, existing staker delegations will be carried over to the new block.
-	// We'll then remove any stakers that were undelegated and add any new stakers that were delegated.
-	err := s.clonePreviousBlocksToNewBlock(blockNumber)
-	if err != nil {
-		return err
-	}
-
-	recordsToInsert, recordsToDelete, err := s.prepareState(blockNumber)
-	if err != nil {
-		return err
-	}
-
-	// TODO(seanmcgary): should probably wrap the operations of this function in a db transaction
-	for _, record := range recordsToDelete {
-		res := s.DB.Delete(&DelegatedStakers{}, "staker = ? and operator = ? and block_number = ?", record.Staker, record.Operator, blockNumber)
-		if res.Error != nil {
-			s.logger.Sugar().Errorw("Failed to delete staker delegation",
-				zap.Error(res.Error),
-				zap.String("staker", record.Staker),
-				zap.String("operator", record.Operator),
-				zap.Uint64("blockNumber", blockNumber),
-			)
-			return res.Error
-		}
-	}
-	if len(recordsToInsert) > 0 {
-		res := s.DB.Model(&DelegatedStakers{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
-		if res.Error != nil {
-			s.logger.Sugar().Errorw("Failed to insert staker delegations", zap.Error(res.Error))
-			return res.Error
-		}
-	}
-
-	if err = s.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
+	if err := s.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
 		return err
 	}
 	return nil

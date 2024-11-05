@@ -144,10 +144,10 @@ func Test_DelegatedStakersState(t *testing.T) {
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
-		states := []DelegatedStakers{}
+		states := []StakerDelegationChange{}
 		statesRes := model.DB.
-			Model(&DelegatedStakers{}).
-			Raw("select * from delegated_stakers where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
+			Model(&StakerDelegationChange{}).
+			Raw("select * from staker_delegation_changes where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)
 
 		if statesRes.Error != nil {
@@ -225,10 +225,10 @@ func Test_DelegatedStakersState(t *testing.T) {
 			err = model.CommitFinalState(log.BlockNumber)
 			assert.Nil(t, err)
 
-			states := []DelegatedStakers{}
+			states := []StakerDelegationChange{}
 			statesRes := model.DB.
-				Model(&DelegatedStakers{}).
-				Raw("select * from delegated_stakers where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
+				Model(&StakerDelegationChange{}).
+				Raw("select * from staker_delegation_changes where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
 				Scan(&states)
 
 			if statesRes.Error != nil {
@@ -242,7 +242,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 				assert.Equal(t, 1, len(inserts))
 				assert.Equal(t, 0, len(deletes))
 			} else if log.BlockNumber == blocks[1] {
-				assert.Equal(t, 0, len(states))
+				assert.Equal(t, 1, len(states))
 				inserts, deletes, err := model.prepareState(log.BlockNumber)
 				assert.Nil(t, err)
 				assert.Equal(t, 0, len(inserts))

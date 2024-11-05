@@ -171,7 +171,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 		res = model.DB.Raw(query, blockNumber).Scan(&roots)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, 2, len(roots))
+		assert.Equal(t, 1, len(roots))
 
 		t.Cleanup(func() {
 			teardown(model)

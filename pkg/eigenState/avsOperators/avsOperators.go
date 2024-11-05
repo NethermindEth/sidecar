@@ -1,7 +1,6 @@
 package avsOperators
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
@@ -230,28 +229,6 @@ func (a *AvsOperatorsModel) HandleStateChange(log *storage.TransactionLog) (inte
 	return nil, nil
 }
 
-func (a *AvsOperatorsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
-	query := `
-		insert into registered_avs_operators (avs, operator, block_number)
-			select
-				avs,
-				operator,
-				@currentBlock as block_number
-			from registered_avs_operators
-			where block_number = @previousBlock
-	`
-	res := a.DB.Exec(query,
-		sql.Named("currentBlock", blockNumber),
-		sql.Named("previousBlock", blockNumber-1),
-	)
-
-	if res.Error != nil {
-		a.logger.Sugar().Errorw("Failed to clone previous block state to new block", zap.Error(res.Error))
-		return res.Error
-	}
-	return nil
-}
-
 // prepareState prepares the state for the current block by comparing the accumulated state changes.
 // It separates out the changes into inserts and deletes.
 func (a *AvsOperatorsModel) prepareState(blockNumber uint64) ([]RegisteredAvsOperators, []RegisteredAvsOperators, error) {
@@ -299,37 +276,7 @@ func (a *AvsOperatorsModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) er
 
 // CommitFinalState commits the final state for the given block number.
 func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64) error {
-	err := a.clonePreviousBlocksToNewBlock(blockNumber)
-	if err != nil {
-		return err
-	}
-
-	recordsToInsert, recordsToDelete, err := a.prepareState(blockNumber)
-	if err != nil {
-		return err
-	}
-
-	for _, record := range recordsToDelete {
-		res := a.DB.Delete(&RegisteredAvsOperators{}, "avs = ? and operator = ? and block_number = ?", record.Avs, record.Operator, record.BlockNumber)
-		if res.Error != nil {
-			a.logger.Sugar().Errorw("Failed to delete record",
-				zap.Error(res.Error),
-				zap.String("avs", record.Avs),
-				zap.String("operator", record.Operator),
-				zap.Uint64("blockNumber", blockNumber),
-			)
-			return res.Error
-		}
-	}
-	if len(recordsToInsert) > 0 {
-		res := a.DB.Model(&RegisteredAvsOperators{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
-		if res.Error != nil {
-			a.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-			return res.Error
-		}
-	}
-
-	if err = a.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
+	if err := a.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
 		return err
 	}
 

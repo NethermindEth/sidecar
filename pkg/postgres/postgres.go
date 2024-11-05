@@ -176,24 +176,6 @@ func NewGormFromPostgresConnection(pgDb *sql.DB) (*gorm.DB, error) {
 	return db, nil
 }
 
-func WrapTxAndCommit[T any](fn func(*gorm.DB) (T, error), db *gorm.DB, tx *gorm.DB) (T, error) {
-	exists := tx != nil
-
-	if !exists {
-		tx = db.Begin()
-	}
-
-	res, err := fn(tx)
-
-	if err != nil && !exists {
-		tx.Rollback()
-	}
-	if err == nil && !exists {
-		tx.Commit()
-	}
-	return res, err
-}
-
 func TeardownTestDatabase(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
 	rawDb, _ := db.DB()
 	_ = rawDb.Close()
