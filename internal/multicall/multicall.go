@@ -126,7 +126,10 @@ func NewMulticallClient(ctx context.Context, eth *ethclient.Client, options *TMu
 		}
 		return nil
 	}()
-
+	ignoreErrors := false
+	if options != nil {
+		ignoreErrors = options.IgnoreErrors
+	}
 	return &MulticallClient{
 		Address:             contractAddress,
 		OverrideCallOptions: callOptions,
@@ -134,7 +137,7 @@ func NewMulticallClient(ctx context.Context, eth *ethclient.Client, options *TMu
 		Context:             ctx,
 		ABI:                 &parsed,
 		Contract:            bind.NewBoundContract(contractAddress, parsed, eth, eth, eth),
-		IgnoreErrors:        options.IgnoreErrors,
+		IgnoreErrors:        ignoreErrors,
 	}, nil
 }
 
