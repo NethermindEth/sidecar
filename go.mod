@@ -29,6 +29,7 @@ require (
 )
 
 require (
+	github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect

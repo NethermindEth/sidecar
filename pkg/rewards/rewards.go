@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres/helpers"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	"github.com/Layr-Labs/go-sidecar/pkg/utils"
+	gethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/wealdtech/go-merkletree/v2"
 	"gorm.io/gorm/clause"
 	"time"
 
@@ -133,6 +136,64 @@ func (rc *RewardsCalculator) GetRewardSnapshotStatus(snapshotDate string) (*stor
 		return nil, res.Error
 	}
 	return r, nil
+}
+
+func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (*merkletree.MerkleTree, map[gethcommon.Address]*merkletree.MerkleTree, error) {
+	rewards, err := rc.fetchRewardsForSnapshot(snapshotDate)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	distro := distribution.NewDistribution()
+
+	earnerLines := make([]*distribution.EarnerLine, 0)
+	for _, r := range rewards {
+		earnerLines = append(earnerLines, &distribution.EarnerLine{
+			Earner:           r.Earner,
+			Token:            r.Token,
+			CumulativeAmount: r.CumulativeAmount,
+		})
+	}
+
+	if err := distro.LoadLines(earnerLines); err != nil {
+		rc.logger.Error("Failed to load lines", zap.Error(err))
+		return nil, nil, err
+	}
+
+	accountTree, tokenTree, err := distro.Merklize()
+
+	return accountTree, tokenTree, err
+}
+
+type Reward struct {
+	Earner           string
+	Token            string
+	Snapshot         string
+	CumulativeAmount string
+}
+
+func (rc *RewardsCalculator) fetchRewardsForSnapshot(snapshotDate string) ([]*Reward, error) {
+	var goldRows []*Reward
+	query, err := renderQueryTemplate(`
+		select
+			earner,
+			token,
+			max(snapshot) as snapshot,
+			cast(sum(amount) as varchar) as cumulative_amount
+		from gold_table
+		where snapshot <= date '{{.snapshotDate}}'
+		group by 1, 2
+		order by snapshot desc
+    `, map[string]string{"snapshotDate": snapshotDate})
+
+	if err != nil {
+		return nil, err
+	}
+	res := rc.grm.Raw(query).Scan(&goldRows)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return goldRows, nil
 }
 
 func (rc *RewardsCalculator) calculateRewards(snapshotDate string) error {

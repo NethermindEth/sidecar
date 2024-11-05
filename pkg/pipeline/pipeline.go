@@ -2,10 +2,13 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/go-sidecar/pkg/indexer"
 	"github.com/Layr-Labs/go-sidecar/pkg/rewards"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
+	"github.com/Layr-Labs/go-sidecar/pkg/utils"
+	"strings"
 	"time"
 
 	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stateManager"
@@ -187,6 +190,11 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 	if err == nil && distributionRoots != nil {
 		for _, rs := range distributionRoots {
 			snapshotDate := rs.GetSnapshotDate()
+			p.Logger.Sugar().Infow("Calculating rewards for snapshot date",
+				zap.String("snapshotDate", snapshotDate),
+				zap.Uint64("blockNumber", blockNumber),
+			)
+
 			if err = p.rewardsCalculator.CalculateRewardsForSnapshotDate(snapshotDate); err != nil {
 				p.Logger.Sugar().Errorw("Failed to calculate rewards for snapshot date",
 					zap.String("snapshotDate", snapshotDate), zap.Error(err),
@@ -195,6 +203,31 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 				)
 				return err
 			}
+
+			p.Logger.Sugar().Infow("Merkelizing rewards for snapshot date",
+				zap.String("snapshotDate", snapshotDate),
+				zap.Uint64("blockNumber", blockNumber),
+			)
+			accountTree, _, err := p.rewardsCalculator.MerkelizeRewardsForSnapshot(snapshotDate)
+			if err != nil {
+				p.Logger.Sugar().Errorw("Failed to merkelize rewards for snapshot date",
+					zap.String("snapshotDate", snapshotDate), zap.Error(err),
+					zap.Uint64("blockNumber", blockNumber),
+				)
+				return err
+			}
+			root := utils.ConvertBytesToString(accountTree.Root())
+
+			if strings.ToLower(root) != strings.ToLower(rs.Root) {
+				p.Logger.Sugar().Errorw("Roots do not match",
+					zap.String("snapshotDate", snapshotDate),
+					zap.Uint64("blockNumber", blockNumber),
+					zap.String("expectedRoot", rs.Root),
+					zap.String("actualRoot", root),
+				)
+				return errors.New("roots do not match")
+			}
+			p.Logger.Sugar().Infow("Roots match", zap.String("snapshotDate", snapshotDate), zap.Uint64("blockNumber", blockNumber))
 		}
 	}
 
