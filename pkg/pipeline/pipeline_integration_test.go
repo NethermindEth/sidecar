@@ -125,7 +125,7 @@ func Test_Pipeline_Integration(t *testing.T) {
 		err := p.RunForBlock(context.Background(), blockNumber)
 		assert.Nil(t, err)
 
-		query := `select * from delegated_stakers where block_number = @blockNumber`
+		query := `select * from staker_delegation_changes where block_number = @blockNumber`
 		delegatedStakers := make([]stakerDelegations.DelegatedStakers, 0)
 		res := grm.Raw(query, sql.Named("blockNumber", blockNumber)).Scan(&delegatedStakers)
 		assert.Nil(t, res.Error)
