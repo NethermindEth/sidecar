@@ -8,11 +8,11 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/Layr-Labs/go-sidecar/internal/multicall"
 	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	multicall "github.com/jbrower95/multicall-go"
 	"go.uber.org/zap"
 )
 
@@ -121,6 +121,7 @@ func (cc *ContractCaller) GetOperatorRestakedStrategiesMulticall(
 		OverrideCallOptions: &bind.CallOpts{
 			BlockNumber: big.NewInt(int64(blockNumber)),
 		},
+		IgnoreErrors: true,
 	})
 	if err != nil {
 		cc.Logger.Sugar().Errorw("getOperatorRestakedStrategiesMulticall - failed to create multicall client", zap.Error(err))
@@ -137,11 +138,46 @@ func (cc *ContractCaller) GetOperatorRestakedStrategiesMulticall(
 		return nil, errors.New("results are nil")
 	}
 
-	return utils.Map(*results, func(result *[]common.Address, i uint64) *OperatorRestakedStrategy {
+	mappedResults := utils.Map(*results, func(result *[]common.Address, i uint64) *OperatorRestakedStrategy {
 		oas := operatorRestakedStrategies[i]
-		oas.Results = *result
+		if result == nil {
+			oas.Results = nil
+		} else {
+			oas.Results = *result
+		}
 		return oas
-	}), nil
+	})
+
+	resultsWithErrors := &RestakedStrategiesWithErrors{
+		OperatorRestakedStrategies: make([]*OperatorRestakedStrategy, 0),
+		Errors:                     make([]*OperatorRestakedStrategy, 0),
+	}
+	utils.Reduce(mappedResults, func(acc *RestakedStrategiesWithErrors, ors *OperatorRestakedStrategy) *RestakedStrategiesWithErrors {
+		if ors.Results == nil {
+			acc.Errors = append(acc.Errors, ors)
+		} else {
+			acc.OperatorRestakedStrategies = append(acc.OperatorRestakedStrategies, ors)
+		}
+		return acc
+	}, resultsWithErrors)
+
+	if len(resultsWithErrors.Errors) > 0 {
+		cc.Logger.Sugar().Errorw("getOperatorRestakedStrategiesMulticall - failed to get results for some operators",
+			zap.Int("numErrors", len(resultsWithErrors.Errors)),
+		)
+		for _, err := range resultsWithErrors.Errors {
+			cc.Logger.Sugar().Errorw("getOperatorRestakedStrategiesMulticall - failed to get results for operator",
+				zap.String("operator", err.Operator),
+				zap.String("avs", err.Avs),
+			)
+		}
+	}
+	return resultsWithErrors.OperatorRestakedStrategies, nil
+}
+
+type RestakedStrategiesWithErrors struct {
+	OperatorRestakedStrategies []*OperatorRestakedStrategy
+	Errors                     []*OperatorRestakedStrategy
 }
 
 type ReconciledContractCaller struct {
