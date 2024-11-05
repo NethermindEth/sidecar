@@ -24,6 +24,7 @@ import (
 	_202411041043_blockNumberFkConstraint "github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations/202411041043_blockNumberFkConstraint"
 	_202411041332_stakerShareDeltaBlockFk "github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations/202411041332_stakerShareDeltaBlockFk"
 	_202411042033_cleanupDuplicates "github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations/202411042033_cleanupDuplicates"
+	_202411051308_submittedDistributionRootIndex "github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations/202411051308_submittedDistributionRootIndex"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -72,6 +73,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202411041043_blockNumberFkConstraint.Migration{},
 		&_202411041332_stakerShareDeltaBlockFk.Migration{},
 		&_202411042033_cleanupDuplicates.Migration{},
+		&_202411051308_submittedDistributionRootIndex.Migration{},
 	}
 
 	for _, migration := range migrations {
