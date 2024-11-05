@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
+	"github.com/Layr-Labs/go-sidecar/pkg/postgres/helpers"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"gorm.io/gorm/clause"
@@ -281,7 +281,7 @@ func (rc *RewardsCalculator) generateAndInsertFromQuery(
 
 	queryWithInsert := fmt.Sprintf("CREATE TABLE %s AS %s", tmpTableName, query)
 
-	_, err := postgres.WrapTxAndCommit(func(tx *gorm.DB) (interface{}, error) {
+	_, err := helpers.WrapTxAndCommit(func(tx *gorm.DB) (interface{}, error) {
 		queries := []string{
 			queryWithInsert,
 			fmt.Sprintf(`drop table if exists %s`, tableName),

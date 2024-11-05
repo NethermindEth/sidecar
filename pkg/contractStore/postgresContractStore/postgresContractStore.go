@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractStore"
-	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
+	"github.com/Layr-Labs/go-sidecar/pkg/postgres/helpers"
 	"strings"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
@@ -55,7 +55,7 @@ func (s *PostgresContractStore) FindOrCreateContract(
 	checkedForAbi bool,
 ) (*contractStore.Contract, bool, error) {
 	found := false
-	upsertedContract, err := postgres.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
+	upsertedContract, err := helpers.WrapTxAndCommit[*contractStore.Contract](func(tx *gorm.DB) (*contractStore.Contract, error) {
 		contract := &contractStore.Contract{}
 		result := s.Db.First(&contract, "contract_address = ?", strings.ToLower(address))
 		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -95,7 +95,7 @@ func (s *PostgresContractStore) FindOrCreateProxyContract(
 	contractAddress = strings.ToLower(contractAddress)
 	proxyContractAddress = strings.ToLower(proxyContractAddress)
 
-	upsertedContract, err := postgres.WrapTxAndCommit[*contractStore.ProxyContract](func(tx *gorm.DB) (*contractStore.ProxyContract, error) {
+	upsertedContract, err := helpers.WrapTxAndCommit[*contractStore.ProxyContract](func(tx *gorm.DB) (*contractStore.ProxyContract, error) {
 		contract := &contractStore.ProxyContract{}
 		// Proxy contracts are unique on block_number && contract
 		result := tx.First(&contract, "contract_address = ? and block_number = ?", contractAddress, blockNumber)
