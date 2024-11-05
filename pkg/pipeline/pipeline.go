@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/go-sidecar/pkg/indexer"
+	"github.com/Layr-Labs/go-sidecar/pkg/rewards"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	"time"
 
@@ -12,11 +13,12 @@ import (
 )
 
 type Pipeline struct {
-	Fetcher      *fetcher.Fetcher
-	Indexer      *indexer.Indexer
-	BlockStore   storage.BlockStore
-	Logger       *zap.Logger
-	stateManager *stateManager.EigenStateManager
+	Fetcher           *fetcher.Fetcher
+	Indexer           *indexer.Indexer
+	BlockStore        storage.BlockStore
+	Logger            *zap.Logger
+	stateManager      *stateManager.EigenStateManager
+	rewardsCalculator *rewards.RewardsCalculator
 }
 
 func NewPipeline(
@@ -24,14 +26,16 @@ func NewPipeline(
 	i *indexer.Indexer,
 	bs storage.BlockStore,
 	sm *stateManager.EigenStateManager,
+	rc *rewards.RewardsCalculator,
 	l *zap.Logger,
 ) *Pipeline {
 	return &Pipeline{
-		Fetcher:      f,
-		Indexer:      i,
-		Logger:       l,
-		stateManager: sm,
-		BlockStore:   bs,
+		Fetcher:           f,
+		Indexer:           i,
+		Logger:            l,
+		stateManager:      sm,
+		rewardsCalculator: rc,
+		BlockStore:        bs,
 	}
 }
 
@@ -176,6 +180,23 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		return err
 	}
 	p.Logger.Sugar().Debugw("Committed final state", zap.Uint64("blockNumber", blockNumber), zap.Duration("indexTime", time.Since(blockFetchTime)))
+
+	p.Logger.Sugar().Debugw("Checking for rewards to validate", zap.Uint64("blockNumber", blockNumber))
+
+	distributionRoots, err := p.stateManager.GetSubmittedDistributionRoots(blockNumber)
+	if err == nil && distributionRoots != nil {
+		for _, rs := range distributionRoots {
+			snapshotDate := rs.GetSnapshotDate()
+			if err = p.rewardsCalculator.CalculateRewardsForSnapshotDate(snapshotDate); err != nil {
+				p.Logger.Sugar().Errorw("Failed to calculate rewards for snapshot date",
+					zap.String("snapshotDate", snapshotDate), zap.Error(err),
+					zap.Uint64("blockNumber", blockNumber),
+					zap.Any("distributionRoot", rs),
+				)
+				return err
+			}
+		}
+	}
 
 	blockFetchTime = time.Now()
 	stateRoot, err := p.stateManager.GenerateStateRoot(blockNumber, block.Block.Hash.Value())

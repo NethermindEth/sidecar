@@ -197,3 +197,13 @@ func (e *EigenStateManager) DeleteCorruptedState(startBlock uint64, endBlock uin
 	}
 	return nil
 }
+
+func (e *EigenStateManager) GetSubmittedDistributionRoots(blockNumber uint64) ([]*types.SubmittedDistributionRoot, error) {
+	roots := make([]*types.SubmittedDistributionRoot, 0)
+
+	res := e.DB.Model(&types.SubmittedDistributionRoot{}).Where("block_number = ?", blockNumber).Find(&roots)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return roots, nil
+}
