@@ -11,6 +11,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/go-sidecar/pkg/indexer"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
+	"github.com/Layr-Labs/go-sidecar/pkg/rewards"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	pgStorage "github.com/Layr-Labs/go-sidecar/pkg/storage/postgres"
 	"log"
@@ -37,6 +38,7 @@ func setup() (
 	*indexer.Indexer,
 	storage.BlockStore,
 	*stateManager.EigenStateManager,
+	*rewards.RewardsCalculator,
 	*config.Config,
 	*zap.Logger,
 	*gorm.DB,
@@ -96,20 +98,22 @@ func setup() (
 		l.Sugar().Fatalw("Failed to create RewardSubmissionsModel", zap.Error(err))
 	}
 
+	rc, _ := rewards.NewRewardsCalculator(cfg, grm, mds, l)
+
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 
 	cc := contractCaller.NewContractCaller(client, l)
 
 	idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, l, cfg)
 
-	return fetchr, idxr, mds, sm, cfg, l, grm, dbname
+	return fetchr, idxr, mds, sm, rc, cfg, l, grm, dbname
 
 }
 
 func Test_Pipeline_Integration(t *testing.T) {
-	fetchr, idxr, mds, sm, cfg, l, grm, dbName := setup()
+	fetchr, idxr, mds, sm, rc, cfg, l, grm, dbName := setup()
 	t.Run("Should create a new Pipeline", func(t *testing.T) {
-		p := NewPipeline(fetchr, idxr, mds, sm, l)
+		p := NewPipeline(fetchr, idxr, mds, sm, rc, l)
 		assert.NotNil(t, p)
 	})
 
@@ -120,7 +124,7 @@ func Test_Pipeline_Integration(t *testing.T) {
 
 		fmt.Printf("transactionHash: %s %d\n", transactionHash, logIndex)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, l)
+		p := NewPipeline(fetchr, idxr, mds, sm, rc, l)
 
 		err := p.RunForBlock(context.Background(), blockNumber)
 		assert.Nil(t, err)

@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/logger"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
+	"github.com/Layr-Labs/go-sidecar/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -302,10 +303,20 @@ func Test_Rewards(t *testing.T) {
 				}
 			}
 			assert.Zero(t, missingRows)
-			t.Logf("Missing rows: %d", missingRows)
+			if missingRows > 0 {
+				t.Fatalf("Missing rows: %d", missingRows)
+			}
 
 			assert.Zero(t, invalidAmounts)
-			t.Logf("Invalid amounts: %d", invalidAmounts)
+			if invalidAmounts > 0 {
+				t.Fatalf("Invalid amounts: %d", invalidAmounts)
+			}
+
+			accountTree, _, err := rc.MerkelizeRewardsForSnapshot(snapshotDate)
+			assert.Nil(t, err)
+
+			root := utils.ConvertBytesToString(accountTree.Root())
+			t.Logf("Root: %s", root)
 		}
 
 		fmt.Printf("Done!\n\n")
