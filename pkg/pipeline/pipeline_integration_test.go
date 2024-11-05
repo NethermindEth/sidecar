@@ -98,7 +98,7 @@ func setup() (
 		l.Sugar().Fatalw("Failed to create RewardSubmissionsModel", zap.Error(err))
 	}
 
-	rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, l)
+	rc, _ := rewards.NewRewardsCalculator(cfg, grm, mds, l)
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 

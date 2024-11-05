@@ -218,6 +218,7 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 			}
 			root := utils.ConvertBytesToString(accountTree.Root())
 
+			// nolint:all
 			if strings.ToLower(root) != strings.ToLower(rs.Root) {
 				p.Logger.Sugar().Errorw("Roots do not match",
 					zap.String("snapshotDate", snapshotDate),
