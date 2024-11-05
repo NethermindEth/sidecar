@@ -1,6 +1,7 @@
 package submittedDistributionRoots
 
 import (
+	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	"math/big"
@@ -55,7 +56,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 	esm := stateManager.NewEigenStateManager(l, grm)
 	model, err := NewSubmittedDistributionRootsModel(esm, grm, l, cfg)
 
-	insertedRoots := make([]*SubmittedDistributionRoot, 0)
+	insertedRoots := make([]*types.SubmittedDistributionRoot, 0)
 
 	t.Run("Parse a submitted distribution root with an index of 0x000...", func(t *testing.T) {
 		blockNumber := uint64(100)
@@ -91,7 +92,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		typedChange := change.(*SubmittedDistributionRoot)
+		typedChange := change.(*types.SubmittedDistributionRoot)
 		assert.Equal(t, uint64(0), typedChange.RootIndex)
 		assert.Equal(t, "0x169AaC3F9464C0468C99Aa875a30306037f24927", typedChange.Root)
 		assert.Equal(t, time.Unix(1715626776, 0), typedChange.ActivatedAt)
@@ -105,7 +106,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 		assert.Nil(t, err)
 
 		query := `SELECT * FROM submitted_distribution_roots WHERE block_number = ?`
-		var roots []*SubmittedDistributionRoot
+		var roots []*types.SubmittedDistributionRoot
 		res = model.DB.Raw(query, blockNumber).Scan(&roots)
 
 		assert.Nil(t, res.Error)
@@ -153,7 +154,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		typedChange := change.(*SubmittedDistributionRoot)
+		typedChange := change.(*types.SubmittedDistributionRoot)
 		assert.Equal(t, uint64(43), typedChange.RootIndex)
 		assert.Equal(t, "0xa40e58b05ab9cc79321f85cbe6a4c1df9fa8f04f80bb9c1c77b464b1dc4c5bd3", typedChange.Root)
 		assert.Equal(t, time.Unix(1720099932, 0), typedChange.ActivatedAt)
@@ -167,7 +168,7 @@ func Test_SubmittedDistributionRoots(t *testing.T) {
 		assert.Nil(t, err)
 
 		query := `SELECT * FROM submitted_distribution_roots WHERE block_number = ?`
-		var roots []*SubmittedDistributionRoot
+		var roots []*types.SubmittedDistributionRoot
 		res = model.DB.Raw(query, blockNumber).Scan(&roots)
 
 		assert.Nil(t, res.Error)
