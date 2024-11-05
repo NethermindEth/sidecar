@@ -267,37 +267,6 @@ func (rs *RewardSubmissionsModel) HandleStateChange(log *storage.TransactionLog)
 	return nil, nil
 }
 
-func (rs *RewardSubmissionsModel) clonePreviousBlocksToNewBlock(blockNumber uint64) error {
-	query := `
-		insert into reward_submissions(avs, reward_hash, token, amount, strategy, strategy_index, multiplier, start_timestamp, end_timestamp, duration, reward_type, block_number)
-			select
-				avs,
-				reward_hash,
-				token,
-				amount,
-				strategy,
-				strategy_index,
-				multiplier,
-				start_timestamp,
-				end_timestamp,
-				duration,
-				reward_type,
-				@currentBlock as block_number
-			from reward_submissions
-			where block_number = @previousBlock
-	`
-	res := rs.DB.Exec(query,
-		sql.Named("currentBlock", blockNumber),
-		sql.Named("previousBlock", blockNumber-1),
-	)
-
-	if res.Error != nil {
-		rs.logger.Sugar().Errorw("Failed to clone previous block state to new block", zap.Error(res.Error))
-		return res.Error
-	}
-	return nil
-}
-
 // prepareState prepares the state for commit by adding the new state to the existing state.
 func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSubmissionDiff, []*RewardSubmissionDiff, error) {
 	accumulatedState, ok := rs.stateAccumulator[blockNumber]
@@ -361,35 +330,16 @@ func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSub
 
 // CommitFinalState commits the final state for the given block number.
 func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
-	err := rs.clonePreviousBlocksToNewBlock(blockNumber)
+	recordsToInsert, _, err := rs.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
-	recordsToInsert, recordsToDelete, err := rs.prepareState(blockNumber)
-	if err != nil {
-		return err
-	}
-
-	for _, record := range recordsToDelete {
-		res := rs.DB.Delete(&RewardSubmission{}, "reward_hash = ? and strategy = ? and block_number = ?", record.RewardSubmission.RewardHash, record.RewardSubmission.Strategy, blockNumber)
-		if res.Error != nil {
-			rs.logger.Sugar().Errorw("Failed to delete record",
-				zap.Error(res.Error),
-				zap.String("rewardHash", record.RewardSubmission.RewardHash),
-				zap.String("strategy", record.RewardSubmission.Strategy),
-				zap.Uint64("blockNumber", blockNumber),
-			)
-			return res.Error
-		}
-	}
 	if len(recordsToInsert) > 0 {
-		// records := make([]RewardSubmission, 0)
 		for _, record := range recordsToInsert {
 			res := rs.DB.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&record.RewardSubmission)
 			if res.Error != nil {
 				rs.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
-				fmt.Printf("\n\n%+v\n\n", record.RewardSubmission)
 				return res.Error
 			}
 		}

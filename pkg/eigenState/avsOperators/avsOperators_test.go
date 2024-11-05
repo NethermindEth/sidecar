@@ -163,10 +163,10 @@ func Test_AvsOperatorState(t *testing.T) {
 		err = avsOperatorState.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
 
-		states := []RegisteredAvsOperators{}
+		states := []AvsOperatorStateChange{}
 		statesRes := avsOperatorState.DB.
-			Model(&RegisteredAvsOperators{}).
-			Raw("select * from registered_avs_operators where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
+			Model(&AvsOperatorStateChange{}).
+			Raw("select * from avs_operator_state_changes where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
 			Scan(&states)
 
 		if statesRes.Error != nil {
@@ -244,10 +244,10 @@ func Test_AvsOperatorState(t *testing.T) {
 			err = avsOperatorState.CommitFinalState(log.BlockNumber)
 			assert.Nil(t, err)
 
-			states := []RegisteredAvsOperators{}
+			states := []AvsOperatorStateChange{}
 			statesRes := avsOperatorState.DB.
-				Model(&RegisteredAvsOperators{}).
-				Raw("select * from registered_avs_operators where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
+				Model(&AvsOperatorStateChange{}).
+				Raw("select * from avs_operator_state_changes where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
 				Scan(&states)
 
 			if statesRes.Error != nil {
@@ -261,7 +261,7 @@ func Test_AvsOperatorState(t *testing.T) {
 				assert.Equal(t, 1, len(inserts))
 				assert.Equal(t, 0, len(deletes))
 			} else if log.BlockNumber == blocks[1] {
-				assert.Equal(t, 0, len(states))
+				assert.Equal(t, 1, len(states))
 				inserts, deletes, err := avsOperatorState.prepareState(log.BlockNumber)
 				assert.Nil(t, err)
 				assert.Equal(t, 0, len(inserts))
