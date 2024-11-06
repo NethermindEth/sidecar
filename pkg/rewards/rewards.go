@@ -248,6 +248,12 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	}
 	rc.logger.Sugar().Debugw("Generated combined rewards")
 
+	if err = rc.GenerateAndInsertStakerShares(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate staker shares", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated staker shares")
+
 	if err = rc.GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator AVS registration snapshots", "error", err)
 		return err

@@ -690,29 +690,7 @@ func (ss *StakerSharesModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) e
 }
 
 func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
-	records, err := ss.prepareState(blockNumber)
-	if err != nil {
-		return err
-	}
-
-	recordsToInsert := pkgUtils.Map(records, func(r *StakerSharesDiff, i uint64) *StakerShares {
-		return &StakerShares{
-			Staker:      r.Staker,
-			Strategy:    r.Strategy,
-			Shares:      r.Shares.String(),
-			BlockNumber: blockNumber,
-		}
-	})
-
-	if len(recordsToInsert) > 0 {
-		res := ss.DB.Model(&StakerShares{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
-		if res.Error != nil {
-			ss.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
-			return res.Error
-		}
-	}
-
-	if err = ss.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
+	if err := ss.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
 		return err
 	}
 

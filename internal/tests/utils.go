@@ -155,15 +155,34 @@ func GetStakerSharesSqlFile(projectBase string) (string, error) {
 	return getSqlFile(path)
 }
 
-type StakerShareExpectedResult struct {
+func GetStakerShareDeltasSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/stakerShares/stakerShareDeltas.sql")
+	return getSqlFile(path)
+}
+
+type StakerShareSnapshotExpectedResult struct {
 	Staker   string `csv:"staker"`
 	Strategy string `csv:"strategy"`
 	Snapshot string `csv:"snapshot"`
 	Shares   string `csv:"shares"`
 }
 
-func GetStakerSharesExpectedResults(projectBase string) ([]*StakerShareExpectedResult, error) {
+func GetStakerSharesSnapshotsExpectedResults(projectBase string) ([]*StakerShareSnapshotExpectedResult, error) {
 	path := getTestdataPathFromProjectRoot(projectBase, "/stakerShareSnapshots/expectedResults.csv")
+	return getExpectedResultsCsvFile[StakerShareSnapshotExpectedResult](path)
+}
+
+type StakerShareExpectedResult struct {
+	Staker          string `csv:"staker"`
+	Strategy        string `csv:"strategy"`
+	TransactionHash string `csv:"transaction_hash"`
+	LogIndex        uint64 `csv:"snapshot"`
+	Shares          string `csv:"shares"`
+	BlockNumber     uint64 `csv:"block_number"`
+}
+
+func GetStakerSharesExpectedResults(projectBase string) ([]*StakerShareExpectedResult, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/stakerShares/expectedResults.csv")
 	return getExpectedResultsCsvFile[StakerShareExpectedResult](path)
 }
 
