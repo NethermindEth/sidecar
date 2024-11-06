@@ -99,7 +99,7 @@ func (r RewardSnapshotStatus) String() string {
 
 var (
 	RewardSnapshotStatusProcessing RewardSnapshotStatus = "processing"
-	RewardSnapshotStatusCompleted  RewardSnapshotStatus = "completed"
+	RewardSnapshotStatusCompleted  RewardSnapshotStatus = "complete"
 	RewardSnapshotStatusFailed     RewardSnapshotStatus = "failed"
 )
 
