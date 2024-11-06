@@ -228,7 +228,7 @@ func (osm *OperatorSharesModel) HandleStateChange(log *storage.TransactionLog) (
 
 	for _, blockNumber := range sortedBlockNumbers {
 		if log.BlockNumber >= blockNumber {
-			osm.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
+			osm.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", log.BlockNumber))
 
 			change, err := stateChanges[blockNumber](log)
 			if err != nil {

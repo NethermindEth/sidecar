@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stateManager"
-	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -62,18 +61,21 @@ func hydrateStakerShareTransactionLogs(grm *gorm.DB, l *zap.Logger) error {
 }
 
 type blockRange struct {
-	minBlockNumber uint64
-	maxBlockNumber uint64
+	MinBlockNumber uint64
+	MaxBlockNumber uint64
 }
 
 func Test_StakerSharesIntegration(t *testing.T) {
-	dbName, grm, l, cfg, err := setup()
+	_, grm, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Run("Staker shares calculation through M1 and M2 migration", func(t *testing.T) {
+		if !tests.LargeTestsEnabled() {
+			t.Skipf("Skipping large test")
+		}
 		esm := stateManager.NewEigenStateManager(l, grm)
 		model, err := NewStakerSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
@@ -93,9 +95,11 @@ func Test_StakerSharesIntegration(t *testing.T) {
 		if res.Error != nil {
 			t.Fatal(res.Error)
 		}
-		t.Logf("min block number: %d, max block number: %d", minMaxBlocks.minBlockNumber, minMaxBlocks.maxBlockNumber)
+		t.Logf("min block number: %d, max block number: %d", minMaxBlocks.MinBlockNumber, minMaxBlocks.MaxBlockNumber)
+		t.Logf("Total blocks to process: %d", minMaxBlocks.MaxBlockNumber-minMaxBlocks.MinBlockNumber+1)
 
-		for i := minMaxBlocks.minBlockNumber; i <= minMaxBlocks.maxBlockNumber; i++ {
+		completed := 0
+		for i := minMaxBlocks.MinBlockNumber; i <= minMaxBlocks.MaxBlockNumber; i++ {
 			if err = model.SetupStateForBlock(i); err != nil {
 				t.Logf("Failed to setup state for block %d", i)
 				t.Fatal(err)
@@ -125,6 +129,11 @@ func Test_StakerSharesIntegration(t *testing.T) {
 				t.Logf("Failed to cleanup processed state for block %d", i)
 				t.Fatal(err)
 			}
+			completed++
+			if completed%50000 == 0 {
+				remaining := minMaxBlocks.MaxBlockNumber - minMaxBlocks.MinBlockNumber + 1 - uint64(completed)
+				t.Logf("Completed processing %d blocks, remaining: %d", completed, remaining)
+			}
 		}
 
 		var count int
@@ -138,6 +147,6 @@ func Test_StakerSharesIntegration(t *testing.T) {
 	})
 
 	t.Cleanup(func() {
-		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+		// postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
 }

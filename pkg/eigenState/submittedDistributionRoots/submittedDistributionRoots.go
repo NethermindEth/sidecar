@@ -202,7 +202,7 @@ func (sdr *SubmittedDistributionRootsModel) HandleStateChange(log *storage.Trans
 
 	for _, blockNumber := range sortedBlockNumbers {
 		if log.BlockNumber >= blockNumber {
-			sdr.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
+			sdr.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", log.BlockNumber))
 
 			change, err := stateChanges[blockNumber](log)
 			if err != nil {
