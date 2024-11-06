@@ -221,7 +221,8 @@ func (a *AvsOperatorsModel) HandleStateChange(log *storage.TransactionLog) (inte
 			}
 
 			if change == nil {
-				return nil, xerrors.Errorf("No state change found for block %d", blockNumber)
+				a.logger.Sugar().Debugw("No state change found", zap.Uint64("blockNumber", blockNumber))
+				return nil, nil
 			}
 			return change, nil
 		}
