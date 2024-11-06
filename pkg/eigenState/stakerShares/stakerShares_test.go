@@ -3,7 +3,6 @@ package stakerShares
 import (
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
-	"github.com/Layr-Labs/go-sidecar/pkg/types/numbers"
 	"math/big"
 	"strings"
 	"testing"
@@ -118,16 +117,14 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Equal(t, 1, len(typedChange.Changes))
 		assert.Equal(t, "0x00105f70bf0a2dec987dbfc87a869c3090abf6a0", typedChange.Changes[0].Staker)
 		assert.Equal(t, "0x0fe4f44bee93503346a3ac9ee5a26b130a5796d6", typedChange.Changes[0].Strategy)
-		assert.Equal(t, "502179505706314959", typedChange.Changes[0].Shares.String())
+		assert.Equal(t, "502179505706314959", typedChange.Changes[0].Shares)
 
-		slotId := NewSlotID(typedChange.Changes[0].Staker, typedChange.Changes[0].Strategy)
-
-		accumulatedState, ok := model.stateAccumulator[block.Number][slotId]
+		accumulatedState, ok := model.stateAccumulator[block.Number]
 		assert.True(t, ok)
 		assert.NotNil(t, accumulatedState)
-		assert.Equal(t, "0x00105f70bf0a2dec987dbfc87a869c3090abf6a0", accumulatedState.Staker)
-		assert.Equal(t, "0x0fe4f44bee93503346a3ac9ee5a26b130a5796d6", accumulatedState.Strategy)
-		assert.Equal(t, "502179505706314959", accumulatedState.Shares.String())
+		assert.Equal(t, "0x00105f70bf0a2dec987dbfc87a869c3090abf6a0", accumulatedState[0].Staker)
+		assert.Equal(t, "0x0fe4f44bee93503346a3ac9ee5a26b130a5796d6", accumulatedState[0].Strategy)
+		assert.Equal(t, "502179505706314959", accumulatedState[0].Shares)
 
 		err = model.CommitFinalState(transaction.BlockNumber)
 		assert.Nil(t, err)
@@ -445,8 +442,7 @@ func Test_StakerSharesState(t *testing.T) {
 		typedChange = change.(*AccumulatedStateChanges)
 		assert.Equal(t, 1, len(typedChange.Changes))
 
-		expectedShares, _ := numbers.NewBig257().SetString("32000000000000000000", 10)
-		assert.Equal(t, expectedShares, typedChange.Changes[0].Shares)
+		assert.Equal(t, "32000000000000000000", typedChange.Changes[0].Shares)
 		assert.Equal(t, strings.ToLower("0x049ea11d337f185b1aa910d98e8fbd991f0fba7b"), typedChange.Changes[0].Staker)
 		assert.Equal(t, "0xbeac0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeebeac0", typedChange.Changes[0].Strategy)
 

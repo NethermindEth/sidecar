@@ -156,7 +156,7 @@ func Test_Rewards(t *testing.T) {
 		err = hydrateStakerDelegations(grm, l)
 		assert.Nil(t, err)
 
-		err = hydrateStakerShares(grm, l)
+		err = hydrateStakerShareDeltas(grm, l)
 		assert.Nil(t, err)
 
 		err = hydrateRewardSubmissionsTable(grm, l)
