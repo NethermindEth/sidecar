@@ -202,3 +202,8 @@ func GetGoldExpectedResults(projectBase string, snapshotDate string) ([]*GoldSta
 	path := getTestdataPathFromProjectRoot(projectBase, fmt.Sprintf("/7_goldStaging/expectedResults_%s.csv", snapshotDate))
 	return getExpectedResultsCsvFile[GoldStagingExpectedResult](path)
 }
+
+func GetStakerSharesTransactionLogsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/stakerShares/stakerSharesTransactionLogs.sql")
+	return getSqlFile(path)
+}

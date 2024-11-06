@@ -554,7 +554,11 @@ func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (int
 
 	for _, blockNumber := range sortedBlockNumbers {
 		if log.BlockNumber >= blockNumber {
-			ss.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
+			ss.logger.Sugar().Debugw("Handling state change",
+				zap.Uint64("blockNumber", blockNumber),
+				zap.String("eventName", log.EventName),
+				zap.String("address", log.Address),
+			)
 
 			change, err := stateChanges[blockNumber](log)
 			if err != nil {
