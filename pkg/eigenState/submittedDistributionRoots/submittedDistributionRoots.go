@@ -209,7 +209,8 @@ func (sdr *SubmittedDistributionRootsModel) HandleStateChange(log *storage.Trans
 				return nil, err
 			}
 			if change == nil {
-				return nil, xerrors.Errorf("No state change found for block %d", blockNumber)
+				sdr.logger.Sugar().Debugw("No state change found", zap.Uint64("blockNumber", blockNumber))
+				return nil, nil
 			}
 			return change, nil
 		}

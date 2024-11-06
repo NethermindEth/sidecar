@@ -201,7 +201,8 @@ func (s *StakerDelegationsModel) HandleStateChange(log *storage.TransactionLog) 
 				return nil, err
 			}
 			if change == nil {
-				return nil, xerrors.Errorf("No state change found for block %d", blockNumber)
+				s.logger.Sugar().Debugw("No state change found", zap.Uint64("blockNumber", blockNumber))
+				return nil, nil
 			}
 			return change, nil
 		}
