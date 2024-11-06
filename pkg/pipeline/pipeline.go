@@ -189,7 +189,15 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 	distributionRoots, err := p.stateManager.GetSubmittedDistributionRoots(blockNumber)
 	if err == nil && distributionRoots != nil {
 		for _, rs := range distributionRoots {
-			snapshotDate := rs.GetSnapshotDate()
+
+			// The RewardsCalculationEnd date is the max(snapshot) from the gold table at the time, NOT the exclusive
+			// cutoff date that was actually used to generate the rewards. To get that proper cutoff date, we need
+			// to add 1 day to the RewardsCalculationEnd date.
+			//
+			// For example, the first mainnet root has a rewardsCalculationEnd of 2024-08-01 00:00:00, but
+			// the cutoff date used to generate that data is actually 2024-08-02 00:00:00.
+			snapshotDate := rs.RewardsCalculationEnd.UTC().Add(time.Hour * 24).Format(time.DateOnly)
+
 			p.Logger.Sugar().Infow("Calculating rewards for snapshot date",
 				zap.String("snapshotDate", snapshotDate),
 				zap.Uint64("blockNumber", blockNumber),
