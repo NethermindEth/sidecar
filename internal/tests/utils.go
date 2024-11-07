@@ -246,6 +246,11 @@ func GetStakerSharesTransactionLogsSqlFile(projectBase string) (string, error) {
 	return getSqlFile(path)
 }
 
+func GetOperatorSharesTransactionLogsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorShares/operatorSharesTransactionLogs.sql")
+	return getSqlFile(path)
+}
+
 func LargeTestsEnabled() bool {
 	return os.Getenv("TEST_REWARDS") == "true" || os.Getenv("TEST_LARGE") == "true"
 }
