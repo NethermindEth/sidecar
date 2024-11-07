@@ -152,6 +152,14 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 	if foundErrors {
 		return nil, errors.New("failed to fetch receipts for some blocks")
 	}
+	if len(fetchedBlocks) != len(blocks) {
+		f.Logger.Sugar().Errorw("failed to fetch all blocks",
+			zap.Int("fetched", len(fetchedBlocks)),
+			zap.Int("expected", len(blocks)),
+		)
+		return nil, errors.New("failed to fetch all blocks")
+	}
+
 	f.Logger.Sugar().Debugw("Fetched blocks",
 		zap.Int("count", len(fetchedBlocks)),
 		zap.Uint64("startBlock", startBlockInclusive),
