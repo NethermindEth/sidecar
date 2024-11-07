@@ -16,5 +16,6 @@ select
     hash,
     block_time
 from blocks
-where block_time < '2024-08-20'
+where number < 20613003
+--where block_time < '2024-08-20'
 ```

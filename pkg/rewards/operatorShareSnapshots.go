@@ -4,7 +4,7 @@ const operatorShareSnapshotsQuery = `
 WITH ranked_operator_records as (
     SELECT *,
            ROW_NUMBER() OVER (PARTITION BY operator, strategy, cast(block_time AS DATE) ORDER BY block_time DESC, log_index DESC) AS rn
-    FROM operator_share_deltas
+    FROM operator_shares
 	-- pipeline bronze table uses this to filter the correct records
 	where block_time < TIMESTAMP '{{.cutoffDate}}'
 ),

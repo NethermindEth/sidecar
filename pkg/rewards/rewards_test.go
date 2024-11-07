@@ -150,7 +150,7 @@ func Test_Rewards(t *testing.T) {
 		err = hydrateOperatorAvsRestakedStrategies(grm, l)
 		assert.Nil(t, err)
 
-		err = hydrateOperatorShares(grm, l)
+		err = hydrateOperatorShareDeltas(grm, l)
 		assert.Nil(t, err)
 
 		err = hydrateStakerDelegations(grm, l)

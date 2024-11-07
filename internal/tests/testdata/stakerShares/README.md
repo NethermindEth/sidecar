@@ -5,7 +5,16 @@
 
 
 ```sql
-select * from transaction_logs
+select
+    transaction_hash,
+    transaction_index,
+    block_number,
+    address,
+    arguments,
+    event_name,
+    log_index,
+    output_data    
+from transaction_logs
 where
     block_number < 19613000
     and (

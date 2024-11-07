@@ -18,7 +18,7 @@ if [[ $NETWORK == "testnet-reduced" ]]; then
     sqlFileName="testnetReduced_${sqlFileName}"
 fi
 
-for d in stakerShares; do
+for d in operatorShares; do
     echo "Processing directory: $d"
         if [[ $d == "7_goldStaging" ]]; then
             files=$(ls "./${d}" | grep "_generateExpectedResults_")

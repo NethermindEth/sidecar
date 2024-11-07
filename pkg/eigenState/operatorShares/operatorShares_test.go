@@ -2,10 +2,10 @@ package operatorShares
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	"math/big"
-	"strings"
 	"testing"
 	"time"
 
@@ -26,9 +26,11 @@ func setup() (
 	error,
 ) {
 	cfg := config.NewConfig()
+	cfg.Chain = config.Chain_Mainnet
+	cfg.Debug = false
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
@@ -38,25 +40,8 @@ func setup() (
 	return dbname, grm, l, cfg, nil
 }
 
-func teardown(model *OperatorSharesModel) {
-	model.DB.Exec("truncate table operator_shares")
-}
-
-func createBlock(model *OperatorSharesModel, blockNumber uint64) error {
-	block := &storage.Block{
-		Number:    blockNumber,
-		Hash:      "some hash",
-		BlockTime: time.Now().Add(time.Hour * time.Duration(blockNumber)),
-	}
-	res := model.DB.Model(&storage.Block{}).Create(block)
-	if res.Error != nil {
-		return res.Error
-	}
-	return nil
-}
-
 func Test_OperatorSharesState(t *testing.T) {
-	dbName, grm, l, cfg, err := setup()
+	_, grm, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
@@ -68,75 +53,65 @@ func Test_OperatorSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, model)
 	})
-	t.Run("Should register OperatorSharesState", func(t *testing.T) {
+	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(200)
+
+		// --------------------------------------------------------------------
+		// OperatorSharesIncreased
+		block := storage.Block{
+			Number: 19615517,
+			Hash:   "some hash",
+		}
+		res := grm.Model(storage.Block{}).Create(&block)
+		if res.Error != nil {
+			t.Fatal(res.Error)
+		}
+
+		transaction := storage.Transaction{
+			BlockNumber:      block.Number,
+			TransactionHash:  "0x07d0052ceff59634f64853b2bf716717096d74623f0294fda3bbf895d4c0c2df",
+			TransactionIndex: big.NewInt(134).Uint64(),
+			FromAddress:      "0x858646372cc42e1a627fce94aa7a7033e7cf075a",
+		}
+		res = grm.Model(storage.Transaction{}).Create(&transaction)
+		if res.Error != nil {
+			t.Fatal(res.Error)
+		}
+
 		log := storage.TransactionLog{
-			TransactionHash:  "some hash",
-			TransactionIndex: big.NewInt(100).Uint64(),
-			BlockNumber:      blockNumber,
+			TransactionHash:  transaction.TransactionHash,
+			TransactionIndex: transaction.TransactionIndex,
+			BlockNumber:      transaction.BlockNumber,
 			Address:          cfg.GetContractsMapForChain().DelegationManager,
-			Arguments:        `[{"Value": "0xdb9afbdcfeca94dfb25790c900c527969e78bd3c"}]`,
+			Arguments:        `[{"Name": "operator", "Type": "address", "Value": "0xd172a86a0f250aec23ee19c759a8e73621fe3c10", "Indexed": true}, {"Name": "staker", "Type": "address", "Value": null, "Indexed": false}, {"Name": "strategy", "Type": "address", "Value": null, "Indexed": false}, {"Name": "shares", "Type": "uint256", "Value": null, "Indexed": false}]`,
 			EventName:        "OperatorSharesIncreased",
-			LogIndex:         big.NewInt(400).Uint64(),
-			OutputData:       `{"shares": "100", "strategy": "0x93c4b944d05dfe6df7645a86cd2206016c51564d"}`,
+			LogIndex:         big.NewInt(279).Uint64(),
+			OutputData:       `{"shares": 2625783258116897034, "staker": "0x269df236ae8bd066e9de7670a7cbfd8cbafd11c2", "strategy": "0x13760f50a9d7377e4f20cb8cf9e4c26586c658ff"}`,
 			CreatedAt:        time.Time{},
 			UpdatedAt:        time.Time{},
 			DeletedAt:        time.Time{},
+		}
+		res = grm.Model(storage.TransactionLog{}).Create(&log)
+		if res.Error != nil {
+			t.Fatal(res.Error)
 		}
 
 		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 
-		err = model.SetupStateForBlock(blockNumber)
+		err = model.SetupStateForBlock(block.Number)
 		assert.Nil(t, err)
 
 		change, err := model.HandleStateChange(&log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		t.Cleanup(func() {
-			teardown(model)
-		})
-	})
-	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(200)
-
-		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
+		err = model.CommitFinalState(block.Number)
 		assert.Nil(t, err)
 
-		err = model.SetupStateForBlock(blockNumber)
-		assert.Nil(t, err)
-
-		err = createBlock(model, blockNumber)
-		assert.Nil(t, err)
-
-		log := storage.TransactionLog{
-			TransactionHash:  "some hash",
-			TransactionIndex: big.NewInt(100).Uint64(),
-			BlockNumber:      blockNumber,
-			Address:          cfg.GetContractsMapForChain().DelegationManager,
-			Arguments:        `[{"Value": "0xdb9afbdcfeca94dfb25790c900c527969e78bd3c"}]`,
-			EventName:        "OperatorSharesIncreased",
-			LogIndex:         big.NewInt(400).Uint64(),
-			OutputData:       `{"shares": "100", "strategy": "0x93c4b944d05dfe6df7645a86cd2206016c51564d"}`,
-			CreatedAt:        time.Time{},
-			UpdatedAt:        time.Time{},
-			DeletedAt:        time.Time{},
-		}
-
-		stateChange, err := model.HandleStateChange(&log)
-		assert.Nil(t, err)
-		assert.NotNil(t, stateChange)
-
-		err = model.CommitFinalState(blockNumber)
-		assert.Nil(t, err)
-
-		states := []OperatorShares{}
+		states := []OperatorShareDeltas{}
 		statesRes := model.DB.
-			Model(&OperatorShares{}).
-			Raw("select * from operator_shares where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
+			Raw("select * from operator_share_deltas where block_number = @blockNumber", sql.Named("blockNumber", block.Number)).
 			Scan(&states)
 
 		if statesRes.Error != nil {
@@ -144,50 +119,104 @@ func Test_OperatorSharesState(t *testing.T) {
 		}
 		assert.Equal(t, 1, len(states))
 
-		assert.Equal(t, "100", states[0].Shares)
+		assert.Equal(t, "2625783258116897034", states[0].Shares)
+		assert.Equal(t, "0xd172a86a0f250aec23ee19c759a8e73621fe3c10", states[0].Operator)
+		assert.Equal(t, "0x13760f50a9d7377e4f20cb8cf9e4c26586c658ff", states[0].Strategy)
+		assert.Equal(t, "0x269df236ae8bd066e9de7670a7cbfd8cbafd11c2", states[0].Staker)
 
-		stateRoot, err := model.GenerateStateRoot(blockNumber)
-		assert.Nil(t, err)
-		assert.True(t, len(stateRoot) > 0)
+		// --------------------------------------------------------------------
+		// OperatorSharesDecreased
 
-		t.Cleanup(func() {
-			teardown(model)
-		})
-	})
-	t.Run("Should handle state transition for operator shares decreased", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(200)
-		log := storage.TransactionLog{
-			TransactionHash:  "some hash",
-			TransactionIndex: big.NewInt(100).Uint64(),
-			BlockNumber:      blockNumber,
+		block = storage.Block{
+			Number: 20686464,
+			Hash:   "some hash",
+		}
+		res = grm.Model(storage.Block{}).Create(&block)
+		if res.Error != nil {
+			t.Fatal(res.Error)
+		}
+
+		transaction = storage.Transaction{
+			BlockNumber:      block.Number,
+			TransactionHash:  "0x7f7676903f1e3a52556dbfc212fa2af55d0aab4083a85079a5da894eb6b60c51",
+			TransactionIndex: big.NewInt(60).Uint64(),
+			FromAddress:      "0x858646372cc42e1a627fce94aa7a7033e7cf075a",
+		}
+		res = grm.Model(storage.Transaction{}).Create(&transaction)
+		if res.Error != nil {
+			t.Fatal(res.Error)
+		}
+
+		sharesDecreasedLog := storage.TransactionLog{
+			TransactionHash:  transaction.TransactionHash,
+			TransactionIndex: transaction.TransactionIndex,
+			BlockNumber:      transaction.BlockNumber,
 			Address:          cfg.GetContractsMapForChain().DelegationManager,
-			Arguments:        `[{"Name": "operator", "Type": "address", "Value": "0x32f766cf7BC7dEE7F65573587BECd7AdB2a5CC7f"}, {"Name": "staker", "Type": "address", "Value": ""}, {"Name": "strategy", "Type": "address", "Value": ""}, {"Name": "shares", "Type": "uint256", "Value": ""}]`,
+			Arguments:        `[{"Name": "operator", "Type": "address", "Value": "0xd172a86a0f250aec23ee19c759a8e73621fe3c10", "Indexed": true}, {"Name": "staker", "Type": "address", "Value": null, "Indexed": false}, {"Name": "strategy", "Type": "address", "Value": null, "Indexed": false}, {"Name": "shares", "Type": "uint256", "Value": null, "Indexed": false}]`,
 			EventName:        "OperatorSharesDecreased",
-			LogIndex:         big.NewInt(400).Uint64(),
-			OutputData:       `{"shares": 1670000000000000000000, "staker": "0x32f766cf7bc7dee7f65573587becd7adb2a5cc7f", "strategy": "0x80528d6e9a2babfc766965e0e26d5ab08d9cfaf9"}`,
+			LogIndex:         big.NewInt(279).Uint64(),
+			OutputData:       `{"shares": 2625783258116897034, "staker": "0x269df236ae8bd066e9de7670a7cbfd8cbafd11c2", "strategy": "0x13760f50a9d7377e4f20cb8cf9e4c26586c658ff"}`,
 			CreatedAt:        time.Time{},
 			UpdatedAt:        time.Time{},
 			DeletedAt:        time.Time{},
 		}
+		res = grm.Model(storage.TransactionLog{}).Create(&sharesDecreasedLog)
+		if res.Error != nil {
+			t.Fatal(res.Error)
+		}
 
-		model, err := NewOperatorSharesModel(esm, grm, l, cfg)
+		err = model.SetupStateForBlock(block.Number)
 		assert.Nil(t, err)
 
-		err = model.SetupStateForBlock(blockNumber)
+		change, err = model.HandleStateChange(&sharesDecreasedLog)
+		assert.Nil(t, err)
+		assert.NotNil(t, change)
+
+		err = model.CommitFinalState(block.Number)
 		assert.Nil(t, err)
 
-		stateChange, err := model.HandleStateChange(&log)
-		assert.Nil(t, err)
-		assert.NotNil(t, stateChange)
+		states = []OperatorShareDeltas{}
+		statesRes = model.DB.
+			Raw("select * from operator_share_deltas where block_number = @blockNumber", sql.Named("blockNumber", block.Number)).
+			Scan(&states)
 
-		stateChangeTyped := stateChange.(*AccumulatedStateChange)
+		if statesRes.Error != nil {
+			t.Fatalf("Failed to fetch operator_shares: %v", statesRes.Error)
+		}
+		assert.Equal(t, 1, len(states))
 
-		assert.Equal(t, "-1670000000000000000000", stateChangeTyped.Shares.String())
-		assert.Equal(t, strings.ToLower("0x32f766cf7BC7dEE7F65573587BECd7AdB2a5CC7f"), stateChangeTyped.Operator)
-		assert.Equal(t, "0x80528d6e9a2babfc766965e0e26d5ab08d9cfaf9", stateChangeTyped.Strategy)
+		assert.Equal(t, "-2625783258116897034", states[0].Shares)
+		assert.Equal(t, "0xd172a86a0f250aec23ee19c759a8e73621fe3c10", states[0].Operator)
+		assert.Equal(t, "0x13760f50a9d7377e4f20cb8cf9e4c26586c658ff", states[0].Strategy)
+		assert.Equal(t, "0x269df236ae8bd066e9de7670a7cbfd8cbafd11c2", states[0].Staker)
+
+		query := `
+			with combined_values as (
+				select
+					operator,
+					strategy,
+					transaction_hash,
+					log_index,
+					block_number,
+					block_date,
+					block_time,
+					SUM(shares) OVER (PARTITION BY operator, strategy ORDER BY block_number, log_index) as shares
+				from operator_share_deltas
+			)
+			select * from combined_values order by block_number asc, log_index asc
+		`
+		var rows []OperatorShareDeltas
+		res = grm.Raw(query).Scan(&rows)
+		if res.Error != nil {
+			t.Fatal(res.Error)
+		}
+		assert.Equal(t, 2, len(rows))
+		for i, row := range rows {
+			fmt.Printf("Row %d: %+v\n", i, row)
+		}
+		assert.Equal(t, "0", rows[1].Shares)
 	})
 	t.Cleanup(func() {
-		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+		// postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
 }
