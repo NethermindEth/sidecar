@@ -1,11 +1,11 @@
 package operatorShares
 
 import (
-	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
-	"github.com/Layr-Labs/go-sidecar/pkg/types/numbers"
+	"github.com/shopspring/decimal"
 	"math/big"
 	"slices"
 	"sort"
@@ -51,6 +51,7 @@ type OperatorSharesDiff struct {
 
 type OperatorShareDeltas struct {
 	Operator        string
+	Staker          string
 	Strategy        string
 	Shares          string
 	TransactionHash string
@@ -60,8 +61,8 @@ type OperatorShareDeltas struct {
 	BlockDate       string
 }
 
-func NewSlotID(operator string, strategy string) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%s", operator, strategy))
+func NewSlotID(operator string, strategy string, staker string, transactionHash string, logIndex uint64) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%s_%s_%s_%d", operator, strategy, staker, transactionHash, logIndex))
 }
 
 // Implements IEigenStateModel.
@@ -72,10 +73,7 @@ type OperatorSharesModel struct {
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
-	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
-
-	deltaAccumulator map[uint64][]*OperatorShareDeltas
+	stateAccumulator map[uint64][]*OperatorShareDeltas
 }
 
 func NewOperatorSharesModel(
@@ -91,8 +89,7 @@ func NewOperatorSharesModel(
 		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
-		deltaAccumulator: make(map[uint64][]*OperatorShareDeltas),
+		stateAccumulator: make(map[uint64][]*OperatorShareDeltas),
 	}
 
 	esm.RegisterState(model, 1)
@@ -106,6 +103,7 @@ func (osm *OperatorSharesModel) GetModelName() string {
 type operatorSharesOutput struct {
 	Strategy string      `json:"strategy"`
 	Shares   json.Number `json:"shares"`
+	Staker   string      `json:"staker"`
 }
 
 func parseLogOutputForOperatorShares(outputDataStr string) (*operatorSharesOutput, error) {
@@ -121,10 +119,10 @@ func parseLogOutputForOperatorShares(outputDataStr string) (*operatorSharesOutpu
 	return outputData, err
 }
 
-func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChange], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChange])
+func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[OperatorShareDeltas], []uint64) {
+	stateChanges := make(types.StateTransitions[OperatorShareDeltas])
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChange, error) {
+	stateChanges[0] = func(log *storage.TransactionLog) (*OperatorShareDeltas, error) {
 		arguments, err := osm.ParseLogArguments(log)
 		if err != nil {
 			return nil, err
@@ -141,8 +139,8 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 		operator := strings.ToLower(arguments[0].Value.(string))
 
 		sharesStr := outputData.Shares.String()
-		shares, success := numbers.NewBig257().SetString(sharesStr, 10)
-		if !success {
+		shares, err := decimal.NewFromString(sharesStr)
+		if err != nil {
 			osm.logger.Sugar().Errorw("Failed to convert shares to big.Int",
 				zap.String("shares", sharesStr),
 				zap.String("transactionHash", log.TransactionHash),
@@ -154,33 +152,20 @@ func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[Ac
 
 		// All shares are emitted as ABS(shares), so we need to negate the shares if the event is a decrease
 		if log.EventName == "OperatorSharesDecreased" {
-			shares = shares.Mul(shares, big.NewInt(-1))
+			shares = shares.Mul(decimal.NewFromInt(-1))
 		}
 
-		slotID := NewSlotID(operator, outputData.Strategy)
-		record, ok := osm.stateAccumulator[log.BlockNumber][slotID]
-		if !ok {
-			record = &AccumulatedStateChange{
-				Operator:    operator,
-				Strategy:    outputData.Strategy,
-				Shares:      shares,
-				BlockNumber: log.BlockNumber,
-			}
-			osm.stateAccumulator[log.BlockNumber][slotID] = record
-		} else {
-			record.Shares = record.Shares.Add(record.Shares, shares)
-		}
-
-		osm.deltaAccumulator[log.BlockNumber] = append(osm.deltaAccumulator[log.BlockNumber], &OperatorShareDeltas{
+		delta := &OperatorShareDeltas{
 			Operator:        operator,
-			Strategy:        outputData.Strategy,
+			Strategy:        strings.ToLower(outputData.Strategy),
+			Staker:          strings.ToLower(outputData.Staker),
 			Shares:          shares.String(),
 			TransactionHash: log.TransactionHash,
 			LogIndex:        log.LogIndex,
 			BlockNumber:     log.BlockNumber,
-		})
-
-		return record, nil
+		}
+		osm.stateAccumulator[log.BlockNumber] = append(osm.stateAccumulator[log.BlockNumber], delta)
+		return delta, nil
 	}
 
 	// Create an ordered list of block numbers
@@ -212,14 +197,12 @@ func (osm *OperatorSharesModel) IsInterestingLog(log *storage.TransactionLog) bo
 }
 
 func (osm *OperatorSharesModel) SetupStateForBlock(blockNumber uint64) error {
-	osm.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
-	osm.deltaAccumulator[blockNumber] = make([]*OperatorShareDeltas, 0)
+	osm.stateAccumulator[blockNumber] = make([]*OperatorShareDeltas, 0)
 	return nil
 }
 
 func (osm *OperatorSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(osm.stateAccumulator, blockNumber)
-	delete(osm.deltaAccumulator, blockNumber)
 	return nil
 }
 
@@ -245,96 +228,19 @@ func (osm *OperatorSharesModel) HandleStateChange(log *storage.TransactionLog) (
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]*OperatorSharesDiff, error) {
-	preparedState := make([]*OperatorSharesDiff, 0)
-
-	accumulatedState, ok := osm.stateAccumulator[blockNumber]
+func (osm *OperatorSharesModel) prepareState(blockNumber uint64) ([]*OperatorShareDeltas, error) {
+	records, ok := osm.stateAccumulator[blockNumber]
 	if !ok {
-		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
-		osm.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
-		return nil, err
+		msg := "delta accumulator was not initialized"
+		osm.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
+		return nil, errors.New(msg)
 	}
 
-	slotIds := make([]types.SlotID, 0)
-	for slotID := range accumulatedState {
-		slotIds = append(slotIds, slotID)
-	}
-
-	// Find only the records from the previous block, that are modified in this block
-	query := `
-		with ranked_rows as (
-			select
-				operator,
-				strategy,
-				shares,
-				block_number,
-				ROW_NUMBER() OVER (PARTITION BY operator, strategy ORDER BY block_number desc) as rn
-			from operator_shares
-			where
-				concat(operator, '_', strategy) in @slotIds
-		)
-		select
-			lb.operator,
-			lb.strategy,
-			lb.shares,
-			lb.block_number
-		from ranked_rows as lb
-		where rn = 1
-	`
-	existingRecords := make([]*OperatorShares, 0)
-	res := osm.DB.Model(&OperatorShares{}).
-		Raw(query,
-			sql.Named("slotIds", slotIds),
-		).
-		Scan(&existingRecords)
-
-	if res.Error != nil {
-		osm.logger.Sugar().Errorw("Failed to fetch operator_shares", zap.Error(res.Error))
-		return nil, res.Error
-	}
-
-	// Map the existing records to a map for easier lookup
-	mappedRecords := make(map[types.SlotID]*OperatorShares)
-	for _, record := range existingRecords {
-		slotID := NewSlotID(record.Operator, record.Strategy)
-		mappedRecords[slotID] = record
-	}
-
-	// Loop over our new state changes.
-	// If the record exists in the previous block, add the shares to the existing shares
-	for slotID, newState := range accumulatedState {
-		prepared := &OperatorSharesDiff{
-			Operator:    newState.Operator,
-			Strategy:    newState.Strategy,
-			Shares:      newState.Shares,
-			BlockNumber: blockNumber,
-			IsNew:       false,
-		}
-
-		if existingRecord, ok := mappedRecords[slotID]; ok {
-			existingShares, success := numbers.NewBig257().SetString(existingRecord.Shares, 10)
-			if !success {
-				osm.logger.Sugar().Errorw("Failed to convert existing shares to big.Int",
-					zap.String("shares", existingRecord.Shares),
-					zap.String("operator", existingRecord.Operator),
-					zap.String("strategy", existingRecord.Strategy),
-					zap.Uint64("blockNumber", blockNumber),
-				)
-				continue
-			}
-			prepared.Shares = existingShares.Add(existingShares, newState.Shares)
-		} else {
-			// SlotID was not found in the previous block, so this is a new record
-			prepared.IsNew = true
-		}
-
-		preparedState = append(preparedState, prepared)
-	}
-	return preparedState, nil
+	return records, nil
 }
 
-func (osm *OperatorSharesModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) error {
-	deltas := osm.deltaAccumulator[blockNumber]
+func (osm *OperatorSharesModel) writeDeltaRecords(blockNumber uint64) error {
+	deltas := osm.stateAccumulator[blockNumber]
 	if len(deltas) == 0 {
 		return nil
 	}
@@ -361,29 +267,7 @@ func (osm *OperatorSharesModel) writeDeltaRecordsToDeltaTable(blockNumber uint64
 }
 
 func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
-	records, err := osm.prepareState(blockNumber)
-	if err != nil {
-		return err
-	}
-
-	recordToInsert := pkgUtils.Map(records, func(r *OperatorSharesDiff, i uint64) *OperatorShares {
-		return &OperatorShares{
-			Operator:    r.Operator,
-			Strategy:    r.Strategy,
-			Shares:      r.Shares.String(),
-			BlockNumber: blockNumber,
-		}
-	})
-
-	if len(recordToInsert) > 0 {
-		res := osm.DB.Model(&OperatorShares{}).Clauses(clause.Returning{}).Create(&recordToInsert)
-		if res.Error != nil {
-			osm.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
-			return res.Error
-		}
-	}
-
-	if err := osm.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
+	if err := osm.writeDeltaRecords(blockNumber); err != nil {
 		return err
 	}
 
@@ -391,12 +275,12 @@ func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
 }
 
 func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
-	diffs, err := osm.prepareState(blockNumber)
+	deltas, err := osm.prepareState(blockNumber)
 	if err != nil {
 		return "", err
 	}
 
-	inputs := osm.sortValuesForMerkleTree(diffs)
+	inputs := osm.sortValuesForMerkleTree(deltas)
 
 	fullTree, err := osm.MerkleizeState(blockNumber, inputs)
 	if err != nil {
@@ -405,12 +289,12 @@ func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (types.Sta
 	return types.StateRoot(pkgUtils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []*OperatorSharesDiff) []*base.MerkleTreeInput {
+func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []*OperatorShareDeltas) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, diff := range diffs {
 		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: NewSlotID(diff.Operator, diff.Strategy),
-			Value:  diff.Shares.Bytes(),
+			SlotID: NewSlotID(diff.Operator, diff.Strategy, diff.Staker, diff.TransactionHash, diff.LogIndex),
+			Value:  []byte(diff.Shares),
 		})
 	}
 	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
