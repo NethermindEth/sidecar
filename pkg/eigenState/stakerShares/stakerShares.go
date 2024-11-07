@@ -246,54 +246,39 @@ func parseLogOutputForM2MigrationEvent(outputDataStr string) (*m2MigrationOutput
 
 // handleMigratedM2StakerWithdrawals handles the WithdrawalMigrated event from the DelegationManager contract
 //
-// Since we have already counted M1 withdrawals due to processing events block-by-block, we need to handle not double subtracting.
-// Assuming that M2 WithdrawalQueued events always result in a subtraction, if we encounter a migration event, we need
-// to add the amount back to the shares to get the correct final state.
+// Returns a list of M2 withdrawals that also correspond to an M1 withdrawal in order to not double count
 func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.TransactionLog) ([]*StakerShareDeltas, error) {
 	outputData, err := parseLogOutputForM2MigrationEvent(log.OutputData)
 	if err != nil {
 		return nil, err
 	}
-	// Takes the withdrawal root of the current log being processed and finds the corresponding
-	// M1 withdrawal that it migrated.
+	// An M2 migration will have an oldWithdrawalRoot and a newWithdrawalRoot.
+	// A `WithdrawalQueued` that was part of a migration will have a withdrawalRoot that matches the newWithdrawalRoot of the migration event.
+	// We need to capture that value and remove the M2 withdrawal from the accumulator.
+	//
+	// In the case of a pure M2 withdrawal (not migrated), the withdrawalRoot will not match the newWithdrawalRoot.
+
 	query := `
-		WITH migration AS (
-			SELECT
-				(tl.output_data ->> 'nonce') AS nonce,
-				lower(coalesce(tl.output_data ->> 'depositor', tl.output_data ->> 'staker')) AS staker
-			FROM transaction_logs tl
-			WHERE
-				tl.address = @strategyManagerAddress
-				AND tl.block_number <= @logBlockNumber
-				AND tl.event_name = 'WithdrawalQueued'
-				AND (
-					SELECT lower(string_agg(lpad(to_hex(elem::integer), 2, '0'), ''))
-					FROM jsonb_array_elements_text(tl.output_data->'withdrawalRoot') AS elem
-				) = @oldWithdrawalRoot
-		),
-		share_withdrawal_queued AS (
-			SELECT
-				tl.*,
-				(tl.output_data ->> 'nonce') AS nonce,
-				lower(coalesce(tl.output_data ->> 'depositor', tl.output_data ->> 'staker')) AS staker
-			FROM transaction_logs AS tl
-			WHERE
-				tl.address = @strategyManagerAddress
-				AND tl.event_name = 'ShareWithdrawalQueued'
+		with m2_withdrawal as (
+			select
+				*
+			from transaction_logs as tl
+			where
+				tl.event_name = 'WithdrawalQueued'
+				and tl.address = @delegationManagerAddress
+				and lower((
+				  SELECT lower(string_agg(lpad(to_hex(elem::int), 2, '0'), ''))
+				  FROM jsonb_array_elements_text(tl.output_data ->'withdrawalRoot') AS elem
+				)) = lower(@newWithdrawalRoot)
 		)
-		SELECT
-			*
-		FROM share_withdrawal_queued
-		WHERE
-			nonce = (SELECT nonce FROM migration)
-			AND staker = (SELECT staker FROM migration)
+		select * from m2_withdrawal
 	`
+
 	logs := make([]storage.TransactionLog, 0)
 	res := ss.DB.
 		Raw(query,
-			sql.Named("strategyManagerAddress", ss.globalConfig.GetContractsMapForChain().StrategyManager),
-			sql.Named("logBlockNumber", log.BlockNumber),
-			sql.Named("oldWithdrawalRoot", outputData.OldWithdrawalRootString),
+			sql.Named("delegationManagerAddress", ss.globalConfig.GetContractsMapForChain().DelegationManager),
+			sql.Named("newWithdrawalRoot", outputData.NewWithdrawalRootString),
 		).
 		Scan(&logs)
 
@@ -303,17 +288,15 @@ func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.Tran
 	}
 
 	changes := make([]*StakerShareDeltas, 0)
-	// if an M1 was found, we need to negate the double M2 withdrawal
 	for _, l := range logs {
-		c, err := ss.handleStakerDepositEvent(&l)
-		c.BlockNumber = log.BlockNumber
-		// store the withdrawal root of the M2 migration event so that we can eventually remove it
-		// from the deltas table
-		c.WithdrawalRootString = outputData.NewWithdrawalRootString
+		// The log is an M2 withdrawal, so parse it as such
+		c, err := ss.handleM2QueuedWithdrawal(&l)
 		if err != nil {
 			return nil, err
 		}
-		changes = append(changes, c)
+		if len(c) > 0 {
+			changes = append(changes, c...)
+		}
 	}
 
 	return changes, nil
@@ -410,15 +393,16 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 				deltaRecords = append(deltaRecords, records...)
 			}
 		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "WithdrawalMigrated" {
-			records, err := ss.handleMigratedM2StakerWithdrawals(log)
+			migratedM2WithdrawalsToRemove, err := ss.handleMigratedM2StakerWithdrawals(log)
 			if err == nil {
-				// NOTE: we DONT add these to the delta table because they've already been handled
-				for _, record := range records {
-					// HOWEVER for each record, go find any previously accumulated M2 withdrawal and remove it
-					// from the accumulator so we dont double accumulate.
-					//
+				// Iterate over the list of M2 withdrawals to remove to prevent double counting
+				for _, record := range migratedM2WithdrawalsToRemove {
+
 					// The massive caveat with this is that it assumes that the M2 withdrawal and corresponding
 					// migration events are processed in the same block, which was in fact the case.
+					//
+					// The M2 WithdrawalQueued event will come first
+					// then the M2 WithdrawalMigrated event will come second
 					filteredDeltas := make([]*StakerShareDeltas, 0)
 					for _, delta := range ss.stateAccumulator[log.BlockNumber] {
 						if delta.WithdrawalRootString != record.WithdrawalRootString {

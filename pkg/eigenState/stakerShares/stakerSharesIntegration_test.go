@@ -135,6 +135,7 @@ func Test_StakerSharesIntegration(t *testing.T) {
 				t.Logf("Completed processing %d blocks, remaining: %d", completed, remaining)
 			}
 		}
+		t.Logf("Completed processing all blocks")
 
 		var count int
 		query = `select count(*) from staker_share_deltas`
