@@ -8,6 +8,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/pkg/rewards"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	"github.com/Layr-Labs/go-sidecar/pkg/utils"
+	"slices"
 	"strings"
 	"time"
 
@@ -42,27 +43,11 @@ func NewPipeline(
 	}
 }
 
-func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
-	p.Logger.Sugar().Debugw("Running pipeline for block", zap.Uint64("blockNumber", blockNumber))
-
-	/*
-		- Fetch block
-		- Index block
-		- Index transactions
-		- Index logs
-	*/
+func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.FetchedBlock) error {
+	blockNumber := block.Block.Number.Value()
 
 	totalRunTime := time.Now()
 	blockFetchTime := time.Now()
-	block, err := p.Fetcher.FetchBlock(ctx, blockNumber)
-	if err != nil {
-		p.Logger.Sugar().Errorw("Failed to fetch block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
-		return err
-	}
-	p.Logger.Sugar().Debugw("Fetched block",
-		zap.Uint64("blockNumber", blockNumber),
-		zap.Int64("fetchTime", time.Since(blockFetchTime).Milliseconds()),
-	)
 	blockFetchTime = time.Now()
 
 	indexedBlock, found, err := p.Indexer.IndexFetchedBlock(block)
@@ -267,4 +252,48 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 	}()
 
 	return err
+}
+
+func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
+	p.Logger.Sugar().Debugw("Running pipeline for block", zap.Uint64("blockNumber", blockNumber))
+
+	blockFetchTime := time.Now()
+	block, err := p.Fetcher.FetchBlock(ctx, blockNumber)
+	if err != nil {
+		p.Logger.Sugar().Errorw("Failed to fetch block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		return err
+	}
+	p.Logger.Sugar().Debugw("Fetched block",
+		zap.Uint64("blockNumber", blockNumber),
+		zap.Int64("fetchTime", time.Since(blockFetchTime).Milliseconds()),
+	)
+
+	return p.RunForFetchedBlock(ctx, block)
+}
+
+func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endBlock uint64) error {
+	p.Logger.Sugar().Debugw("Running pipeline for block batch",
+		zap.Uint64("startBlock", startBlock),
+		zap.Uint64("endBlock", endBlock),
+	)
+
+	fetchedBlocks, err := p.Fetcher.FetchBlocks(ctx, startBlock, endBlock)
+	if err != nil {
+		p.Logger.Sugar().Errorw("Failed to fetch blocks", zap.Uint64("startBlock", startBlock), zap.Uint64("endBlock", endBlock), zap.Error(err))
+		return err
+	}
+
+	// sort blocks ascending
+	slices.SortFunc(fetchedBlocks, func(b1, b2 *fetcher.FetchedBlock) int {
+		return int(b1.Block.Number.Value() - b2.Block.Number.Value())
+	})
+
+	for _, block := range fetchedBlocks {
+		if err := p.RunForFetchedBlock(ctx, block); err != nil {
+			p.Logger.Sugar().Errorw("Failed to run pipeline for fetched block", zap.Uint64("blockNumber", block.Block.Number.Value()), zap.Error(err))
+			return err
+		}
+	}
+
+	return nil
 }
