@@ -184,6 +184,8 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	blocksProcessed := int64(0)
 	runningAvg := float64(0)
 	totalDurationMs := int64(0)
+
+	//nolint:all
 	lastBlockParsed := latestBlock
 
 	s.Logger.Sugar().Infow("Starting indexing process", zap.Int64("latestBlock", latestBlock), zap.Uint64("currentTip", currentTip.Load()))
