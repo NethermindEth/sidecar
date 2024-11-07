@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -66,7 +67,7 @@ type blockRange struct {
 }
 
 func Test_StakerSharesIntegration(t *testing.T) {
-	_, grm, l, cfg, err := setup()
+	dbName, grm, l, cfg, err := setup()
 
 	if err != nil {
 		t.Fatal(err)
@@ -149,6 +150,6 @@ func Test_StakerSharesIntegration(t *testing.T) {
 	})
 
 	t.Cleanup(func() {
-		// postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})
 }
