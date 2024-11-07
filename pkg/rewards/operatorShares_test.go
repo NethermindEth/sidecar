@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func setupStakerShares() (
+func setupOperatorShares() (
 	string,
 	*config.Config,
 	*gorm.DB,
@@ -44,9 +44,9 @@ func setupStakerShares() (
 	return dbname, cfg, grm, l, nil
 }
 
-func hydrateStakerShareDeltas(grm *gorm.DB, l *zap.Logger) error {
+func hydrateOperatorShareDeltas(grm *gorm.DB, l *zap.Logger) error {
 	projectRoot := getProjectRootPath()
-	contents, err := tests.GetStakerShareDeltasSqlFile(projectRoot)
+	contents, err := tests.GetOperatorShareDeltasSqlFile(projectRoot)
 
 	if err != nil {
 		return err
@@ -60,14 +60,14 @@ func hydrateStakerShareDeltas(grm *gorm.DB, l *zap.Logger) error {
 	return nil
 }
 
-func Test_StakerShares(t *testing.T) {
+func Test_OperatorShares(t *testing.T) {
 	if !rewardsTestsEnabled() {
 		t.Skipf("Skipping %s", t.Name())
 		return
 	}
 
 	projectRoot := getProjectRootPath()
-	dbFileName, cfg, grm, l, err := setupStakerShares()
+	_, cfg, grm, l, err := setupOperatorShares()
 
 	if err != nil {
 		t.Fatal(err)
@@ -79,7 +79,7 @@ func Test_StakerShares(t *testing.T) {
 		if _, err = hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
 		}
-		if err = hydrateStakerShareDeltas(grm, l); err != nil {
+		if err = hydrateOperatorShareDeltas(grm, l); err != nil {
 			t.Error(err)
 		}
 	})
@@ -87,45 +87,41 @@ func Test_StakerShares(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(cfg, grm, nil, l)
 
 		t.Log("Generating staker shares")
-		err := rewards.GenerateAndInsertStakerShares(snapshotDate)
+		err := rewards.GenerateAndInsertOperatorShares(snapshotDate)
 		assert.Nil(t, err)
 
-		t.Log("Generating operator shares")
-		err = rewards.GenerateAndInsertOperatorShares(snapshotDate)
-		assert.Nil(t, err)
-
-		stakerShares, err := rewards.ListStakerShares()
+		operatorShares, err := rewards.ListOperatorShares()
 		assert.Nil(t, err)
 
 		t.Log("Getting expected results")
-		expectedResults, err := tests.GetStakerSharesExpectedResults(projectRoot)
+		expectedResults, err := tests.GetOperatorShareExpectedResults(projectRoot)
 		assert.Nil(t, err)
 
-		assert.Equal(t, len(expectedResults), len(stakerShares))
+		assert.Equal(t, len(expectedResults), len(operatorShares))
 
 		t.Log("Comparing results")
 		mappedExpectedResults := make(map[string]string)
 		for _, expectedResult := range expectedResults {
-			slotId := fmt.Sprintf("%s_%s_%d_%d", expectedResult.Staker, expectedResult.Strategy, expectedResult.BlockNumber, expectedResult.LogIndex)
+			slotId := fmt.Sprintf("%s_%s_%d_%d", expectedResult.Operator, expectedResult.Strategy, expectedResult.BlockNumber, expectedResult.LogIndex)
 			mappedExpectedResults[slotId] = expectedResult.Shares
 		}
 
-		if len(expectedResults) != len(stakerShares) {
-			t.Errorf("Expected %d stakerShares, got %d", len(expectedResults), len(stakerShares))
+		if len(expectedResults) != len(operatorShares) {
+			t.Errorf("Expected %d operatorShares, got %d", len(expectedResults), len(operatorShares))
 
-			lacksExpectedResult := make([]*StakerShares, 0)
+			lacksExpectedResult := make([]*OperatorShares, 0)
 
-			for _, stakerShare := range stakerShares {
-				slotId := fmt.Sprintf("%s_%s_%d_%d", stakerShare.Staker, stakerShare.Strategy, stakerShare.BlockNumber, stakerShare.LogIndex)
+			for _, operatorShare := range operatorShares {
+				slotId := fmt.Sprintf("%s_%s_%d_%d", operatorShare.Operator, operatorShare.Strategy, operatorShare.BlockNumber, operatorShare.LogIndex)
 
 				found, ok := mappedExpectedResults[slotId]
 				if !ok {
-					lacksExpectedResult = append(lacksExpectedResult, stakerShare)
+					lacksExpectedResult = append(lacksExpectedResult, operatorShare)
 					continue
 				}
-				if found != stakerShare.Shares {
-					t.Logf("Record found, but shares dont match. Expected %s, got %+v", found, stakerShare)
-					lacksExpectedResult = append(lacksExpectedResult, stakerShare)
+				if found != operatorShare.Shares {
+					t.Logf("Record found, but shares dont match. Expected %s, got %+v", found, operatorShare)
+					lacksExpectedResult = append(lacksExpectedResult, operatorShare)
 				}
 			}
 			assert.Equal(t, 0, len(lacksExpectedResult))
@@ -138,6 +134,6 @@ func Test_StakerShares(t *testing.T) {
 		}
 	})
 	t.Cleanup(func() {
-		postgres.TeardownTestDatabase(dbFileName, cfg, grm, l)
+		// postgres.TeardownTestDatabase(dbFileName, cfg, grm, l)
 	})
 }

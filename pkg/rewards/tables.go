@@ -65,3 +65,14 @@ type StakerShares struct {
 	BlockDate       string
 	BlockNumber     uint64
 }
+
+type OperatorShares struct {
+	Operator        string
+	Strategy        string
+	Shares          string
+	TransactionHash string
+	LogIndex        uint64
+	BlockNumber     uint64
+	BlockTime       time.Time
+	BlockDate       string
+}

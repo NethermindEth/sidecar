@@ -131,6 +131,11 @@ func GetExpectedOperatorAvsSnapshots(projectBase string) ([]*ExpectedOperatorAvs
 	return getExpectedResultsCsvFile[ExpectedOperatorAvsSnapshot](path)
 }
 
+func GetOperatorShareDeltasSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorShares/operatorShareDeltas.sql")
+	return getSqlFile(path)
+}
+
 // OperatorShares snapshots
 func GetOperatorSharesSqlFile(projectBase string) (string, error) {
 	path := getTestdataPathFromProjectRoot(projectBase, "/operatorShareSnapshots/operatorShares.sql")
@@ -138,15 +143,29 @@ func GetOperatorSharesSqlFile(projectBase string) (string, error) {
 }
 
 type OperatorShareExpectedResult struct {
+	Operator        string `csv:"operator"`
+	Strategy        string `csv:"strategy"`
+	TransactionHash string `csv:"transaction_hash"`
+	LogIndex        uint64 `csv:"snapshot"`
+	Shares          string `csv:"shares"`
+	BlockNumber     uint64 `csv:"block_number"`
+}
+
+func GetOperatorShareExpectedResults(projectBase string) ([]*OperatorShareExpectedResult, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/operatorShares/expectedResults.csv")
+	return getExpectedResultsCsvFile[OperatorShareExpectedResult](path)
+}
+
+type OperatorShareSnapshotsExpectedResult struct {
 	Operator string `csv:"operator"`
 	Strategy string `csv:"strategy"`
 	Snapshot string `csv:"snapshot"`
 	Shares   string `csv:"shares"`
 }
 
-func GetOperatorSharesExpectedResults(projectBase string) ([]*OperatorShareExpectedResult, error) {
+func GetOperatorShareSnapshotsExpectedResults(projectBase string) ([]*OperatorShareSnapshotsExpectedResult, error) {
 	path := getTestdataPathFromProjectRoot(projectBase, "/operatorShareSnapshots/expectedResults.csv")
-	return getExpectedResultsCsvFile[OperatorShareExpectedResult](path)
+	return getExpectedResultsCsvFile[OperatorShareSnapshotsExpectedResult](path)
 }
 
 // StakerShareSnapshots

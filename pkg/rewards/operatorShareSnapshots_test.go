@@ -109,7 +109,7 @@ func Test_OperatorShareSnapshots(t *testing.T) {
 		assert.Nil(t, err)
 
 		t.Log("Loading expected results")
-		expectedResults, err := tests.GetOperatorSharesExpectedResults(projectRoot)
+		expectedResults, err := tests.GetOperatorShareSnapshotsExpectedResults(projectRoot)
 		assert.Nil(t, err)
 
 		assert.Equal(t, len(expectedResults), len(snapshots))
