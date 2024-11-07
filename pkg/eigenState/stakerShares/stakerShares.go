@@ -361,9 +361,33 @@ type AccumulatedStateChanges struct {
 	Changes []*StakerShareDeltas
 }
 
+// GetStateTransitions returns a map of block numbers to state transitions and a list of block numbers
 func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChanges], []uint64) {
 	stateChanges := make(types.StateTransitions[AccumulatedStateChanges])
 
+	/**
+	Order of StakerShare deposit and withdrawal events over time:
+
+	- Deposit (strategy manager)
+	- M1 ShareWithdrawalQueued (strategy manager)
+	- M2 WithdrawalQueued (delegation manager)
+	- M2 WithdrawalMigrated (delegation manager)
+	- PodSharesUpdated (eigenpod manager)
+
+	In the case of M2, M2 WithdrawalQueued handles BOTH standard M2 withdrawals and was paired with M2 WithdrawalMigrated
+	for the cases where M1 withdrawals were migrated to M2.
+
+	M1 to M2 Migrations happened in the order of:
+	1. WithdrawalQueued
+	2. WithdrawalMigrated
+
+	When we come across an M2 WithdrawalMigrated event, we need to check and see if it has a corresponding M2 WithdrawalQueued event
+	and then remove the WithdrawalQueued event from the accumulator to prevent double counting.
+
+	This is done by comparing:
+
+	M2.WithdrawalQueued.WithdrawalRoot == M2.WithdrawalMigrated.NewWithdrawalRoot
+	*/
 	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChanges, error) {
 		deltaRecords := make([]*StakerShareDeltas, 0)
 		var err error

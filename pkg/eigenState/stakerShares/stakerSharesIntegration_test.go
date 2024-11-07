@@ -145,6 +145,7 @@ func Test_StakerSharesIntegration(t *testing.T) {
 		}
 
 		fmt.Printf("Total staker share deltas: %d\n", count)
+		assert.Equal(t, 166160, count)
 	})
 
 	t.Cleanup(func() {
