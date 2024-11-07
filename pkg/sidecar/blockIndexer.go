@@ -199,14 +199,6 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		estTimeRemainingMs := runningAvg * float64(blocksRemaining)
 		estTimeRemainingHours := float64(estTimeRemainingMs) / 1000 / 60 / 60
 
-		s.Logger.Sugar().Infow("Progress",
-			zap.String("percentComplete", fmt.Sprintf("%.2f", pctComplete)),
-			zap.Uint64("blocksRemaining", blocksRemaining),
-			zap.Float64("estimatedTimeRemaining (hrs)", estTimeRemainingHours),
-			zap.Float64("avgBlockProcessTime (ms)", float64(runningAvg)),
-			zap.Uint64("lastBlockParsed", uint64(lastBlockParsed)),
-		)
-
 		startTime := time.Now()
 		endBlock := int64(latestBlock + 100)
 		if endBlock > int64(tip) {
@@ -218,6 +210,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 				zap.Uint64("startBlock", uint64(latestBlock)),
 				zap.Int64("endBlock", endBlock),
 			)
+			return err
 		}
 
 		lastBlockParsed = int64(endBlock)
@@ -227,10 +220,12 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		totalDurationMs += delta
 		runningAvg = float64(totalDurationMs / blocksProcessed)
 
-		s.Logger.Sugar().Debugw("Processed block",
-			zap.Int64("blockNumber", latestBlock),
-			zap.Int64("duration", delta),
-			zap.Float64("avgDuration", runningAvg),
+		s.Logger.Sugar().Infow("Progress",
+			zap.String("percentComplete", fmt.Sprintf("%.2f", pctComplete)),
+			zap.Uint64("blocksRemaining", blocksRemaining),
+			zap.Float64("estimatedTimeRemaining (hrs)", estTimeRemainingHours),
+			zap.Float64("avgBlockProcessTime (ms)", float64(runningAvg)),
+			zap.Uint64("lastBlockParsed", uint64(lastBlockParsed)),
 		)
 		latestBlock = endBlock + 1
 	}

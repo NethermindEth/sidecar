@@ -53,7 +53,7 @@ func (idx *Indexer) getRestakedStrategiesForAvsOperator(
 	operator := avsOperator.Operator
 	avs := avsOperator.Avs
 
-	idx.Logger.Sugar().Infow("Fetching restaked strategies for operator",
+	idx.Logger.Sugar().Debugw("Fetching restaked strategies for operator",
 		zap.String("operator", operator),
 		zap.String("avs", avs),
 		zap.String("avsDirectoryAddress", avsDirectoryAddress),
@@ -71,7 +71,7 @@ func (idx *Indexer) getRestakedStrategiesForAvsOperator(
 		)
 		return err
 	}
-	idx.Logger.Sugar().Infow("Fetched restaked strategies for operator",
+	idx.Logger.Sugar().Debugw("Fetched restaked strategies for operator",
 		zap.Error(err),
 		zap.String("operator", operator),
 		zap.String("avs", avs),
@@ -93,7 +93,7 @@ func (idx *Indexer) getRestakedStrategiesForAvsOperator(
 			)
 			return err
 		} else if err == nil {
-			idx.Logger.Sugar().Infow("Inserted restaked strategy",
+			idx.Logger.Sugar().Debugw("Inserted restaked strategy",
 				zap.String("restakedStrategy", restakedStrategy.String()),
 				zap.String("operator", operator),
 				zap.String("avs", avs),
@@ -102,6 +102,11 @@ func (idx *Indexer) getRestakedStrategiesForAvsOperator(
 			)
 		}
 	}
+	idx.Logger.Sugar().Infow("Inserted all restaked strategies for operator",
+		zap.String("operator", operator),
+		zap.String("avs", avs),
+		zap.Uint64("blockNumber", blockNumber),
+	)
 	return nil
 }
 

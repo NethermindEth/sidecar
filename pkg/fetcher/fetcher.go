@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 	"slices"
 	"sync"
+	"time"
 )
 
 type Fetcher struct {
@@ -87,6 +88,31 @@ func (f *Fetcher) FetchReceiptsForBlock(ctx context.Context, block *ethereum.Eth
 
 func (f *Fetcher) IsInterestingAddress(contractAddress string) bool {
 	return slices.Contains(f.Config.GetInterestingAddressForConfigEnv(), contractAddress)
+}
+
+func (f *Fetcher) FetchBlocksWithRetries(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*FetchedBlock, error) {
+	retries := []int{1, 2, 4, 8, 16, 32, 64}
+	var e error
+	for _, r := range retries {
+		fetchedBlocks, err := f.FetchBlocks(ctx, startBlockInclusive, endBlockInclusive)
+		if err == nil {
+			return fetchedBlocks, nil
+		}
+		e = err
+		f.Logger.Sugar().Infow("failed to fetch blocks for range",
+			zap.Uint64("startBlock", startBlockInclusive),
+			zap.Uint64("endBlock", endBlockInclusive),
+			zap.Int("sleepTime", r),
+		)
+
+		time.Sleep(time.Duration(r) * time.Second)
+	}
+	f.Logger.Sugar().Errorw("failed to fetch blocks for range, exhausted all retries",
+		zap.Uint64("startBlock", startBlockInclusive),
+		zap.Uint64("endBlock", endBlockInclusive),
+		zap.Error(e),
+	)
+	return nil, e
 }
 
 func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*FetchedBlock, error) {

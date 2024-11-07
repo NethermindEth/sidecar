@@ -276,7 +276,7 @@ func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endB
 		zap.Uint64("endBlock", endBlock),
 	)
 
-	fetchedBlocks, err := p.Fetcher.FetchBlocks(ctx, startBlock, endBlock)
+	fetchedBlocks, err := p.Fetcher.FetchBlocksWithRetries(ctx, startBlock, endBlock)
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to fetch blocks", zap.Uint64("startBlock", startBlock), zap.Uint64("endBlock", endBlock), zap.Error(err))
 		return err
