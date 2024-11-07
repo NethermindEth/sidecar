@@ -176,7 +176,7 @@ func (c *Config) GetGenesisBlockNumber() uint64 {
 	case Chain_Holesky:
 		return 1167044
 	case Chain_Mainnet:
-		return 19492759
+		return 17445563
 	default:
 		return 0
 	}

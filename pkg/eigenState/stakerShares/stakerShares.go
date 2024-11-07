@@ -25,27 +25,11 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type StakerShares struct {
-	Staker      string
-	Strategy    string
-	Shares      string
-	BlockNumber uint64
-	CreatedAt   time.Time
-}
-
 type AccumulatedStateChange struct {
 	Staker      string
 	Strategy    string
 	Shares      *big.Int
 	BlockNumber uint64
-}
-
-type StakerSharesDiff struct {
-	Staker      string
-	Strategy    string
-	Shares      *big.Int
-	BlockNumber uint64
-	IsNew       bool
 }
 
 // Table staker_share_deltas
@@ -62,8 +46,8 @@ type StakerShareDeltas struct {
 	WithdrawalRootString string `gorm:"-"`
 }
 
-func NewSlotID(staker string, strategy string) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%s", staker, strategy))
+func NewSlotID(staker string, strategy string, transactionHash string, logIndex uint64) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%s_%s_%d", staker, strategy, transactionHash, logIndex))
 }
 
 type StakerSharesModel struct {
@@ -73,10 +57,8 @@ type StakerSharesModel struct {
 	logger           *zap.Logger
 	globalConfig     *config.Config
 
-	// Accumulates state changes for SlotIds, grouped by block number
-	stateAccumulator map[uint64]map[types.SlotID]*AccumulatedStateChange
-
-	deltaAccumulator map[uint64][]*StakerShareDeltas
+	// Accumulates deltas for each block
+	stateAccumulator map[uint64][]*StakerShareDeltas
 }
 
 func NewStakerSharesModel(
@@ -90,8 +72,7 @@ func NewStakerSharesModel(
 		DB:               grm,
 		logger:           logger,
 		globalConfig:     globalConfig,
-		stateAccumulator: make(map[uint64]map[types.SlotID]*AccumulatedStateChange),
-		deltaAccumulator: make(map[uint64][]*StakerShareDeltas),
+		stateAccumulator: make(map[uint64][]*StakerShareDeltas),
 	}
 
 	esm.RegisterState(model, 3)
@@ -265,54 +246,39 @@ func parseLogOutputForM2MigrationEvent(outputDataStr string) (*m2MigrationOutput
 
 // handleMigratedM2StakerWithdrawals handles the WithdrawalMigrated event from the DelegationManager contract
 //
-// Since we have already counted M1 withdrawals due to processing events block-by-block, we need to handle not double subtracting.
-// Assuming that M2 WithdrawalQueued events always result in a subtraction, if we encounter a migration event, we need
-// to add the amount back to the shares to get the correct final state.
+// Returns a list of M2 withdrawals that also correspond to an M1 withdrawal in order to not double count
 func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.TransactionLog) ([]*StakerShareDeltas, error) {
 	outputData, err := parseLogOutputForM2MigrationEvent(log.OutputData)
 	if err != nil {
 		return nil, err
 	}
-	// Takes the withdrawal root of the current log being processed and finds the corresponding
-	// M1 withdrawal that it migrated.
+	// An M2 migration will have an oldWithdrawalRoot and a newWithdrawalRoot.
+	// A `WithdrawalQueued` that was part of a migration will have a withdrawalRoot that matches the newWithdrawalRoot of the migration event.
+	// We need to capture that value and remove the M2 withdrawal from the accumulator.
+	//
+	// In the case of a pure M2 withdrawal (not migrated), the withdrawalRoot will not match the newWithdrawalRoot.
+
 	query := `
-		WITH migration AS (
-			SELECT
-				(tl.output_data ->> 'nonce') AS nonce,
-				lower(coalesce(tl.output_data ->> 'depositor', tl.output_data ->> 'staker')) AS staker
-			FROM transaction_logs tl
-			WHERE
-				tl.address = @strategyManagerAddress
-				AND tl.block_number <= @logBlockNumber
-				AND tl.event_name = 'WithdrawalQueued'
-				AND (
-					SELECT lower(string_agg(lpad(to_hex(elem::integer), 2, '0'), ''))
-					FROM jsonb_array_elements_text(tl.output_data->'withdrawalRoot') AS elem
-				) = @oldWithdrawalRoot
-		),
-		share_withdrawal_queued AS (
-			SELECT
-				tl.*,
-				(tl.output_data ->> 'nonce') AS nonce,
-				lower(coalesce(tl.output_data ->> 'depositor', tl.output_data ->> 'staker')) AS staker
-			FROM transaction_logs AS tl
-			WHERE
-				tl.address = @strategyManagerAddress
-				AND tl.event_name = 'ShareWithdrawalQueued'
+		with m2_withdrawal as (
+			select
+				*
+			from transaction_logs as tl
+			where
+				tl.event_name = 'WithdrawalQueued'
+				and tl.address = @delegationManagerAddress
+				and lower((
+				  SELECT lower(string_agg(lpad(to_hex(elem::int), 2, '0'), ''))
+				  FROM jsonb_array_elements_text(tl.output_data ->'withdrawalRoot') AS elem
+				)) = lower(@newWithdrawalRoot)
 		)
-		SELECT
-			*
-		FROM share_withdrawal_queued
-		WHERE
-			nonce = (SELECT nonce FROM migration)
-			AND staker = (SELECT staker FROM migration)
+		select * from m2_withdrawal
 	`
+
 	logs := make([]storage.TransactionLog, 0)
 	res := ss.DB.
 		Raw(query,
-			sql.Named("strategyManagerAddress", ss.globalConfig.GetContractsMapForChain().StrategyManager),
-			sql.Named("logBlockNumber", log.BlockNumber),
-			sql.Named("oldWithdrawalRoot", outputData.OldWithdrawalRootString),
+			sql.Named("delegationManagerAddress", ss.globalConfig.GetContractsMapForChain().DelegationManager),
+			sql.Named("newWithdrawalRoot", outputData.NewWithdrawalRootString),
 		).
 		Scan(&logs)
 
@@ -322,17 +288,15 @@ func (ss *StakerSharesModel) handleMigratedM2StakerWithdrawals(log *storage.Tran
 	}
 
 	changes := make([]*StakerShareDeltas, 0)
-	// if an M1 was found, we need to negate the double M2 withdrawal
 	for _, l := range logs {
-		c, err := ss.handleStakerDepositEvent(&l)
-		c.BlockNumber = log.BlockNumber
-		// store the withdrawal root of the M2 migration event so that we can eventually remove it
-		// from the deltas table
-		c.WithdrawalRootString = outputData.NewWithdrawalRootString
+		// The log is an M2 withdrawal, so parse it as such
+		c, err := ss.handleM2QueuedWithdrawal(&l)
 		if err != nil {
 			return nil, err
 		}
-		changes = append(changes, c)
+		if len(c) > 0 {
+			changes = append(changes, c...)
+		}
 	}
 
 	return changes, nil
@@ -394,25 +358,38 @@ func (ss *StakerSharesModel) handleM2QueuedWithdrawal(log *storage.TransactionLo
 }
 
 type AccumulatedStateChanges struct {
-	Changes []*AccumulatedStateChange
+	Changes []*StakerShareDeltas
 }
 
-func shareDeltaToAccumulatedStateChange(deltaRecord *StakerShareDeltas) *AccumulatedStateChange {
-	shares, _ := numbers.NewBig257().SetString(deltaRecord.Shares, 10)
-	return &AccumulatedStateChange{
-		Staker:      deltaRecord.Staker,
-		Strategy:    deltaRecord.Strategy,
-		Shares:      shares,
-		BlockNumber: deltaRecord.BlockNumber,
-	}
-}
-
+// GetStateTransitions returns a map of block numbers to state transitions and a list of block numbers
 func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChanges], []uint64) {
 	stateChanges := make(types.StateTransitions[AccumulatedStateChanges])
 
+	/**
+	Order of StakerShare deposit and withdrawal events over time:
+
+	- Deposit (strategy manager)
+	- M1 ShareWithdrawalQueued (strategy manager)
+	- M2 WithdrawalQueued (delegation manager)
+	- M2 WithdrawalMigrated (delegation manager)
+	- PodSharesUpdated (eigenpod manager)
+
+	In the case of M2, M2 WithdrawalQueued handles BOTH standard M2 withdrawals and was paired with M2 WithdrawalMigrated
+	for the cases where M1 withdrawals were migrated to M2.
+
+	M1 to M2 Migrations happened in the order of:
+	1. WithdrawalQueued
+	2. WithdrawalMigrated
+
+	When we come across an M2 WithdrawalMigrated event, we need to check and see if it has a corresponding M2 WithdrawalQueued event
+	and then remove the WithdrawalQueued event from the accumulator to prevent double counting.
+
+	This is done by comparing:
+
+	M2.WithdrawalQueued.WithdrawalRoot == M2.WithdrawalMigrated.NewWithdrawalRoot
+	*/
 	stateChanges[0] = func(log *storage.TransactionLog) (*AccumulatedStateChanges, error) {
 		deltaRecords := make([]*StakerShareDeltas, 0)
-		var parsedRecords []*AccumulatedStateChange
 		var err error
 
 		contractAddresses := ss.globalConfig.GetContractsMapForChain()
@@ -423,47 +400,40 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 			record, err := ss.handleStakerDepositEvent(log)
 			if err == nil {
 				deltaRecords = append(deltaRecords, record)
-				parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
 			}
 		} else if log.Address == contractAddresses.EigenpodManager && log.EventName == "PodSharesUpdated" {
 			record, err := ss.handlePodSharesUpdatedEvent(log)
 			if err == nil {
 				deltaRecords = append(deltaRecords, record)
-				parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
 			}
 		} else if log.Address == contractAddresses.StrategyManager && log.EventName == "ShareWithdrawalQueued" && log.TransactionHash != "0x62eb0d0865b2636c74ed146e2d161e39e42b09bac7f86b8905fc7a830935dc1e" {
 			record, err := ss.handleM1StakerWithdrawals(log)
 			if err == nil {
 				deltaRecords = append(deltaRecords, record)
-				parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
 			}
 		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "WithdrawalQueued" {
 			records, err := ss.handleM2QueuedWithdrawal(log)
 			if err == nil && records != nil {
 				deltaRecords = append(deltaRecords, records...)
-				for _, record := range records {
-					parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
-				}
 			}
 		} else if log.Address == contractAddresses.DelegationManager && log.EventName == "WithdrawalMigrated" {
-			records, err := ss.handleMigratedM2StakerWithdrawals(log)
+			migratedM2WithdrawalsToRemove, err := ss.handleMigratedM2StakerWithdrawals(log)
 			if err == nil {
-				// NOTE: we DONT add these to the delta table because they've already been handled
-				for _, record := range records {
-					parsedRecords = append(parsedRecords, shareDeltaToAccumulatedStateChange(record))
+				// Iterate over the list of M2 withdrawals to remove to prevent double counting
+				for _, record := range migratedM2WithdrawalsToRemove {
 
-					// HOWEVER for each record, go find any previously accumulated M2 withdrawal and remove it
-					// from the delta accumulator so we dont double accumulate.
-					//
 					// The massive caveat with this is that it assumes that the M2 withdrawal and corresponding
 					// migration events are processed in the same block, which was in fact the case.
+					//
+					// The M2 WithdrawalQueued event will come first
+					// then the M2 WithdrawalMigrated event will come second
 					filteredDeltas := make([]*StakerShareDeltas, 0)
-					for _, delta := range ss.deltaAccumulator[log.BlockNumber] {
+					for _, delta := range ss.stateAccumulator[log.BlockNumber] {
 						if delta.WithdrawalRootString != record.WithdrawalRootString {
 							filteredDeltas = append(filteredDeltas, delta)
 						}
 					}
-					ss.deltaAccumulator[log.BlockNumber] = filteredDeltas
+					ss.stateAccumulator[log.BlockNumber] = filteredDeltas
 				}
 			}
 		} else {
@@ -479,27 +449,9 @@ func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[Accum
 			return nil, nil
 		}
 
-		// Sanity check to make sure we've got an initialized accumulator map for the block
-		if _, ok := ss.stateAccumulator[log.BlockNumber]; !ok {
-			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
-		}
+		ss.stateAccumulator[log.BlockNumber] = append(ss.stateAccumulator[log.BlockNumber], deltaRecords...)
 
-		for _, parsedRecord := range parsedRecords {
-			if parsedRecord == nil {
-				continue
-			}
-			slotId := NewSlotID(parsedRecord.Staker, parsedRecord.Strategy)
-			record, ok := ss.stateAccumulator[log.BlockNumber][slotId]
-			if !ok {
-				record = parsedRecord
-				ss.stateAccumulator[log.BlockNumber][slotId] = record
-			} else {
-				record.Shares = record.Shares.Add(record.Shares, parsedRecord.Shares)
-			}
-		}
-		ss.deltaAccumulator[log.BlockNumber] = append(ss.deltaAccumulator[log.BlockNumber], deltaRecords...)
-
-		return &AccumulatedStateChanges{Changes: parsedRecords}, nil
+		return &AccumulatedStateChanges{Changes: ss.stateAccumulator[log.BlockNumber]}, nil
 	}
 
 	// Create an ordered list of block numbers
@@ -538,14 +490,12 @@ func (ss *StakerSharesModel) IsInterestingLog(log *storage.TransactionLog) bool 
 }
 
 func (ss *StakerSharesModel) SetupStateForBlock(blockNumber uint64) error {
-	ss.stateAccumulator[blockNumber] = make(map[types.SlotID]*AccumulatedStateChange)
-	ss.deltaAccumulator[blockNumber] = make([]*StakerShareDeltas, 0)
+	ss.stateAccumulator[blockNumber] = make([]*StakerShareDeltas, 0)
 	return nil
 }
 
 func (ss *StakerSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(ss.stateAccumulator, blockNumber)
-	delete(ss.deltaAccumulator, blockNumber)
 	return nil
 }
 
@@ -554,7 +504,11 @@ func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (int
 
 	for _, blockNumber := range sortedBlockNumbers {
 		if log.BlockNumber >= blockNumber {
-			ss.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
+			ss.logger.Sugar().Debugw("Handling state change",
+				zap.Uint64("blockNumber", log.BlockNumber),
+				zap.String("eventName", log.EventName),
+				zap.String("address", log.Address),
+			)
 
 			change, err := stateChanges[blockNumber](log)
 			if err != nil {
@@ -570,94 +524,20 @@ func (ss *StakerSharesModel) HandleStateChange(log *storage.TransactionLog) (int
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerSharesDiff, error) {
-	preparedState := make([]*StakerSharesDiff, 0)
-
-	accumulatedState, ok := ss.stateAccumulator[blockNumber]
-	if !ok {
-		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
-		ss.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
-		return nil, err
-	}
-
-	slotIds := make([]types.SlotID, 0)
-	for slotId := range accumulatedState {
-		slotIds = append(slotIds, slotId)
-	}
-
-	// Find only the records from the previous block, that are modified in this block
-	query := `
-		with ranked_rows as (
-			select
-				staker,
-				strategy,
-				shares,
-				block_number,
-				ROW_NUMBER() OVER (PARTITION BY staker, strategy ORDER BY block_number desc) as rn
-			from staker_shares
-			where
-				concat(staker, '_', strategy) in @slotIds
-		)
-		select
-			rr.staker,
-			rr.strategy,
-			rr.shares,
-			rr.block_number
-		from ranked_rows as rr
-		where rn = 1
-	`
-	existingRecords := make([]StakerShares, 0)
-	res := ss.DB.Model(&StakerShares{}).
-		Raw(query,
-			sql.Named("slotIds", slotIds),
-		).
-		Scan(&existingRecords)
-
-	if res.Error != nil {
-		ss.logger.Sugar().Errorw("Failed to fetch staker_shares", zap.Error(res.Error))
-		return nil, res.Error
-	}
-
-	// Map the existing records to a map for easier lookup
-	mappedRecords := make(map[types.SlotID]StakerShares)
-	for _, record := range existingRecords {
-		slotId := NewSlotID(record.Staker, record.Strategy)
-		mappedRecords[slotId] = record
-	}
-
-	// Loop over our new state changes.
-	// If the record exists in the previous block, add the shares to the existing shares
-	for slotId, newState := range accumulatedState {
-		prepared := &StakerSharesDiff{
-			Staker:      newState.Staker,
-			Strategy:    newState.Strategy,
-			Shares:      newState.Shares,
-			BlockNumber: blockNumber,
-		}
-
-		if existingRecord, ok := mappedRecords[slotId]; ok {
-			existingShares, success := numbers.NewBig257().SetString(existingRecord.Shares, 10)
-			if !success {
-				ss.logger.Sugar().Errorw("Failed to convert existing shares to big.Int",
-					zap.String("shares", existingRecord.Shares),
-					zap.String("staker", existingRecord.Staker),
-					zap.String("strategy", existingRecord.Strategy),
-					zap.Uint64("blockNumber", blockNumber),
-				)
-				continue
-			}
-			prepared.Shares = existingShares.Add(existingShares, newState.Shares)
-		}
-
-		preparedState = append(preparedState, prepared)
-	}
-	return preparedState, nil
-}
-
-func (ss *StakerSharesModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) error {
-	records, ok := ss.deltaAccumulator[blockNumber]
+func (ss *StakerSharesModel) prepareState(blockNumber uint64) ([]*StakerShareDeltas, error) {
+	records, ok := ss.stateAccumulator[blockNumber]
 	if !ok {
 		msg := "delta accumulator was not initialized"
+		ss.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
+		return nil, errors.New(msg)
+	}
+	return records, nil
+}
+
+func (ss *StakerSharesModel) writeDeltaRecords(blockNumber uint64) error {
+	records, ok := ss.stateAccumulator[blockNumber]
+	if !ok {
+		msg := "accumulator was not initialized"
 		ss.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
 		return errors.New(msg)
 	}
@@ -686,29 +566,7 @@ func (ss *StakerSharesModel) writeDeltaRecordsToDeltaTable(blockNumber uint64) e
 }
 
 func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
-	records, err := ss.prepareState(blockNumber)
-	if err != nil {
-		return err
-	}
-
-	recordsToInsert := pkgUtils.Map(records, func(r *StakerSharesDiff, i uint64) *StakerShares {
-		return &StakerShares{
-			Staker:      r.Staker,
-			Strategy:    r.Strategy,
-			Shares:      r.Shares.String(),
-			BlockNumber: blockNumber,
-		}
-	})
-
-	if len(recordsToInsert) > 0 {
-		res := ss.DB.Model(&StakerShares{}).Clauses(clause.Returning{}).Create(&recordsToInsert)
-		if res.Error != nil {
-			ss.logger.Sugar().Errorw("Failed to create new operator_shares records", zap.Error(res.Error))
-			return res.Error
-		}
-	}
-
-	if err = ss.writeDeltaRecordsToDeltaTable(blockNumber); err != nil {
+	if err := ss.writeDeltaRecords(blockNumber); err != nil {
 		return err
 	}
 
@@ -716,12 +574,12 @@ func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
 }
 
 func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
-	diffs, err := ss.prepareState(blockNumber)
+	deltas, err := ss.prepareState(blockNumber)
 	if err != nil {
 		return "", err
 	}
 
-	inputs := ss.sortValuesForMerkleTree(diffs)
+	inputs := ss.sortValuesForMerkleTree(deltas)
 
 	fullTree, err := ss.MerkleizeState(blockNumber, inputs)
 	if err != nil {
@@ -730,12 +588,12 @@ func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateR
 	return types.StateRoot(pkgUtils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerSharesDiff) []*base.MerkleTreeInput {
+func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerShareDeltas) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, diff := range diffs {
 		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: NewSlotID(diff.Staker, diff.Strategy),
-			Value:  diff.Shares.Bytes(),
+			SlotID: NewSlotID(diff.Staker, diff.Strategy, diff.TransactionHash, diff.LogIndex),
+			Value:  []byte(diff.Shares),
 		})
 	}
 	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {

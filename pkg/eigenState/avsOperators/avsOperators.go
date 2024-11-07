@@ -213,7 +213,7 @@ func (a *AvsOperatorsModel) HandleStateChange(log *storage.TransactionLog) (inte
 
 	for _, blockNumber := range sortedBlockNumbers {
 		if log.BlockNumber >= blockNumber {
-			a.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", blockNumber))
+			a.logger.Sugar().Debugw("Handling state change", zap.Uint64("blockNumber", log.BlockNumber))
 
 			change, err := stateChanges[blockNumber](log)
 			if err != nil {

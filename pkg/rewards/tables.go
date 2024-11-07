@@ -53,3 +53,15 @@ type StakerShareSnapshot struct {
 	Snapshot time.Time
 	Shares   string
 }
+
+type StakerShares struct {
+	Staker          string
+	Strategy        string
+	Shares          string
+	StrategyIndex   uint64
+	TransactionHash string
+	LogIndex        uint64
+	BlockTime       time.Time
+	BlockDate       string
+	BlockNumber     uint64
+}

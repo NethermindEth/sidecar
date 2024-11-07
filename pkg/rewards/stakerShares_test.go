@@ -10,10 +10,9 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"testing"
-	"time"
 )
 
-func setupStakerShareSnapshot() (
+func setupStakerShares() (
 	string,
 	*config.Config,
 	*gorm.DB,
@@ -45,20 +44,9 @@ func setupStakerShareSnapshot() (
 	return dbname, cfg, grm, l, nil
 }
 
-func teardownStakerShareSnapshot(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
-	rawDb, _ := db.DB()
-	_ = rawDb.Close()
-
-	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
-
-	if err := postgres.DeleteTestDatabase(pgConfig, dbname); err != nil {
-		l.Sugar().Errorw("Failed to delete test database", "error", err)
-	}
-}
-
-func hydrateStakerShares(grm *gorm.DB, l *zap.Logger) error {
+func hydrateStakerShareDeltas(grm *gorm.DB, l *zap.Logger) error {
 	projectRoot := getProjectRootPath()
-	contents, err := tests.GetStakerSharesSqlFile(projectRoot)
+	contents, err := tests.GetStakerShareDeltasSqlFile(projectRoot)
 
 	if err != nil {
 		return err
@@ -72,69 +60,68 @@ func hydrateStakerShares(grm *gorm.DB, l *zap.Logger) error {
 	return nil
 }
 
-func Test_StakerShareSnapshots(t *testing.T) {
+func Test_StakerShares(t *testing.T) {
 	if !rewardsTestsEnabled() {
 		t.Skipf("Skipping %s", t.Name())
 		return
 	}
 
 	projectRoot := getProjectRootPath()
-	dbFileName, cfg, grm, l, err := setupStakerShareSnapshot()
+	dbFileName, cfg, grm, l, err := setupStakerShares()
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	snapshotDate, err := getSnapshotDate()
+	snapshotDate := "2024-08-20"
 
 	t.Run("Should hydrate dependency tables", func(t *testing.T) {
 		if _, err = hydrateAllBlocksTable(grm, l); err != nil {
 			t.Error(err)
 		}
-		if err = hydrateStakerShares(grm, l); err != nil {
+		if err = hydrateStakerShareDeltas(grm, l); err != nil {
 			t.Error(err)
 		}
 	})
-	t.Run("Should generate staker share snapshots", func(t *testing.T) {
+	t.Run("Should generate staker shares", func(t *testing.T) {
 		rewards, _ := NewRewardsCalculator(cfg, grm, nil, l)
 
-		t.Log("Generating staker share snapshots")
-		err := rewards.GenerateAndInsertStakerShareSnapshots(snapshotDate)
+		t.Log("Generating staker shares")
+		err := rewards.GenerateAndInsertStakerShares(snapshotDate)
 		assert.Nil(t, err)
 
-		snapshots, err := rewards.ListStakerShareSnapshots()
+		stakerShares, err := rewards.ListStakerShares()
 		assert.Nil(t, err)
 
 		t.Log("Getting expected results")
-		expectedResults, err := tests.GetStakerSharesSnapshotsExpectedResults(projectRoot)
+		expectedResults, err := tests.GetStakerSharesExpectedResults(projectRoot)
 		assert.Nil(t, err)
 
-		assert.Equal(t, len(expectedResults), len(snapshots))
+		assert.Equal(t, len(expectedResults), len(stakerShares))
 
 		t.Log("Comparing results")
 		mappedExpectedResults := make(map[string]string)
 		for _, expectedResult := range expectedResults {
-			slotId := fmt.Sprintf("%s_%s_%s", expectedResult.Staker, expectedResult.Strategy, expectedResult.Snapshot)
+			slotId := fmt.Sprintf("%s_%s_%d_%d", expectedResult.Staker, expectedResult.Strategy, expectedResult.BlockNumber, expectedResult.LogIndex)
 			mappedExpectedResults[slotId] = expectedResult.Shares
 		}
 
-		if len(expectedResults) != len(snapshots) {
-			t.Errorf("Expected %d snapshots, got %d", len(expectedResults), len(snapshots))
+		if len(expectedResults) != len(stakerShares) {
+			t.Errorf("Expected %d stakerShares, got %d", len(expectedResults), len(stakerShares))
 
-			lacksExpectedResult := make([]*StakerShareSnapshot, 0)
-			// Go line-by-line in the snapshot results and find the corresponding line in the expected results.
-			// If one doesnt exist, add it to the missing list.
-			for _, snapshot := range snapshots {
-				slotId := fmt.Sprintf("%s_%s_%s", snapshot.Staker, snapshot.Strategy, snapshot.Snapshot.Format(time.DateOnly))
+			lacksExpectedResult := make([]*StakerShares, 0)
+
+			for _, stakerShare := range stakerShares {
+				slotId := fmt.Sprintf("%s_%s_%d_%d", stakerShare.Staker, stakerShare.Strategy, stakerShare.BlockNumber, stakerShare.LogIndex)
 
 				found, ok := mappedExpectedResults[slotId]
 				if !ok {
-					lacksExpectedResult = append(lacksExpectedResult, snapshot)
+					lacksExpectedResult = append(lacksExpectedResult, stakerShare)
 					continue
 				}
-				if found != snapshot.Shares {
-					t.Logf("Record found, but shares dont match. Expected %s, got %+v", found, snapshot)
-					lacksExpectedResult = append(lacksExpectedResult, snapshot)
+				if found != stakerShare.Shares {
+					t.Logf("Record found, but shares dont match. Expected %s, got %+v", found, stakerShare)
+					lacksExpectedResult = append(lacksExpectedResult, stakerShare)
 				}
 			}
 			assert.Equal(t, 0, len(lacksExpectedResult))
@@ -147,6 +134,6 @@ func Test_StakerShareSnapshots(t *testing.T) {
 		}
 	})
 	t.Cleanup(func() {
-		teardownStakerShareSnapshot(dbFileName, cfg, grm, l)
+		postgres.TeardownTestDatabase(dbFileName, cfg, grm, l)
 	})
 }
