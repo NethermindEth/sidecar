@@ -48,7 +48,6 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 
 	totalRunTime := time.Now()
 	blockFetchTime := time.Now()
-	blockFetchTime = time.Now()
 
 	indexedBlock, found, err := p.Indexer.IndexFetchedBlock(block)
 	if err != nil {
