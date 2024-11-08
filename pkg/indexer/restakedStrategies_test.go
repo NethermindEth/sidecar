@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/internal/tests"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
+	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller/multicallContractCaller"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
@@ -77,7 +78,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 
-	cc := contractCaller.NewContractCaller(client, l)
+	cc := multicallContractCaller.NewMulticallContractCaller(client, l)
 
 	cm := contractManager.NewContractManager(contractStore, client, sdc, l)
 
