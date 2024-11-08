@@ -181,9 +181,11 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		}
 	}()
 	// Keep some metrics during the indexing process
-	blocksProcessed := 0
-	runningAvg := 0
-	totalDurationMs := 0
+	blocksProcessed := int64(0)
+	runningAvg := float64(0)
+	totalDurationMs := int64(0)
+
+	//nolint:all
 	lastBlockParsed := latestBlock
 
 	s.Logger.Sugar().Infow("Starting indexing process", zap.Int64("latestBlock", latestBlock), zap.Uint64("currentTip", currentTip.Load()))
@@ -196,43 +198,39 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		tip := currentTip.Load()
 		blocksRemaining := tip - uint64(latestBlock)
 		pctComplete := (float64(blocksProcessed) / float64(blocksRemaining)) * 100
-		estTimeRemainingMs := runningAvg * int(blocksRemaining)
+		estTimeRemainingMs := runningAvg * float64(blocksRemaining)
 		estTimeRemainingHours := float64(estTimeRemainingMs) / 1000 / 60 / 60
 
-		if latestBlock%10 == 0 {
-			s.Logger.Sugar().Infow("Progress",
-				zap.String("percentComplete", fmt.Sprintf("%.2f", pctComplete)),
-				zap.Uint64("blocksRemaining", blocksRemaining),
-				zap.Float64("estimatedTimeRemaining (hrs)", estTimeRemainingHours),
-				zap.Float64("avgBlockProcessTime (ms)", float64(runningAvg)),
-				zap.Uint64("lastBlockParsed", uint64(lastBlockParsed)),
-			)
-		}
-
 		startTime := time.Now()
-		if err := s.Pipeline.RunForBlock(ctx, uint64(latestBlock)); err != nil {
-			s.Logger.Sugar().Errorw("Failed to run pipeline for block",
-				zap.Int64("currentBlockNumber", latestBlock),
+		endBlock := int64(latestBlock + 100)
+		if endBlock > int64(tip) {
+			endBlock = int64(tip)
+		}
+		if err := s.Pipeline.RunForBlockBatch(ctx, uint64(latestBlock), uint64(endBlock)); err != nil {
+			s.Logger.Sugar().Errorw("Failed to run pipeline for block batch",
 				zap.Error(err),
+				zap.Uint64("startBlock", uint64(latestBlock)),
+				zap.Int64("endBlock", endBlock),
 			)
 			return err
 		}
 
-		lastBlockParsed = latestBlock
+		lastBlockParsed = int64(endBlock)
 		delta := time.Since(startTime).Milliseconds()
-		blocksProcessed++
+		blocksProcessed += (endBlock - latestBlock)
 
-		totalDurationMs += int(delta)
-		runningAvg = totalDurationMs / blocksProcessed
+		totalDurationMs += delta
+		runningAvg = float64(totalDurationMs / blocksProcessed)
 
-		s.Logger.Sugar().Debugw("Processed block",
-			zap.Int64("blockNumber", latestBlock),
-			zap.Int64("duration", delta),
-			zap.Int("avgDuration", runningAvg),
+		s.Logger.Sugar().Infow("Progress",
+			zap.String("percentComplete", fmt.Sprintf("%.2f", pctComplete)),
+			zap.Uint64("blocksRemaining", blocksRemaining),
+			zap.Float64("estimatedTimeRemaining (hrs)", estTimeRemainingHours),
+			zap.Float64("avgBlockProcessTime (ms)", float64(runningAvg)),
+			zap.Uint64("lastBlockParsed", uint64(lastBlockParsed)),
 		)
-		latestBlock++
+		latestBlock = endBlock + 1
 	}
 
-	// TODO(seanmcgary): transition to listening for new blocks
 	return nil
 }

@@ -97,12 +97,14 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 
 		contracts := cfg.GetContractsMapForChain()
 
-		avsOperator := &storage.ActiveAvsOperator{
-			Avs:      avs,
-			Operator: operator,
+		avsOperator := []*storage.ActiveAvsOperator{
+			&storage.ActiveAvsOperator{
+				Avs:      avs,
+				Operator: operator,
+			},
 		}
 
-		err = idxr.getRestakedStrategiesForAvsOperator(context.Background(), contracts.AvsDirectory, avsOperator, block)
+		err = idxr.getAndInsertRestakedStrategiesWithMulticall(context.Background(), avsOperator, contracts.AvsDirectory, block)
 		assert.Nil(t, err)
 
 		results := make([]storage.OperatorRestakedStrategies, 0)
