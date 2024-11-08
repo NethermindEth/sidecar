@@ -1,6 +1,6 @@
 package contractCaller
 
-const serviceManagerAbi = ` [
+const AvsServiceManagerAbi = ` [
   {
     "type": "function",
     "name": "avsDirectory",

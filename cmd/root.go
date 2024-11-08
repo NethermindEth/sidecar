@@ -47,6 +47,7 @@ func init() {
 	})
 
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(runOperatorRestakedStrategiesCmd)
 }
 
 func initConfig(cmd *cobra.Command) {

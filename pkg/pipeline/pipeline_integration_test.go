@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
-	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
+	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller/sequentialContractCaller"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
@@ -102,9 +102,9 @@ func setup() (
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 
-	cc := contractCaller.NewContractCaller(client, l)
+	cc := sequentialContractCaller.NewSequentialContractCaller(client, l)
 
-	idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, l, cfg)
+	idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 
 	return fetchr, idxr, mds, sm, rc, cfg, l, grm, dbname
 

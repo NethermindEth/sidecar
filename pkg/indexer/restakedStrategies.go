@@ -33,7 +33,7 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlock(ctx context.Context, block
 	}
 
 	for _, avsDirectoryAddress := range addresses {
-		if err := idx.ProcessRestakedStrategiesForBlockAndAvsDirectoryMulticall(ctx, block, avsDirectoryAddress); err != nil {
+		if err := idx.ProcessRestakedStrategiesForBlockAndAvsDirectory(ctx, block, avsDirectoryAddress); err != nil {
 			idx.Logger.Sugar().Errorw("Failed to process restaked strategies", zap.Error(err))
 			return err
 		}
@@ -41,7 +41,7 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlock(ctx context.Context, block
 	return nil
 }
 
-func (idx *Indexer) ProcessRestakedStrategiesForBlockAndAvsDirectoryMulticall(ctx context.Context, block *storage.Block, avsDirectoryAddress string) error {
+func (idx *Indexer) ProcessRestakedStrategiesForBlockAndAvsDirectory(ctx context.Context, block *storage.Block, avsDirectoryAddress string) error {
 	idx.Logger.Sugar().Infow("Using avs directory address", zap.String("avsDirectoryAddress", avsDirectoryAddress))
 
 	blockNumber := block.Number
@@ -54,10 +54,10 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlockAndAvsDirectoryMulticall(ct
 
 	idx.Logger.Sugar().Infow(fmt.Sprintf("Found %d active AVS operators", len(avsOperators)))
 
-	return idx.getAndInsertRestakedStrategiesWithMulticall(ctx, avsOperators, avsDirectoryAddress, block)
+	return idx.getAndInsertRestakedStrategies(ctx, avsOperators, avsDirectoryAddress, block)
 }
 
-func (idx *Indexer) getAndInsertRestakedStrategiesWithMulticall(
+func (idx *Indexer) getAndInsertRestakedStrategies(
 	ctx context.Context,
 	avsOperators []*storage.ActiveAvsOperator,
 	avsDirectoryAddress string,
@@ -75,7 +75,7 @@ func (idx *Indexer) getAndInsertRestakedStrategiesWithMulticall(
 		})
 	}
 
-	results, err := idx.ContractCaller.GetOperatorRestakedStrategiesMulticall(ctx, pairs, blockNumber)
+	results, err := idx.ContractCaller.GetAllOperatorRestakedStrategies(ctx, pairs, blockNumber)
 	if err != nil {
 		idx.Logger.Sugar().Errorw("Failed to get operator restaked strategies",
 			zap.Error(err),
@@ -111,6 +111,31 @@ func (idx *Indexer) getAndInsertRestakedStrategiesWithMulticall(
 				)
 			}
 		}
+	}
+	return nil
+}
+
+func (idx *Indexer) ReprocessAllOperatorRestakedStrategies(ctx context.Context) error {
+	idx.Logger.Sugar().Info("Reprocessing all operator restaked strategies")
+
+	var endBlockNumber uint64
+	query := `select max(eth_block_number) from state_roots`
+	res := idx.db.Raw(query).Scan(&endBlockNumber)
+	if res.Error != nil {
+		idx.Logger.Sugar().Errorw("Failed to get max block number", zap.Error(res.Error))
+		return res.Error
+	}
+
+	currentBlock := idx.Config.GetOperatorRestakedStrategiesStartBlock()
+
+	for currentBlock <= endBlockNumber {
+		if currentBlock%3600 == 0 {
+			if err := idx.ProcessRestakedStrategiesForBlock(ctx, currentBlock); err != nil {
+				idx.Logger.Sugar().Errorw("Failed to process restaked strategies", zap.Error(err))
+				return err
+			}
+		}
+		currentBlock++
 	}
 	return nil
 }

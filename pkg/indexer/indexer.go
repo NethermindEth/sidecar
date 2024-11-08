@@ -10,6 +10,7 @@ import (
 	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/go-sidecar/pkg/parser"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
+	"gorm.io/gorm"
 	"slices"
 
 	"github.com/Layr-Labs/go-sidecar/internal/config"
@@ -26,6 +27,7 @@ type Indexer struct {
 	EthereumClient  *ethereum.Client
 	Config          *config.Config
 	ContractCaller  contractCaller.IContractCaller
+	db              *gorm.DB
 }
 
 type IndexErrorType int
@@ -87,6 +89,7 @@ func NewIndexer(
 	e *ethereum.Client,
 	f *fetcher.Fetcher,
 	cc contractCaller.IContractCaller,
+	grm *gorm.DB,
 	l *zap.Logger,
 	cfg *config.Config,
 ) *Indexer {
@@ -99,6 +102,7 @@ func NewIndexer(
 		EthereumClient:  e,
 		ContractCaller:  cc,
 		Config:          cfg,
+		db:              grm,
 	}
 }
 
