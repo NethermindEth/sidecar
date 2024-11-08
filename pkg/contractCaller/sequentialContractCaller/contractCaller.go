@@ -2,7 +2,6 @@ package sequentialContractCaller
 
 import (
 	"context"
-	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -20,7 +19,7 @@ type SequentialContractCaller struct {
 	Logger         *zap.Logger
 }
 
-func NewContractCaller(ec *ethereum.Client, l *zap.Logger) *SequentialContractCaller {
+func NewSequentialContractCaller(ec *ethereum.Client, l *zap.Logger) *SequentialContractCaller {
 	return &SequentialContractCaller{
 		EthereumClient: ec,
 		Logger:         l,
@@ -84,60 +83,4 @@ func getOperatorRestakedStrategies(ctx context.Context, avs string, operator str
 
 func (cc *SequentialContractCaller) GetOperatorRestakedStrategies(ctx context.Context, avs string, operator string, blockNumber uint64) ([]common.Address, error) {
 	return getOperatorRestakedStrategiesRetryable(ctx, avs, operator, blockNumber, cc.EthereumClient, cc.Logger)
-}
-
-type ReconciledContractCaller struct {
-	EthereumClients []*ethereum.Client
-	Logger          *zap.Logger
-}
-
-func NewRecociledContractCaller(ec []*ethereum.Client, l *zap.Logger) (*ReconciledContractCaller, error) {
-	if len(ec) == 0 {
-		return nil, fmt.Errorf("No ethereum clients provided")
-	}
-	return &ReconciledContractCaller{
-		EthereumClients: ec,
-		Logger:          l,
-	}, nil
-}
-
-func (rcc *ReconciledContractCaller) GetOperatorRestakedStrategies(ctx context.Context, avs string, operator string, blockNumber uint64) ([]common.Address, error) {
-	allResults := make([][]common.Address, 0)
-	for i, ec := range rcc.EthereumClients {
-		ec = ec
-		results, err := getOperatorRestakedStrategiesRetryable(ctx, avs, operator, blockNumber, ec, rcc.Logger)
-		if err != nil {
-			rcc.Logger.Sugar().Errorw("Error fetching results for client", zap.Error(err), zap.Int("clientIndex", i))
-		} else {
-			allResults = append(allResults, results)
-		}
-	}
-
-	// make sure the number of total results is equal to the number of clients
-	if len(allResults) != len(rcc.EthereumClients) {
-		return nil, fmt.Errorf("Failed to fetch results for all clients")
-	}
-
-	if len(allResults) == 1 {
-		return allResults[0], nil
-	}
-
-	// make sure that the results from each client are all the same length
-	expectedLength := len(allResults[0])
-	for i := 1; i < len(allResults); i++ {
-		if len(allResults[i]) != expectedLength {
-			return nil, fmt.Errorf("Client %d returned unexpected number of results", i)
-		}
-	}
-
-	// check each item in each result to make sure they are all the same
-	for _, clientResult := range allResults[1:] {
-		for i, item := range clientResult {
-			if allResults[0][i] != item {
-				return nil, fmt.Errorf("Client results do not match")
-			}
-		}
-	}
-
-	return allResults[0], nil
 }
