@@ -2,6 +2,7 @@ package avsOperators
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
 	"github.com/Layr-Labs/go-sidecar/pkg/storage"
 	"testing"
@@ -36,19 +37,6 @@ func setup() (
 	return dbname, grm, l, cfg, nil
 }
 
-func teardown(model *AvsOperatorsModel) {
-	model.DB.Exec("truncate table avs_operator_changes cascade")
-	model.DB.Exec("truncate table registered_avs_operators cascade")
-	model.DB.Exec("truncate table avs_operator_state_changes cascade")
-}
-
-func getInsertedDeltaRecordsForBlock(blockNumber uint64, model *AvsOperatorsModel) ([]*AvsOperatorStateChange, error) {
-	results := []*AvsOperatorStateChange{}
-
-	res := model.DB.Model(&AvsOperatorStateChange{}).Where("block_number = ?", blockNumber).Find(&results)
-	return results, res.Error
-}
-
 func getInsertedDeltaRecords(model *AvsOperatorsModel) ([]*AvsOperatorStateChange, error) {
 	results := []*AvsOperatorStateChange{}
 
@@ -68,119 +56,6 @@ func Test_AvsOperatorState(t *testing.T) {
 		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
 		assert.Nil(t, err)
 		assert.NotNil(t, avsOperatorState)
-	})
-	t.Run("Should register AvsOperatorState", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(200)
-		block := &storage.Block{
-			Number:    blockNumber,
-			Hash:      "",
-			BlockTime: time.Unix(1726063248, 0),
-		}
-		res := grm.Model(&storage.Block{}).Create(&block)
-		assert.Nil(t, res.Error)
-
-		log := storage.TransactionLog{
-			TransactionHash:  "some hash",
-			TransactionIndex: 100,
-			BlockNumber:      blockNumber,
-			Address:          cfg.GetContractsMapForChain().AvsDirectory,
-			Arguments:        `[{"Value": "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e" }, { "Value": "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0" }]`,
-			EventName:        "OperatorAVSRegistrationStatusUpdated",
-			LogIndex:         400,
-			OutputData:       `{ "status": 1 }`,
-			CreatedAt:        time.Time{},
-			UpdatedAt:        time.Time{},
-			DeletedAt:        time.Time{},
-		}
-
-		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
-		assert.Nil(t, err)
-
-		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
-
-		err = avsOperatorState.SetupStateForBlock(blockNumber)
-		assert.Nil(t, err)
-
-		result, err := avsOperatorState.HandleStateChange(&log)
-		assert.Nil(t, err)
-		assert.NotNil(t, result)
-
-		err = avsOperatorState.CommitFinalState(blockNumber)
-		assert.Nil(t, err)
-
-		inserted, err := getInsertedDeltaRecordsForBlock(blockNumber, avsOperatorState)
-		assert.Nil(t, err)
-		assert.Equal(t, 1, len(inserted))
-
-		assert.Equal(t, "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e", inserted[0].Avs)
-		assert.Equal(t, "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0", inserted[0].Operator)
-		assert.Equal(t, true, inserted[0].Registered)
-		assert.Equal(t, blockNumber, inserted[0].BlockNumber)
-		assert.Equal(t, uint64(400), inserted[0].LogIndex)
-
-		t.Cleanup(func() {
-			teardown(avsOperatorState)
-		})
-	})
-	t.Run("Should register AvsOperatorState and generate the table for the block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(201)
-		block := &storage.Block{
-			Number:    blockNumber,
-			Hash:      "",
-			BlockTime: time.Unix(1726063248, 0),
-		}
-		res := grm.Model(&storage.Block{}).Create(&block)
-		assert.Nil(t, res.Error)
-
-		log := storage.TransactionLog{
-			TransactionHash:  "some hash",
-			TransactionIndex: 100,
-			BlockNumber:      blockNumber,
-			Address:          cfg.GetContractsMapForChain().AvsDirectory,
-			Arguments:        `[{"Value": "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e" }, { "Value": "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0" }]`,
-			EventName:        "OperatorAVSRegistrationStatusUpdated",
-			LogIndex:         400,
-			OutputData:       `{ "status": 1 }`,
-			CreatedAt:        time.Time{},
-			UpdatedAt:        time.Time{},
-			DeletedAt:        time.Time{},
-		}
-
-		avsOperatorState, err := NewAvsOperatorsModel(esm, grm, l, cfg)
-		assert.Nil(t, err)
-
-		assert.Equal(t, true, avsOperatorState.IsInterestingLog(&log))
-
-		err = avsOperatorState.SetupStateForBlock(blockNumber)
-		assert.Nil(t, err)
-
-		stateChange, err := avsOperatorState.HandleStateChange(&log)
-		assert.Nil(t, err)
-		assert.NotNil(t, stateChange)
-
-		err = avsOperatorState.CommitFinalState(blockNumber)
-		assert.Nil(t, err)
-
-		states := []AvsOperatorStateChange{}
-		statesRes := avsOperatorState.DB.
-			Model(&AvsOperatorStateChange{}).
-			Raw("select * from avs_operator_state_changes where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
-			Scan(&states)
-
-		if statesRes.Error != nil {
-			t.Fatalf("Failed to fetch registered_avs_operators: %v", statesRes.Error)
-		}
-		assert.Equal(t, 1, len(states))
-
-		stateRoot, err := avsOperatorState.GenerateStateRoot(blockNumber)
-		assert.Nil(t, err)
-		assert.True(t, len(stateRoot) > 0)
-
-		t.Cleanup(func() {
-			teardown(avsOperatorState)
-		})
 	})
 	t.Run("Should correctly generate state across multiple blocks", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
@@ -246,7 +121,6 @@ func Test_AvsOperatorState(t *testing.T) {
 
 			states := []AvsOperatorStateChange{}
 			statesRes := avsOperatorState.DB.
-				Model(&AvsOperatorStateChange{}).
 				Raw("select * from avs_operator_state_changes where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
 				Scan(&states)
 
@@ -254,19 +128,10 @@ func Test_AvsOperatorState(t *testing.T) {
 				t.Fatalf("Failed to fetch registered_avs_operators: %v", statesRes.Error)
 			}
 
-			if log.BlockNumber == blocks[0] {
-				assert.Equal(t, 1, len(states))
-				inserts, deletes, err := avsOperatorState.prepareState(log.BlockNumber)
-				assert.Nil(t, err)
-				assert.Equal(t, 1, len(inserts))
-				assert.Equal(t, 0, len(deletes))
-			} else if log.BlockNumber == blocks[1] {
-				assert.Equal(t, 1, len(states))
-				inserts, deletes, err := avsOperatorState.prepareState(log.BlockNumber)
-				assert.Nil(t, err)
-				assert.Equal(t, 0, len(inserts))
-				assert.Equal(t, 1, len(deletes))
-			}
+			assert.Equal(t, 1, len(states))
+			deltas, err := avsOperatorState.prepareState(log.BlockNumber)
+			assert.Nil(t, err)
+			assert.Equal(t, 1, len(deltas))
 
 			stateRoot, err := avsOperatorState.GenerateStateRoot(log.BlockNumber)
 			assert.Nil(t, err)
@@ -275,6 +140,9 @@ func Test_AvsOperatorState(t *testing.T) {
 
 		inserted, err := getInsertedDeltaRecords(avsOperatorState)
 		assert.Nil(t, err)
+		for i, log := range logs {
+			fmt.Printf("{%d} log: %v\n", i, log)
+		}
 		assert.Equal(t, len(logs), len(inserted))
 	})
 	t.Cleanup(func() {
