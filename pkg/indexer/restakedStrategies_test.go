@@ -106,7 +106,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 			},
 		}
 
-		idxr := NewIndexer(mds, contractStore, cm, client, fetchr, mccc, l, cfg)
+		idxr := NewIndexer(mds, contractStore, cm, client, fetchr, mccc, grm, l, cfg)
 
 		err = idxr.getAndInsertRestakedStrategies(context.Background(), avsOperator, contracts.AvsDirectory, block)
 		assert.Nil(t, err)
@@ -141,7 +141,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 			},
 		}
 
-		idxr := NewIndexer(mds, contractStore, cm, client, fetchr, scc, l, cfg)
+		idxr := NewIndexer(mds, contractStore, cm, client, fetchr, scc, grm, l, cfg)
 
 		err = idxr.getAndInsertRestakedStrategies(context.Background(), avsOperator, contracts.AvsDirectory, block)
 		assert.Nil(t, err)

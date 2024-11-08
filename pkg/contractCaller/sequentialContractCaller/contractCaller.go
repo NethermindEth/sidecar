@@ -33,7 +33,7 @@ func isExecutionRevertedError(err error) bool {
 }
 
 func getOperatorRestakedStrategiesRetryable(ctx context.Context, avs string, operator string, blockNumber uint64, client *ethereum.Client, l *zap.Logger) ([]common.Address, error) {
-	retries := []int{0, 2, 5, 10}
+	retries := []int{0, 2, 5, 10, 30}
 	for i, backoff := range retries {
 		results, err := getOperatorRestakedStrategies(ctx, avs, operator, blockNumber, client, l)
 		if err != nil {

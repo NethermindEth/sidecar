@@ -114,3 +114,28 @@ func (idx *Indexer) getAndInsertRestakedStrategies(
 	}
 	return nil
 }
+
+func (idx *Indexer) ReprocessAllOperatorRestakedStrategies(ctx context.Context) error {
+	idx.Logger.Sugar().Info("Reprocessing all operator restaked strategies")
+
+	var endBlockNumber uint64
+	query := `select max(eth_block_number) from state_roots`
+	res := idx.db.Raw(query).Scan(&endBlockNumber)
+	if res.Error != nil {
+		idx.Logger.Sugar().Errorw("Failed to get max block number", zap.Error(res.Error))
+		return res.Error
+	}
+
+	currentBlock := idx.Config.GetOperatorRestakedStrategiesStartBlock()
+
+	for currentBlock <= endBlockNumber {
+		if currentBlock%3600 == 0 {
+			if err := idx.ProcessRestakedStrategiesForBlock(ctx, currentBlock); err != nil {
+				idx.Logger.Sugar().Errorw("Failed to process restaked strategies", zap.Error(err))
+				return err
+			}
+		}
+		currentBlock++
+	}
+	return nil
+}

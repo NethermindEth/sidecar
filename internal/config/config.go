@@ -219,7 +219,7 @@ func (c *Config) GetEigenLayerGenesisBlockHeight() (uint64, error) {
 	}
 }
 
-func (c *Config) GetOperatorRestakedStrategiesStartBlock() int64 {
+func (c *Config) GetOperatorRestakedStrategiesStartBlock() uint64 {
 	switch c.Chain {
 	case Chain_Preprod:
 	case Chain_Holesky:
