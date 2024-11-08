@@ -113,7 +113,7 @@ func setup() (
 func Test_Pipeline_Integration(t *testing.T) {
 	fetchr, idxr, mds, sm, rc, cfg, l, grm, dbName := setup()
 	t.Run("Should create a new Pipeline", func(t *testing.T) {
-		p := NewPipeline(fetchr, idxr, mds, sm, rc, l)
+		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
 		assert.NotNil(t, p)
 	})
 
@@ -124,7 +124,7 @@ func Test_Pipeline_Integration(t *testing.T) {
 
 		fmt.Printf("transactionHash: %s %d\n", transactionHash, logIndex)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, rc, l)
+		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
 
 		err := p.RunForBlock(context.Background(), blockNumber)
 		assert.Nil(t, err)

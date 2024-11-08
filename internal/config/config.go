@@ -230,6 +230,25 @@ func (c *Config) GetOperatorRestakedStrategiesStartBlock() int64 {
 	return 0
 }
 
+// CanIgnoreIncorrectRewardsRoot returns true if the rewards root can be ignored for the given block number
+//
+// Due to inconsistencies in the rewards root calculation on testnet, we know that some roots
+// are not fully reproducible and can be ignored.
+func (c *Config) CanIgnoreIncorrectRewardsRoot(blockNumber uint64) bool {
+	switch c.Chain {
+	case Chain_Preprod:
+		if blockNumber < 2125282 {
+			return true
+		}
+	case Chain_Holesky:
+		if blockNumber < 2125282 {
+			return true
+		}
+	case Chain_Mainnet:
+	}
+	return false
+}
+
 func KebabToSnakeCase(str string) string {
 	return strings.ReplaceAll(str, "-", "_")
 }
