@@ -113,7 +113,7 @@ var runCmd = &cobra.Command{
 			l.Sugar().Fatalw("Failed to create rewards calculator", zap.Error(err))
 		}
 
-		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, l)
+		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
 
 		// Create new sidecar instance
 		sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{

@@ -66,7 +66,8 @@ func (rc *RewardsCalculator) CalculateRewardsForSnapshotDate(snapshotDate string
 	if status != nil {
 		if status.Status == storage.RewardSnapshotStatusCompleted.String() {
 			rc.logger.Sugar().Infow("Rewards already calculated for snapshot date", zap.String("snapshotDate", snapshotDate))
-			return errors.New("rewards already calculated for snapshot date")
+			// since the rewards are already calculated, simply return nil
+			return nil
 		}
 		if status.Status == storage.RewardSnapshotStatusProcessing.String() {
 			rc.logger.Sugar().Infow("Rewards calculation already in progress for snapshot date", zap.String("snapshotDate", snapshotDate))

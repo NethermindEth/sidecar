@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/go-sidecar/pkg/indexer"
 	"github.com/Layr-Labs/go-sidecar/pkg/rewards"
@@ -23,6 +24,7 @@ type Pipeline struct {
 	Logger            *zap.Logger
 	stateManager      *stateManager.EigenStateManager
 	rewardsCalculator *rewards.RewardsCalculator
+	globalConfig      *config.Config
 }
 
 func NewPipeline(
@@ -31,6 +33,7 @@ func NewPipeline(
 	bs storage.BlockStore,
 	sm *stateManager.EigenStateManager,
 	rc *rewards.RewardsCalculator,
+	gc *config.Config,
 	l *zap.Logger,
 ) *Pipeline {
 	return &Pipeline{
@@ -40,6 +43,7 @@ func NewPipeline(
 		stateManager:      sm,
 		rewardsCalculator: rc,
 		BlockStore:        bs,
+		globalConfig:      gc,
 	}
 }
 
@@ -212,15 +216,24 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 
 			// nolint:all
 			if strings.ToLower(root) != strings.ToLower(rs.Root) {
-				p.Logger.Sugar().Errorw("Roots do not match",
+				if !p.globalConfig.CanIgnoreIncorrectRewardsRoot(blockNumber) {
+					p.Logger.Sugar().Errorw("Roots do not match",
+						zap.String("snapshotDate", snapshotDate),
+						zap.Uint64("blockNumber", blockNumber),
+						zap.String("expectedRoot", rs.Root),
+						zap.String("actualRoot", root),
+					)
+					return errors.New("roots do not match")
+				}
+				p.Logger.Sugar().Warnw("Roots do not match, but allowed to ignore",
 					zap.String("snapshotDate", snapshotDate),
 					zap.Uint64("blockNumber", blockNumber),
 					zap.String("expectedRoot", rs.Root),
 					zap.String("actualRoot", root),
 				)
-				return errors.New("roots do not match")
+			} else {
+				p.Logger.Sugar().Infow("Roots match", zap.String("snapshotDate", snapshotDate), zap.Uint64("blockNumber", blockNumber))
 			}
-			p.Logger.Sugar().Infow("Roots match", zap.String("snapshotDate", snapshotDate), zap.Uint64("blockNumber", blockNumber))
 		}
 	}
 
