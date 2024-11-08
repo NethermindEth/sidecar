@@ -28,6 +28,7 @@ import (
 	_202411061451_transactionLogsIndex "github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations/202411061451_transactionLogsIndex"
 	_202411061501_stakerSharesReimagined "github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations/202411061501_stakerSharesReimagined"
 	_202411071011_updateOperatorSharesDelta "github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations/202411071011_updateOperatorSharesDelta"
+	_202411081039_operatorRestakedStrategiesConstraint "github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations/202411081039_operatorRestakedStrategiesConstraint"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -80,6 +81,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202411061451_transactionLogsIndex.Migration{},
 		&_202411061501_stakerSharesReimagined.Migration{},
 		&_202411071011_updateOperatorSharesDelta.Migration{},
+		&_202411081039_operatorRestakedStrategiesConstraint.Migration{},
 	}
 
 	for _, migration := range migrations {
