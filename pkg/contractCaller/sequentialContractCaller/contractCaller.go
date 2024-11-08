@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -83,4 +84,61 @@ func getOperatorRestakedStrategies(ctx context.Context, avs string, operator str
 
 func (cc *SequentialContractCaller) GetOperatorRestakedStrategies(ctx context.Context, avs string, operator string, blockNumber uint64) ([]common.Address, error) {
 	return getOperatorRestakedStrategiesRetryable(ctx, avs, operator, blockNumber, cc.EthereumClient, cc.Logger)
+}
+
+func (cc *SequentialContractCaller) getOperatorRestakedStrategiesBatch(ctx context.Context, operatorRestakedStrategies []*contractCaller.OperatorRestakedStrategy, blockNumber uint64) ([]*contractCaller.OperatorRestakedStrategy, error) {
+	var wg sync.WaitGroup
+
+	for _, operatorRestakedStrategy := range operatorRestakedStrategies {
+		wg.Add(1)
+		go func(ors *contractCaller.OperatorRestakedStrategy) {
+			defer wg.Done()
+			results, err := getOperatorRestakedStrategiesRetryable(ctx, ors.Avs, ors.Operator, blockNumber, cc.EthereumClient, cc.Logger)
+			if err != nil {
+				cc.Logger.Sugar().Errorw("getOperatorRestakedStrategiesBatch - failed to get results",
+					zap.String("avs", ors.Avs),
+					zap.String("operator", ors.Operator),
+					zap.Uint64("blockNumber", blockNumber),
+					zap.Error(err),
+				)
+				return
+			}
+			ors.Results = results
+		}(operatorRestakedStrategy)
+	}
+	wg.Wait()
+	return operatorRestakedStrategies, nil
+}
+
+const BATCH_SIZE = 25
+
+func (cc *SequentialContractCaller) GetAllOperatorRestakedStrategies(ctx context.Context, operatorRestakedStrategies []*contractCaller.OperatorRestakedStrategy, blockNumber uint64) ([]*contractCaller.OperatorRestakedStrategy, error) {
+	batches := make([][]*contractCaller.OperatorRestakedStrategy, 0)
+	currentIndex := 0
+	for {
+		endIndex := currentIndex + BATCH_SIZE
+		if endIndex >= len(operatorRestakedStrategies) {
+			endIndex = len(operatorRestakedStrategies)
+		}
+		batches = append(batches, operatorRestakedStrategies[currentIndex:endIndex])
+		currentIndex = currentIndex + BATCH_SIZE
+		if currentIndex >= len(operatorRestakedStrategies) {
+			break
+		}
+	}
+	cc.Logger.Sugar().Infow("GetAllOperatorRestakedStrategies - batches",
+		zap.Int("batches", len(batches)),
+		zap.Int("total", len(operatorRestakedStrategies)),
+		zap.Uint64("blockNumber", blockNumber),
+	)
+
+	allResults := make([]*contractCaller.OperatorRestakedStrategy, 0)
+	for _, batch := range batches {
+		results, err := cc.getOperatorRestakedStrategiesBatch(ctx, batch, blockNumber)
+		if err != nil {
+			return nil, err
+		}
+		allResults = append(allResults, results...)
+	}
+	return allResults, nil
 }

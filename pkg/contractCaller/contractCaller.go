@@ -13,5 +13,5 @@ type OperatorRestakedStrategy struct {
 
 type IContractCaller interface {
 	GetOperatorRestakedStrategies(ctx context.Context, avs string, operator string, blockNumber uint64) ([]common.Address, error)
-	GetOperatorRestakedStrategiesMulticall(ctx context.Context, operatorRestakedStrategies []*OperatorRestakedStrategy, blockNumber uint64) ([]*OperatorRestakedStrategy, error)
+	GetAllOperatorRestakedStrategies(ctx context.Context, operatorRestakedStrategies []*OperatorRestakedStrategy, blockNumber uint64) ([]*OperatorRestakedStrategy, error)
 }

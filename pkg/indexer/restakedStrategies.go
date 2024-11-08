@@ -33,7 +33,7 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlock(ctx context.Context, block
 	}
 
 	for _, avsDirectoryAddress := range addresses {
-		if err := idx.ProcessRestakedStrategiesForBlockAndAvsDirectoryMulticall(ctx, block, avsDirectoryAddress); err != nil {
+		if err := idx.ProcessRestakedStrategiesForBlockAndAvsDirectory(ctx, block, avsDirectoryAddress); err != nil {
 			idx.Logger.Sugar().Errorw("Failed to process restaked strategies", zap.Error(err))
 			return err
 		}
@@ -41,7 +41,7 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlock(ctx context.Context, block
 	return nil
 }
 
-func (idx *Indexer) ProcessRestakedStrategiesForBlockAndAvsDirectoryMulticall(ctx context.Context, block *storage.Block, avsDirectoryAddress string) error {
+func (idx *Indexer) ProcessRestakedStrategiesForBlockAndAvsDirectory(ctx context.Context, block *storage.Block, avsDirectoryAddress string) error {
 	idx.Logger.Sugar().Infow("Using avs directory address", zap.String("avsDirectoryAddress", avsDirectoryAddress))
 
 	blockNumber := block.Number
@@ -54,10 +54,10 @@ func (idx *Indexer) ProcessRestakedStrategiesForBlockAndAvsDirectoryMulticall(ct
 
 	idx.Logger.Sugar().Infow(fmt.Sprintf("Found %d active AVS operators", len(avsOperators)))
 
-	return idx.getAndInsertRestakedStrategiesWithMulticall(ctx, avsOperators, avsDirectoryAddress, block)
+	return idx.getAndInsertRestakedStrategies(ctx, avsOperators, avsDirectoryAddress, block)
 }
 
-func (idx *Indexer) getAndInsertRestakedStrategiesWithMulticall(
+func (idx *Indexer) getAndInsertRestakedStrategies(
 	ctx context.Context,
 	avsOperators []*storage.ActiveAvsOperator,
 	avsDirectoryAddress string,
@@ -75,7 +75,7 @@ func (idx *Indexer) getAndInsertRestakedStrategiesWithMulticall(
 		})
 	}
 
-	results, err := idx.ContractCaller.GetOperatorRestakedStrategiesMulticall(ctx, pairs, blockNumber)
+	results, err := idx.ContractCaller.GetAllOperatorRestakedStrategies(ctx, pairs, blockNumber)
 	if err != nil {
 		idx.Logger.Sugar().Errorw("Failed to get operator restaked strategies",
 			zap.Error(err),

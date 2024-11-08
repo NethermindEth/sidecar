@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
-	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller/multicallContractCaller"
+	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller/sequentialContractCaller"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
@@ -104,7 +104,7 @@ var runCmd = &cobra.Command{
 
 		fetchr := fetcher.NewFetcher(client, cfg, l)
 
-		cc := multicallContractCaller.NewMulticallContractCaller(client, l)
+		cc := sequentialContractCaller.NewSequentialContractCaller(client, l)
 
 		idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, l, cfg)
 

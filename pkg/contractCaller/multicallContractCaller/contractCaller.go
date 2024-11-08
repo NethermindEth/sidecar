@@ -60,7 +60,7 @@ func (cc *MulticallContractCaller) GetOperatorRestakedStrategies(ctx context.Con
 	return getOperatorRestakedStrategies(ctx, avs, operator, blockNumber, cc.EthereumClient, cc.Logger)
 }
 
-func (cc *MulticallContractCaller) GetOperatorRestakedStrategiesMulticall(
+func (cc *MulticallContractCaller) GetAllOperatorRestakedStrategies(
 	ctx context.Context,
 	operatorRestakedStrategies []*contractCaller.OperatorRestakedStrategy,
 	blockNumber uint64,
