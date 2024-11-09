@@ -249,5 +249,5 @@ func (a *AvsOperatorsModel) sortValuesForMerkleTree(diffs []*AvsOperatorStateCha
 }
 
 func (a *AvsOperatorsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return a.BaseEigenState.DeleteState("registered_avs_operators", startBlockNumber, endBlockNumber, a.DB)
+	return a.BaseEigenState.DeleteState("avs_operator_state_changes", startBlockNumber, endBlockNumber, a.DB)
 }

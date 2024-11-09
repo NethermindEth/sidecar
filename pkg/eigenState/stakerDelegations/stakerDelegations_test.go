@@ -55,114 +55,6 @@ func Test_DelegatedStakersState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, model)
 	})
-	t.Run("Should register StakerDelegationsModel", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(200)
-		block := &storage.Block{
-			Number:    blockNumber,
-			Hash:      "",
-			BlockTime: time.Unix(1726063248, 0),
-		}
-		res := grm.Model(&storage.Block{}).Create(&block)
-		assert.Nil(t, res.Error)
-
-		log := storage.TransactionLog{
-			TransactionHash:  "some hash",
-			TransactionIndex: 100,
-			BlockNumber:      blockNumber,
-			Address:          cfg.GetContractsMapForChain().DelegationManager,
-			Arguments:        `[{"Name":"staker","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true},{"Name":"operator","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true}]`,
-			EventName:        "StakerDelegated",
-			LogIndex:         400,
-			OutputData:       `{}`,
-			CreatedAt:        time.Time{},
-			UpdatedAt:        time.Time{},
-			DeletedAt:        time.Time{},
-		}
-
-		model, err := NewStakerDelegationsModel(esm, grm, l, cfg)
-		assert.Nil(t, err)
-
-		assert.Equal(t, true, model.IsInterestingLog(&log))
-
-		err = model.SetupStateForBlock(blockNumber)
-		assert.Nil(t, err)
-
-		result, err := model.HandleStateChange(&log)
-		assert.Nil(t, err)
-		assert.NotNil(t, res)
-
-		typedChange := result.(*AccumulatedStateChange)
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Staker)
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Operator)
-
-		t.Cleanup(func() {
-			teardown(model)
-		})
-	})
-	t.Run("Should register StakerDelegationsModel and generate the table for the block", func(t *testing.T) {
-		esm := stateManager.NewEigenStateManager(l, grm)
-		blockNumber := uint64(201)
-		block := &storage.Block{
-			Number:    blockNumber,
-			Hash:      "",
-			BlockTime: time.Unix(1726063248, 0),
-		}
-		res := grm.Model(&storage.Block{}).Create(&block)
-		assert.Nil(t, res.Error)
-
-		log := storage.TransactionLog{
-			TransactionHash:  "some hash",
-			TransactionIndex: 100,
-			BlockNumber:      blockNumber,
-			Address:          cfg.GetContractsMapForChain().DelegationManager,
-			Arguments:        `[{"Name":"staker","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true},{"Name":"operator","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true}]`,
-			EventName:        "StakerDelegated",
-			LogIndex:         400,
-			OutputData:       `{}`,
-			CreatedAt:        time.Time{},
-			UpdatedAt:        time.Time{},
-			DeletedAt:        time.Time{},
-		}
-
-		model, err := NewStakerDelegationsModel(esm, grm, l, cfg)
-		assert.Nil(t, err)
-
-		assert.Equal(t, true, model.IsInterestingLog(&log))
-
-		err = model.SetupStateForBlock(blockNumber)
-		assert.Nil(t, err)
-
-		stateChange, err := model.HandleStateChange(&log)
-		assert.Nil(t, err)
-		assert.NotNil(t, stateChange)
-
-		typedChange := stateChange.(*AccumulatedStateChange)
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Staker)
-		assert.Equal(t, "0xbde83df53bc7d159700e966ad5d21e8b7c619459", typedChange.Operator)
-
-		err = model.CommitFinalState(blockNumber)
-		assert.Nil(t, err)
-
-		states := []StakerDelegationChange{}
-		statesRes := model.DB.
-			Model(&StakerDelegationChange{}).
-			Raw("select * from staker_delegation_changes where block_number = @blockNumber", sql.Named("blockNumber", blockNumber)).
-			Scan(&states)
-
-		if statesRes.Error != nil {
-			t.Fatalf("Failed to fetch delegated_stakers: %v", statesRes.Error)
-		}
-		assert.Equal(t, 1, len(states))
-
-		stateRoot, err := model.GenerateStateRoot(blockNumber)
-		assert.Nil(t, err)
-		assert.True(t, len(stateRoot) > 0)
-
-		t.Cleanup(func() {
-			teardown(model)
-		})
-	})
 	t.Run("Should correctly generate state across multiple blocks", func(t *testing.T) {
 		esm := stateManager.NewEigenStateManager(l, grm)
 		blocks := []uint64{
@@ -201,7 +93,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 				Address:          cfg.GetContractsMapForChain().DelegationManager,
 				Arguments:        `[{"Name":"staker","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true},{"Name":"operator","Type":"address","Value":"0xbde83df53bc7d159700e966ad5d21e8b7c619459","Indexed":true}]`,
 				EventName:        "StakerUndelegated",
-				LogIndex:         400,
+				LogIndex:         401,
 				OutputData:       `{}`,
 				CreatedAt:        time.Time{},
 				UpdatedAt:        time.Time{},
@@ -227,7 +119,6 @@ func Test_DelegatedStakersState(t *testing.T) {
 
 			states := []StakerDelegationChange{}
 			statesRes := model.DB.
-				Model(&StakerDelegationChange{}).
 				Raw("select * from staker_delegation_changes where block_number = @blockNumber", sql.Named("blockNumber", log.BlockNumber)).
 				Scan(&states)
 
@@ -235,24 +126,20 @@ func Test_DelegatedStakersState(t *testing.T) {
 				t.Fatalf("Failed to fetch delegated_stakers: %v", statesRes.Error)
 			}
 
-			if log.BlockNumber == blocks[0] {
-				assert.Equal(t, 1, len(states))
-				inserts, deletes, err := model.prepareState(log.BlockNumber)
-				assert.Nil(t, err)
-				assert.Equal(t, 1, len(inserts))
-				assert.Equal(t, 0, len(deletes))
-			} else if log.BlockNumber == blocks[1] {
-				assert.Equal(t, 1, len(states))
-				inserts, deletes, err := model.prepareState(log.BlockNumber)
-				assert.Nil(t, err)
-				assert.Equal(t, 0, len(inserts))
-				assert.Equal(t, 1, len(deletes))
-			}
+			assert.Equal(t, 1, len(states))
+			deltas, err := model.prepareState(log.BlockNumber)
+			assert.Nil(t, err)
+			assert.Equal(t, 1, len(deltas))
 
 			stateRoot, err := model.GenerateStateRoot(log.BlockNumber)
 			assert.Nil(t, err)
 			assert.True(t, len(stateRoot) > 0)
 		}
+
+		var count int
+		res := grm.Raw("select count(*) from staker_delegation_changes").Scan(&count)
+		assert.Nil(t, res.Error)
+		assert.Equal(t, 2, count)
 
 		t.Cleanup(func() {
 			teardown(model)

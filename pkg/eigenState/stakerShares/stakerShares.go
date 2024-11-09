@@ -604,5 +604,5 @@ func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerShareDeltas)
 }
 
 func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return ss.BaseEigenState.DeleteState("staker_shares", startBlockNumber, endBlockNumber, ss.DB)
+	return ss.BaseEigenState.DeleteState("staker_share_deltas", startBlockNumber, endBlockNumber, ss.DB)
 }
