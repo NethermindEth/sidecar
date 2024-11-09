@@ -24,6 +24,8 @@ func setup() (
 	error,
 ) {
 	cfg := config.NewConfig()
+	cfg.Chain = config.Chain_Mainnet
+	cfg.Debug = false
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})

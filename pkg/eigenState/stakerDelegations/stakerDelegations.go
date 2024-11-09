@@ -186,7 +186,6 @@ func (s *StakerDelegationsModel) writeDeltaRecords(blockNumber uint64) error {
 		s.logger.Sugar().Errorw(msg, zap.Uint64("blockNumber", blockNumber))
 		return errors.New(msg)
 	}
-	fmt.Printf("Records %+v\n", records)
 	if len(records) > 0 {
 		res := s.DB.Model(&StakerDelegationChange{}).Clauses(clause.Returning{}).Create(&records)
 		if res.Error != nil {
