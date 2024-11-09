@@ -307,7 +307,7 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 
 const batchSize = 500
 
-func (c *Client) BatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
+func (c *Client) ChunkedNativeBatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
 	batches := [][]*RPCRequest{}
 
 	currentIndex := 0
@@ -345,6 +345,85 @@ func (c *Client) BatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 	wg.Wait()
 	c.Logger.Sugar().Debugw(fmt.Sprintf("Received '%d' results", len(results)))
 	return results, nil
+}
+
+const CHUNKED_BATCH_SIZE = 25
+
+type IndexedRpcRequestResponse struct {
+	Index    int
+	Request  *RPCRequest
+	Response *RPCResponse
+}
+
+// ChunkedBatchCall splits the requests into chunks of CHUNKED_BATCH_SIZE and sends them in parallel
+// by calling the regular client.call method rather than relying on the batch call method.
+//
+// This function allows for better retry and error handling over the batch call method.
+func (c *Client) ChunkedBatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
+	batches := [][]*IndexedRpcRequestResponse{}
+
+	orderedRequestResponses := make([]*IndexedRpcRequestResponse, 0)
+	for i, req := range requests {
+		orderedRequestResponses = append(orderedRequestResponses, &IndexedRpcRequestResponse{
+			Index:   i,
+			Request: req,
+		})
+	}
+
+	currentIndex := 0
+	for {
+		endIndex := currentIndex + CHUNKED_BATCH_SIZE
+		if endIndex >= len(orderedRequestResponses) {
+			endIndex = len(orderedRequestResponses)
+		}
+		batches = append(batches, orderedRequestResponses[currentIndex:endIndex])
+		currentIndex = currentIndex + CHUNKED_BATCH_SIZE
+		if currentIndex >= len(orderedRequestResponses) {
+			break
+		}
+	}
+	c.Logger.Sugar().Debugw(fmt.Sprintf("Batching '%v' requests into '%v' batches", len(requests), len(batches)))
+
+	// iterate over batches
+	for i, batch := range batches {
+
+		// create waitGroup for the batch
+		wg := sync.WaitGroup{}
+
+		c.Logger.Sugar().Debugw(fmt.Sprintf("[batch %d] Fetching batch", i),
+			zap.Int("batchRequests", len(batch)),
+		)
+
+		// iterate over requests in the current batch
+		for j, req := range batch {
+			wg.Add(1)
+
+			go func(b *IndexedRpcRequestResponse) {
+				defer wg.Done()
+
+				res, err := c.Call(ctx, req.Request)
+				if err != nil {
+					c.Logger.Sugar().Errorw(fmt.Sprintf("[%d][%d]failed to batch call", i, j),
+						zap.Error(err),
+						zap.Any("request", req.Request),
+					)
+					return
+				}
+				b.Response = res
+			}(req)
+		}
+		wg.Wait()
+	}
+
+	allResults := []*RPCResponse{}
+	for _, req := range orderedRequestResponses {
+		allResults = append(allResults, req.Response)
+	}
+
+	if len(allResults) != len(requests) {
+		return nil, xerrors.Errorf("Failed to fetch results for all requests. Expected %d, got %d", len(requests), len(allResults))
+	}
+	return allResults, nil
 }
 
 func (c *Client) call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse, error) {
