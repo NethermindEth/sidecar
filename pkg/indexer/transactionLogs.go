@@ -124,7 +124,11 @@ func (idx *Indexer) ParseTransactionLogs(
 					} else {
 						callMap := map[string]interface{}{}
 						if err := method.Inputs.UnpackIntoMap(callMap, decodedData); err != nil {
-							idx.Logger.Sugar().Errorw("Failed to unpack data")
+							idx.Logger.Sugar().Errorw("Failed to unpack data",
+								zap.Error(err),
+								zap.String("transactionHash", transaction.Hash.Value()),
+								zap.Uint64("blockNumber", transaction.BlockNumber.Value()),
+							)
 						}
 						callMapBytes, err := json.Marshal(callMap)
 						if err != nil {
@@ -283,7 +287,13 @@ func (idx *Indexer) DecodeLog(a *abi.ABI, lg *ethereum.EthereumEventLog) (*parse
 		outputDataMap := make(map[string]interface{})
 		err = a.UnpackIntoMap(outputDataMap, event.Name, byteData)
 		if err != nil {
-			idx.Logger.Sugar().Errorw("Failed to unpack data: ", err)
+			idx.Logger.Sugar().Errorw("Failed to unpack data: ",
+				zap.Error(err),
+				zap.String("hash", lg.TransactionHash.Value()),
+				zap.String("address", lg.Address.Value()),
+				zap.String("eventName", event.Name),
+				zap.String("transactionHash", lg.TransactionHash.Value()),
+			)
 		}
 
 		decodedLog.OutputData = outputDataMap
