@@ -103,9 +103,16 @@ func (f *Fetcher) IsInterestingAddress(contractAddress string) bool {
 func (f *Fetcher) FetchBlocksWithRetries(ctx context.Context, startBlockInclusive uint64, endBlockInclusive uint64) ([]*FetchedBlock, error) {
 	retries := []int{1, 2, 4, 8, 16, 32, 64}
 	var e error
-	for _, r := range retries {
+	for i, r := range retries {
 		fetchedBlocks, err := f.FetchBlocks(ctx, startBlockInclusive, endBlockInclusive)
 		if err == nil {
+			if i > 0 {
+				f.Logger.Sugar().Infow("successfully fetched blocks for range after retries",
+					zap.Uint64("startBlock", startBlockInclusive),
+					zap.Uint64("endBlock", endBlockInclusive),
+					zap.Int("retries", i),
+				)
+			}
 			return fetchedBlocks, nil
 		}
 		e = err
