@@ -355,6 +355,11 @@ type IndexedRpcRequestResponse struct {
 	Response *RPCResponse
 }
 
+type BatchedResponse struct {
+	Index    int
+	Response *RPCResponse
+}
+
 // ChunkedBatchCall splits the requests into chunks of CHUNKED_BATCH_SIZE and sends them in parallel
 // by calling the regular client.call method rather than relying on the batch call method.
 //
@@ -362,6 +367,7 @@ type IndexedRpcRequestResponse struct {
 func (c *Client) ChunkedBatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
 	batches := [][]*IndexedRpcRequestResponse{}
 
+	// all requests in a flat list with their index stored
 	orderedRequestResponses := make([]*IndexedRpcRequestResponse, 0)
 	for i, req := range requests {
 		orderedRequestResponses = append(orderedRequestResponses, &IndexedRpcRequestResponse{
@@ -386,22 +392,28 @@ func (c *Client) ChunkedBatchCall(ctx context.Context, requests []*RPCRequest) (
 
 	// iterate over batches
 	for i, batch := range batches {
+		var wg sync.WaitGroup
 
-		// create waitGroup for the batch
-		wg := sync.WaitGroup{}
+		responses := make(chan BatchedResponse, len(batch))
 
 		c.Logger.Sugar().Debugw(fmt.Sprintf("[batch %d] Fetching batch", i),
 			zap.Int("batchRequests", len(batch)),
 		)
 
-		// iterate over requests in the current batch
+		// Iterate over requests in the current batch.
+		// For each batch, create a waitgroup for the go routines and a channel
+		// to capture the responses. Once all are complete, we can safely iterate
+		// over the responses and update the origin batch with the responses.
 		for j, req := range batch {
 			wg.Add(1)
 
-			go func(b *IndexedRpcRequestResponse) {
+			// capture loop variable to local scope
+			currentReq := req
+
+			go func() {
 				defer wg.Done()
 
-				res, err := c.Call(ctx, req.Request)
+				res, err := c.Call(ctx, currentReq.Request)
 				if err != nil {
 					c.Logger.Sugar().Errorw(fmt.Sprintf("[%d][%d]failed to batch call", i, j),
 						zap.Error(err),
@@ -409,10 +421,19 @@ func (c *Client) ChunkedBatchCall(ctx context.Context, requests []*RPCRequest) (
 					)
 					return
 				}
-				b.Response = res
-			}(req)
+				responses <- BatchedResponse{
+					Index:    currentReq.Index,
+					Response: res,
+				}
+			}()
 		}
 		wg.Wait()
+		close(responses)
+
+		// now we can safely iterate over the responses channel and update the batch
+		for response := range responses {
+			orderedRequestResponses[response.Index].Response = response.Response
+		}
 	}
 
 	allResults := []*RPCResponse{}
