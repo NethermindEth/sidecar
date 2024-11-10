@@ -107,7 +107,7 @@ func (cc *SequentialContractCaller) getOperatorRestakedStrategiesBatch(ctx conte
 				return
 			}
 			currentReq.Results = results
-			
+
 			// send back a pointer to the copied struct
 			responses <- &currentReq
 		}()
@@ -125,6 +125,11 @@ func (cc *SequentialContractCaller) getOperatorRestakedStrategiesBatch(ctx conte
 const BATCH_SIZE = 25
 
 func (cc *SequentialContractCaller) GetAllOperatorRestakedStrategies(ctx context.Context, operatorRestakedStrategies []*contractCaller.OperatorRestakedStrategy, blockNumber uint64) ([]*contractCaller.OperatorRestakedStrategy, error) {
+	cc.Logger.Sugar().Infow("SequentialContractCaller.GetAllOperatorRestakedStrategies",
+		zap.Int("total", len(operatorRestakedStrategies)),
+		zap.Uint64("blockNumber", blockNumber),
+	)
+
 	batches := make([][]*contractCaller.OperatorRestakedStrategy, 0)
 	currentIndex := 0
 	for {

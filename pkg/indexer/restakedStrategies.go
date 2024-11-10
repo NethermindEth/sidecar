@@ -85,6 +85,10 @@ func (idx *Indexer) getAndInsertRestakedStrategies(
 		return err
 	}
 
+	idx.Logger.Sugar().Infow("Got operator restaked strategies",
+		zap.Int("count", len(results)),
+		zap.Uint64("blockNumber", blockNumber),
+	)
 	for _, result := range results {
 		avs := result.Avs
 		operator := result.Operator
@@ -102,7 +106,7 @@ func (idx *Indexer) getAndInsertRestakedStrategies(
 				)
 				return err
 			} else if err == nil {
-				idx.Logger.Sugar().Debugw("Inserted restaked strategy",
+				idx.Logger.Sugar().Infow("Inserted restaked strategy",
 					zap.String("restakedStrategy", restakedStrategy.String()),
 					zap.String("operator", operator),
 					zap.String("avs", avs),
