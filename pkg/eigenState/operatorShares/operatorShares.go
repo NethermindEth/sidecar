@@ -304,5 +304,5 @@ func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []*OperatorShareDe
 }
 
 func (osm *OperatorSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return osm.BaseEigenState.DeleteState("operator_shares", startBlockNumber, endBlockNumber, osm.DB)
+	return osm.BaseEigenState.DeleteState("operator_share_deltas", startBlockNumber, endBlockNumber, osm.DB)
 }

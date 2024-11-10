@@ -251,6 +251,16 @@ func GetOperatorSharesTransactionLogsSqlFile(projectBase string) (string, error)
 	return getSqlFile(path)
 }
 
+func GetAvsOperatorsTransactionLogsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/avsOperators/avsOperatorRegistrationTransactionLogs.sql")
+	return getSqlFile(path)
+}
+
+func GetStakerDelegationsTransactionLogsSqlFile(projectBase string) (string, error) {
+	path := getTestdataPathFromProjectRoot(projectBase, "/stakerDelegations/stakerDelegationsTransactionLogs.sql")
+	return getSqlFile(path)
+}
+
 func LargeTestsEnabled() bool {
 	return os.Getenv("TEST_REWARDS") == "true" || os.Getenv("TEST_LARGE") == "true"
 }
