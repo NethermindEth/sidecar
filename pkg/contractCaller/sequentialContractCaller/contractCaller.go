@@ -88,26 +88,38 @@ func (cc *SequentialContractCaller) GetOperatorRestakedStrategies(ctx context.Co
 
 func (cc *SequentialContractCaller) getOperatorRestakedStrategiesBatch(ctx context.Context, operatorRestakedStrategies []*contractCaller.OperatorRestakedStrategy, blockNumber uint64) ([]*contractCaller.OperatorRestakedStrategy, error) {
 	var wg sync.WaitGroup
+	responses := make(chan *contractCaller.OperatorRestakedStrategy, len(operatorRestakedStrategies))
 
 	for _, operatorRestakedStrategy := range operatorRestakedStrategies {
 		wg.Add(1)
-		go func(ors *contractCaller.OperatorRestakedStrategy) {
+		// make a local copy of the entire struct
+		currentReq := *operatorRestakedStrategy
+		go func() {
 			defer wg.Done()
-			results, err := getOperatorRestakedStrategiesRetryable(ctx, ors.Avs, ors.Operator, blockNumber, cc.EthereumClient, cc.Logger)
+			results, err := getOperatorRestakedStrategiesRetryable(ctx, currentReq.Avs, currentReq.Operator, blockNumber, cc.EthereumClient, cc.Logger)
 			if err != nil {
 				cc.Logger.Sugar().Errorw("getOperatorRestakedStrategiesBatch - failed to get results",
-					zap.String("avs", ors.Avs),
-					zap.String("operator", ors.Operator),
+					zap.String("avs", currentReq.Avs),
+					zap.String("operator", currentReq.Operator),
 					zap.Uint64("blockNumber", blockNumber),
 					zap.Error(err),
 				)
 				return
 			}
-			ors.Results = results
-		}(operatorRestakedStrategy)
+			currentReq.Results = results
+			
+			// send back a pointer to the copied struct
+			responses <- &currentReq
+		}()
 	}
 	wg.Wait()
-	return operatorRestakedStrategies, nil
+	close(responses)
+
+	allResponses := make([]*contractCaller.OperatorRestakedStrategy, 0)
+	for response := range responses {
+		allResponses = append(allResponses, response)
+	}
+	return allResponses, nil
 }
 
 const BATCH_SIZE = 25
