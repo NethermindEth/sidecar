@@ -93,8 +93,8 @@ func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[AvsOpe
 			return nil, xerrors.Errorf("No state accumulator found for block %d", log.BlockNumber)
 		}
 
-		avs := strings.ToLower(arguments[0].Value.(string))
-		operator := strings.ToLower(arguments[1].Value.(string))
+		operator := strings.ToLower(arguments[0].Value.(string))
+		avs := strings.ToLower(arguments[1].Value.(string))
 
 		registered := false
 		if val, ok := outputData["status"]; ok {
