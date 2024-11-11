@@ -45,11 +45,12 @@ func setup() (
 	string,
 ) {
 	const (
-		rpcUrl    = "http://54.198.82.217:8545"
+		rpcUrl    = "https://tame-fabled-liquid.quiknode.pro/f27d4be93b4d7de3679f5c5ae881233f857407a0/"
 		statsdUrl = "localhost:8125"
 	)
 
 	cfg := config.NewConfig()
+	cfg.Chain = config.Chain_Mainnet
 	cfg.EthereumRpcConfig.BaseUrl = rpcUrl
 	cfg.StatsdUrl = statsdUrl
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
@@ -110,7 +111,7 @@ func setup() (
 
 }
 
-func Test_Pipeline_Integration(t *testing.T) {
+func Test_PipelineIntegration(t *testing.T) {
 	fetchr, idxr, mds, sm, rc, cfg, l, grm, dbName := setup()
 	t.Run("Should create a new Pipeline", func(t *testing.T) {
 		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
@@ -118,23 +119,27 @@ func Test_Pipeline_Integration(t *testing.T) {
 	})
 
 	t.Run("Should index a block, transaction with logs", func(t *testing.T) {
-		blockNumber := uint64(1175560)
-		transactionHash := "0x78cc56f0700e7ba5055f124243e6591fc1199cf3c75a17d50f8ea438254c9a76"
-		logIndex := uint64(14)
-
-		fmt.Printf("transactionHash: %s %d\n", transactionHash, logIndex)
+		blockNumber := uint64(20386320)
 
 		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
 
-		err := p.RunForBlock(context.Background(), blockNumber)
+		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1)
 		assert.Nil(t, err)
 
-		query := `select * from staker_delegation_changes where block_number = @blockNumber`
-		delegatedStakers := make([]stakerDelegations.StakerDelegationChange, 0)
-		res := grm.Raw(query, sql.Named("blockNumber", blockNumber)).Scan(&delegatedStakers)
+		query := `select * from avs_operator_state_changes where block_number = @blockNumber`
+		avsOperatorChanges := make([]avsOperators.AvsOperatorStateChange, 0)
+		res := grm.Raw(query, sql.Named("blockNumber", blockNumber)).Scan(&avsOperatorChanges)
 		assert.Nil(t, res.Error)
 
-		assert.Equal(t, 1, len(delegatedStakers))
+		for _, change := range avsOperatorChanges {
+			fmt.Printf("Change: %+v\n", change)
+		}
+
+		assert.Equal(t, 1, len(avsOperatorChanges))
+		assert.Equal(t, "0xf6ad76de4c80c056a51fcb457942df40a6d99f76", avsOperatorChanges[0].Operator)
+		assert.Equal(t, "0xe7d0894ac9266f5cbe8f8e750ac6cbe128fbbeb7", avsOperatorChanges[0].Avs)
+		assert.Equal(t, uint64(128), avsOperatorChanges[0].LogIndex)
+		assert.Equal(t, blockNumber, avsOperatorChanges[0].BlockNumber)
 	})
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbName, cfg, grm, l)

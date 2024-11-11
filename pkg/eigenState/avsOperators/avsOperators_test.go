@@ -139,12 +139,29 @@ func Test_AvsOperatorState(t *testing.T) {
 			assert.Nil(t, err)
 			assert.True(t, len(stateRoot) > 0)
 		}
+		type expectedValue struct {
+			operator string
+			avs      string
+		}
+
+		expectedValues := []expectedValue{
+			{
+				operator: "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e",
+				avs:      "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0",
+			}, {
+				operator: "0xdf25bdcdcdd9a3dd8c9069306c4dba8d90dd8e8e",
+				avs:      "0x870679e138bcdf293b7ff14dd44b70fc97e12fc0",
+			},
+		}
 
 		inserted, err := getInsertedDeltaRecords(avsOperatorState)
 		assert.Nil(t, err)
 		for i, log := range logs {
 			fmt.Printf("{%d} log: %v\n", i, log)
+			assert.Equal(t, expectedValues[i].operator, inserted[i].Operator)
+			assert.Equal(t, expectedValues[i].avs, inserted[i].Avs)
 		}
+
 		assert.Equal(t, len(logs), len(inserted))
 	})
 	t.Cleanup(func() {
