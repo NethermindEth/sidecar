@@ -106,7 +106,7 @@ func (idx *Indexer) getAndInsertRestakedStrategies(
 				)
 				return err
 			} else if err == nil {
-				idx.Logger.Sugar().Infow("Inserted restaked strategy",
+				idx.Logger.Sugar().Debugw("Inserted restaked strategy",
 					zap.String("restakedStrategy", restakedStrategy.String()),
 					zap.String("operator", operator),
 					zap.String("avs", avs),
