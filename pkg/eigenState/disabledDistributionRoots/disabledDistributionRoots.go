@@ -57,10 +57,6 @@ func (ddr *DisabledDistributionRootsModel) GetModelName() string {
 	return MODEL_NAME
 }
 
-type distributionRootSubmittedOutput struct {
-	ActivatedAt uint64 `json:"activatedAt"`
-}
-
 func (ddr *DisabledDistributionRootsModel) GetStateTransitions() (types.StateTransitions[types.DisabledDistributionRoot], []uint64) {
 	stateChanges := make(types.StateTransitions[types.DisabledDistributionRoot])
 
