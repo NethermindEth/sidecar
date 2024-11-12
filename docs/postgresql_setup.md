@@ -60,4 +60,7 @@ maintenance_work_mem = 1GB # 5% of RAM, max 2GB
 max_wal_size = 16GB
 min_wal_size = 4GB
 random_page_cost = 1.1 # for SSDs, otherwise leave it as the default value
+
+max_parallel_workers_per_gather = 0
+max_parallel_maintenance_workers = 0
 ```

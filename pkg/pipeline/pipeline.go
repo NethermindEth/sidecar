@@ -177,7 +177,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	distributionRoots, err := p.stateManager.GetSubmittedDistributionRoots(blockNumber)
 	if err == nil && distributionRoots != nil {
 		for _, rs := range distributionRoots {
-
+			rewardStartTime := time.Now()
 			// The RewardsCalculationEnd date is the max(snapshot) from the gold table at the time, NOT the exclusive
 			// cutoff date that was actually used to generate the rewards. To get that proper cutoff date, we need
 			// to add 1 day to the RewardsCalculationEnd date.
@@ -214,6 +214,8 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 			}
 			root := utils.ConvertBytesToString(accountTree.Root())
 
+			rewardsTotalTimeMs := time.Since(rewardStartTime).Milliseconds()
+			
 			// nolint:all
 			if strings.ToLower(root) != strings.ToLower(rs.Root) {
 				if !p.globalConfig.CanIgnoreIncorrectRewardsRoot(blockNumber) {
@@ -222,6 +224,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 						zap.Uint64("blockNumber", blockNumber),
 						zap.String("expectedRoot", rs.Root),
 						zap.String("actualRoot", root),
+						zap.Int64("rewardsTotalTimeMs", rewardsTotalTimeMs),
 					)
 					return errors.New("roots do not match")
 				}
@@ -230,6 +233,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.Uint64("blockNumber", blockNumber),
 					zap.String("expectedRoot", rs.Root),
 					zap.String("actualRoot", root),
+					zap.Int64("rewardsTotalTimeMs", rewardsTotalTimeMs),
 				)
 			} else {
 				p.Logger.Sugar().Infow("Roots match", zap.String("snapshotDate", snapshotDate), zap.Uint64("blockNumber", blockNumber))
