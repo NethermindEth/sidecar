@@ -103,7 +103,7 @@ func setup() (
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 
-	cc := sequentialContractCaller.NewSequentialContractCaller(client, l)
+	cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, l)
 
 	idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 
@@ -123,7 +123,7 @@ func Test_PipelineIntegration(t *testing.T) {
 
 		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
 
-		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1)
+		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)
 
 		query := `select * from avs_operator_state_changes where block_number = @blockNumber`

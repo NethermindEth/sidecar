@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Layr-Labs/eigenlayer-contracts/pkg/bindings/IRewardsCoordinator"
 	"github.com/Layr-Labs/go-sidecar/internal/multicall"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
@@ -222,4 +223,8 @@ func (rcc *ReconciledContractCaller) GetOperatorRestakedStrategies(ctx context.C
 	}
 
 	return allResults[0], nil
+}
+
+func (cc *MulticallContractCaller) GetDistributionRootByIndex(ctx context.Context, index uint64) (*IRewardsCoordinator.IRewardsCoordinatorDistributionRoot, error) {
+	return nil, errors.New("not implemented")
 }

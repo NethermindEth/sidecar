@@ -98,7 +98,7 @@ var runOperatorRestakedStrategiesCmd = &cobra.Command{
 
 		fetchr := fetcher.NewFetcher(client, cfg, l)
 
-		cc := sequentialContractCaller.NewSequentialContractCaller(client, l)
+		cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, l)
 
 		idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 

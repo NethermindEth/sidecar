@@ -4,14 +4,16 @@ go 1.22.2
 
 require (
 	github.com/DataDog/datadog-go/v5 v5.5.0
+	github.com/Layr-Labs/eigenlayer-contracts v1.0.0-devnet-slashing-alpha
+	github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13
 	github.com/Layr-Labs/protocol-apis v0.1.0-beta.1
 	github.com/ethereum/go-ethereum v1.14.9
 	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0
-	github.com/jbrower95/multicall-go v0.0.0-20240923010412-060e37b98d03
 	github.com/lib/pq v1.10.9
+	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.7.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/cobra v1.8.1
@@ -29,7 +31,6 @@ require (
 )
 
 require (
-	github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
@@ -61,11 +62,13 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/rs/zerolog v1.33.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect

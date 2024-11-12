@@ -81,7 +81,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 
 	mccc := multicallContractCaller.NewMulticallContractCaller(client, l)
 
-	scc := sequentialContractCaller.NewSequentialContractCaller(client, l)
+	scc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, l)
 
 	cm := contractManager.NewContractManager(contractStore, client, sdc, l)
 

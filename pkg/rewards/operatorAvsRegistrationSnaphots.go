@@ -32,7 +32,7 @@ marked_statuses AS (
         avs,
         registered,
         block_time,
-        block_date,
+        bloc k_date,
         -- Mark the next action as next_block_time
         LEAD(block_time) OVER (PARTITION BY operator, avs ORDER BY block_time ASC, log_index ASC) AS next_block_time,
         -- The below lead/lag combinations are only used in the next CTE

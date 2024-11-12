@@ -47,7 +47,7 @@ func NewPipeline(
 	}
 }
 
-func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.FetchedBlock) error {
+func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.FetchedBlock, isBackfill bool) error {
 	blockNumber := block.Block.Number.Value()
 
 	totalRunTime := time.Now()
@@ -178,6 +178,27 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	if err == nil && distributionRoots != nil {
 		for _, rs := range distributionRoots {
 			rewardStartTime := time.Now()
+
+			// first check to see if the root was disabled. If it was, it's possible we introduced changes that
+			// would make the root impossible to re-create
+			rewardsRoot, err := p.Indexer.ContractCaller.GetDistributionRootByIndex(ctx, rs.RootIndex)
+			if err != nil {
+				p.Logger.Sugar().Errorw("Failed to get rewards root by index",
+					zap.Uint64("blockNumber", blockNumber),
+					zap.Uint64("rootIndex", rs.RootIndex),
+					zap.Error(err),
+				)
+				return err
+			}
+			if rewardsRoot.Disabled {
+				p.Logger.Sugar().Warnw("Root is disabled, skipping rewards validation",
+					zap.Uint64("blockNumber", blockNumber),
+					zap.Uint64("rootIndex", rs.RootIndex),
+					zap.String("root", rs.Root),
+				)
+				continue
+			}
+
 			// The RewardsCalculationEnd date is the max(snapshot) from the gold table at the time, NOT the exclusive
 			// cutoff date that was actually used to generate the rewards. To get that proper cutoff date, we need
 			// to add 1 day to the RewardsCalculationEnd date.
@@ -215,7 +236,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 			root := utils.ConvertBytesToString(accountTree.Root())
 
 			rewardsTotalTimeMs := time.Since(rewardStartTime).Milliseconds()
-			
+
 			// nolint:all
 			if strings.ToLower(root) != strings.ToLower(rs.Root) {
 				if !p.globalConfig.CanIgnoreIncorrectRewardsRoot(blockNumber) {
@@ -270,7 +291,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	return err
 }
 
-func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
+func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64, isBackfill bool) error {
 	p.Logger.Sugar().Debugw("Running pipeline for block", zap.Uint64("blockNumber", blockNumber))
 
 	blockFetchTime := time.Now()
@@ -284,10 +305,10 @@ func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64) error {
 		zap.Int64("fetchTime", time.Since(blockFetchTime).Milliseconds()),
 	)
 
-	return p.RunForFetchedBlock(ctx, block)
+	return p.RunForFetchedBlock(ctx, block, isBackfill)
 }
 
-func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endBlock uint64) error {
+func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endBlock uint64, isBackfill bool) error {
 	p.Logger.Sugar().Debugw("Running pipeline for block batch",
 		zap.Uint64("startBlock", startBlock),
 		zap.Uint64("endBlock", endBlock),
@@ -305,7 +326,7 @@ func (p *Pipeline) RunForBlockBatch(ctx context.Context, startBlock uint64, endB
 	})
 
 	for _, block := range fetchedBlocks {
-		if err := p.RunForFetchedBlock(ctx, block); err != nil {
+		if err := p.RunForFetchedBlock(ctx, block, isBackfill); err != nil {
 			p.Logger.Sugar().Errorw("Failed to run pipeline for fetched block", zap.Uint64("blockNumber", block.Block.Number.Value()), zap.Error(err))
 			return err
 		}
