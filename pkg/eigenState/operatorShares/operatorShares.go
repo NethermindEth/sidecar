@@ -282,8 +282,17 @@ func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (types.Sta
 
 	inputs := osm.sortValuesForMerkleTree(deltas)
 
+	if len(inputs) == 0 {
+		return "", nil
+	}
+
 	fullTree, err := osm.MerkleizeState(blockNumber, inputs)
 	if err != nil {
+		osm.logger.Sugar().Errorw("Failed to create merkle tree",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+			zap.Any("inputs", inputs),
+		)
 		return "", err
 	}
 	return types.StateRoot(pkgUtils.ConvertBytesToString(fullTree.Root())), nil
@@ -305,9 +314,4 @@ func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []*OperatorShareDe
 
 func (osm *OperatorSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return osm.BaseEigenState.DeleteState("operator_share_deltas", startBlockNumber, endBlockNumber, osm.DB)
-}
-
-// IncludeStateRootForBlock returns true if the state root should be included for the given block number.
-func (osm *OperatorSharesModel) IncludeStateRootForBlock(blockNumber uint64) bool {
-	return true
 }

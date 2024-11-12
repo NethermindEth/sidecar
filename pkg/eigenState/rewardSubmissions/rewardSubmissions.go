@@ -360,8 +360,17 @@ func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.S
 
 	inputs := rs.sortValuesForMerkleTree(combinedResults)
 
+	if len(inputs) == 0 {
+		return "", nil
+	}
+
 	fullTree, err := rs.MerkleizeState(blockNumber, inputs)
 	if err != nil {
+		rs.logger.Sugar().Errorw("Failed to create merkle tree",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+			zap.Any("inputs", inputs),
+		)
 		return "", err
 	}
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
@@ -390,9 +399,4 @@ func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardS
 
 func (rs *RewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return rs.BaseEigenState.DeleteState("reward_submissions", startBlockNumber, endBlockNumber, rs.DB)
-}
-
-// IncludeStateRootForBlock returns true if the state root should be included for the given block number.
-func (rs *RewardSubmissionsModel) IncludeStateRootForBlock(blockNumber uint64) bool {
-	return true
 }

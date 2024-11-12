@@ -208,8 +208,17 @@ func (ddr *DisabledDistributionRootsModel) GenerateStateRoot(blockNumber uint64)
 
 	sortedInputs := ddr.sortValuesForMerkleTree(diffs)
 
+	if len(sortedInputs) == 0 {
+		return "", nil
+	}
+
 	fullTree, err := ddr.MerkleizeState(blockNumber, sortedInputs)
 	if err != nil {
+		ddr.logger.Sugar().Errorw("Failed to create merkle tree",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+			zap.Any("inputs", sortedInputs),
+		)
 		return "", err
 	}
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
@@ -240,13 +249,4 @@ func (ddr *DisabledDistributionRootsModel) GetSubmittedRootsForBlock(blockNumber
 		return nil, res.Error
 	}
 	return records, nil
-}
-
-// IncludeStateRootForBlock returns true if the state root should be included for the given block number.
-func (ddr *DisabledDistributionRootsModel) IncludeStateRootForBlock(blockNumber uint64) bool {
-	switch ddr.globalConfig.Chain {
-	case config.Chain_Mainnet:
-		return blockNumber >= 20893484 // block of the first root that we disabled
-	}
-	return true
 }

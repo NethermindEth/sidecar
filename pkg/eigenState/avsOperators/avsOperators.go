@@ -227,8 +227,17 @@ func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRo
 
 	inputs := a.sortValuesForMerkleTree(deltas)
 
+	if len(inputs) == 0 {
+		return "", nil
+	}
+
 	fullTree, err := a.MerkleizeState(blockNumber, inputs)
 	if err != nil {
+		a.logger.Sugar().Errorw("Failed to create merkle tree",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+			zap.Any("inputs", inputs),
+		)
 		return "", err
 	}
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
@@ -250,9 +259,4 @@ func (a *AvsOperatorsModel) sortValuesForMerkleTree(diffs []*AvsOperatorStateCha
 
 func (a *AvsOperatorsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return a.BaseEigenState.DeleteState("avs_operator_state_changes", startBlockNumber, endBlockNumber, a.DB)
-}
-
-// IncludeStateRootForBlock returns true if the state root should be included for the given block number.
-func (a *AvsOperatorsModel) IncludeStateRootForBlock(blockNumber uint64) bool {
-	return true
 }

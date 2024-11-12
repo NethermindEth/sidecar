@@ -581,8 +581,17 @@ func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateR
 
 	inputs := ss.sortValuesForMerkleTree(deltas)
 
+	if len(inputs) == 0 {
+		return "", nil
+	}
+
 	fullTree, err := ss.MerkleizeState(blockNumber, inputs)
 	if err != nil {
+		ss.logger.Sugar().Errorw("Failed to create merkle tree",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+			zap.Any("inputs", inputs),
+		)
 		return "", err
 	}
 	return types.StateRoot(pkgUtils.ConvertBytesToString(fullTree.Root())), nil
@@ -605,9 +614,4 @@ func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerShareDeltas)
 
 func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return ss.BaseEigenState.DeleteState("staker_share_deltas", startBlockNumber, endBlockNumber, ss.DB)
-}
-
-// IncludeStateRootForBlock returns true if the state root should be included for the given block number.
-func (ss *StakerSharesModel) IncludeStateRootForBlock(blockNumber uint64) bool {
-	return true
 }
