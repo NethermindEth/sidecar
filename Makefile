@@ -23,12 +23,8 @@ deps: deps-system deps/go deps/dev
 clean:
 	rm -rf bin || true
 
-.PHONY: build/version
-build/version:
-	./scripts/generateVersion.sh
-
 .PHONY: build/cmd/sidecar
-build/cmd/sidecar: build/version
+build/cmd/sidecar:
 	$(ALL_FLAGS) $(GO) build \
 		-ldflags "-X 'github.com/Layr-Labs/sidecar/internal/version.Version=$(shell cat .release_version || "unknown")' -X 'github.com/Layr-Labs/sidecar/internal/version.Commit=$(shell git rev-parse --short HEAD)'" \
 		-o bin/sidecar main.go
