@@ -496,12 +496,22 @@ func (c *Client) call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse
 func (c *Client) Call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse, error) {
 	backoffs := []int{1, 3, 5, 10, 20, 30, 60}
 
-	for _, backoff := range backoffs {
+	for i, backoff := range backoffs {
 		res, err := c.call(ctx, rpcRequest)
 		if err == nil {
+			if i > 0 {
+				c.Logger.Sugar().Infow("Successfully called after backoff",
+					zap.Int("backoffSecs", backoff),
+					zap.Any("rpcRequest", rpcRequest),
+				)
+			}
 			return res, nil
 		}
-		c.Logger.Sugar().Errorw("Failed to call", zap.Error(err), zap.Int("backoffSecs", backoff))
+		c.Logger.Sugar().Errorw("Failed to call",
+			zap.Error(err),
+			zap.Int("backoffSecs", backoff),
+			zap.Any("rpcRequest", rpcRequest),
+		)
 		time.Sleep(time.Second * time.Duration(backoff))
 	}
 	c.Logger.Sugar().Errorw("Exceeded retries for Call", zap.Any("rpcRequest", rpcRequest))

@@ -1,3 +1,15 @@
+# EigenLayer Sidecar
+
+The EigenLayer Sidecar is an open source, permissionless, verified indexer enabling anyone (AVS, operator, etc) to access EigenLayer’s protocol rewards in real-time.
+
+A core responsibility of the Sidecar is facilitating the calculations of [rewards](https://docs.eigenlayer.xyz/eigenlayer/rewards-claiming/rewards-claiming-overview) distributed to stakers and operators by AVSs.
+
+**Helpful Links**
+
+* [Rewards overview](https://docs.eigenlayer.xyz/eigenlayer/rewards-claiming/rewards-claiming-overview)
+* [RewardsCoordinator contract technical documentation](https://github.com/Layr-Labs/eigenlayer-contracts/blob/dev/docs/core/RewardsCoordinator.md)
+* [EigenLayer Rewards Calculation Process](https://hackmd.io/u-NHKEvtQ7m7CVDb4_42bA)
+
 # Development
 
 ## Dependencies
