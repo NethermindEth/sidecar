@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/Layr-Labs/go-sidecar/pkg/parser"
+	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"time"
 )
 

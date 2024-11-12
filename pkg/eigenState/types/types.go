@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/Layr-Labs/go-sidecar/pkg/storage"
+	"github.com/Layr-Labs/sidecar/pkg/storage"
 )
 
 type StateRoot string

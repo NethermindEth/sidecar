@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"

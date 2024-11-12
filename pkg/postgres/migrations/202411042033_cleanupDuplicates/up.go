@@ -2,7 +2,7 @@ package _202411042033_cleanupDuplicates
 
 import (
 	"database/sql"
-	"github.com/Layr-Labs/go-sidecar/pkg/postgres/helpers"
+	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
 	"gorm.io/gorm"
 )
 

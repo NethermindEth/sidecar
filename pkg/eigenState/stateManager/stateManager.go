@@ -3,12 +3,12 @@ package stateManager
 import (
 	"errors"
 	"fmt"
-	"github.com/Layr-Labs/go-sidecar/pkg/storage"
-	"github.com/Layr-Labs/go-sidecar/pkg/utils"
+	"github.com/Layr-Labs/sidecar/pkg/storage"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"slices"
 	"time"
 
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/types"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/wealdtech/go-merkletree/v2"
 	"github.com/wealdtech/go-merkletree/v2/keccak256"
 	"go.uber.org/zap"

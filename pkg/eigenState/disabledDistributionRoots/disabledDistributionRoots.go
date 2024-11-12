@@ -2,12 +2,12 @@ package disabledDistributionRoots
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/base"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stateManager"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/types"
-	"github.com/Layr-Labs/go-sidecar/pkg/storage"
-	"github.com/Layr-Labs/go-sidecar/pkg/utils"
+	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/base"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
+	"github.com/Layr-Labs/sidecar/pkg/storage"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
