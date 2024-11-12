@@ -246,7 +246,7 @@ func (ddr *DisabledDistributionRootsModel) GetSubmittedRootsForBlock(blockNumber
 func (ddr *DisabledDistributionRootsModel) IncludeStateRootForBlock(blockNumber uint64) bool {
 	switch ddr.globalConfig.Chain {
 	case config.Chain_Mainnet:
-		return blockNumber >= 20872746 // block of the first root that we disabled
+		return blockNumber >= 20893484 // block of the first root that we disabled
 	}
 	return true
 }
