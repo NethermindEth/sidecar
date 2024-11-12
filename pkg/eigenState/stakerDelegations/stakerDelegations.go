@@ -237,3 +237,8 @@ func (s *StakerDelegationsModel) sortValuesForMerkleTree(diffs []*StakerDelegati
 func (s *StakerDelegationsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return s.BaseEigenState.DeleteState("staker_delegation_changes", startBlockNumber, endBlockNumber, s.DB)
 }
+
+// IncludeStateRootForBlock returns true if the state root should be included for the given block number.
+func (s *StakerDelegationsModel) IncludeStateRootForBlock(blockNumber uint64) bool {
+	return true
+}

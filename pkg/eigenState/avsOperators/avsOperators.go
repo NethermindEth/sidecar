@@ -251,3 +251,8 @@ func (a *AvsOperatorsModel) sortValuesForMerkleTree(diffs []*AvsOperatorStateCha
 func (a *AvsOperatorsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return a.BaseEigenState.DeleteState("avs_operator_state_changes", startBlockNumber, endBlockNumber, a.DB)
 }
+
+// IncludeStateRootForBlock returns true if the state root should be included for the given block number.
+func (a *AvsOperatorsModel) IncludeStateRootForBlock(blockNumber uint64) bool {
+	return true
+}

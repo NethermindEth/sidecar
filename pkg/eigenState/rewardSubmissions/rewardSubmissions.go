@@ -391,3 +391,8 @@ func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardS
 func (rs *RewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return rs.BaseEigenState.DeleteState("reward_submissions", startBlockNumber, endBlockNumber, rs.DB)
 }
+
+// IncludeStateRootForBlock returns true if the state root should be included for the given block number.
+func (rs *RewardSubmissionsModel) IncludeStateRootForBlock(blockNumber uint64) bool {
+	return true
+}

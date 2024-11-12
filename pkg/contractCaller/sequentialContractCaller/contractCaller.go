@@ -2,6 +2,10 @@ package sequentialContractCaller
 
 import (
 	"context"
+	"github.com/Layr-Labs/eigenlayer-contracts/pkg/bindings/IRewardsCoordinator"
+	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/chainClient"
+	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/services"
+	"github.com/Layr-Labs/go-sidecar/internal/config"
 	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -18,12 +22,14 @@ import (
 type SequentialContractCaller struct {
 	EthereumClient *ethereum.Client
 	Logger         *zap.Logger
+	globalConfig   *config.Config
 }
 
-func NewSequentialContractCaller(ec *ethereum.Client, l *zap.Logger) *SequentialContractCaller {
+func NewSequentialContractCaller(ec *ethereum.Client, cfg *config.Config, l *zap.Logger) *SequentialContractCaller {
 	return &SequentialContractCaller{
 		EthereumClient: ec,
 		Logger:         l,
+		globalConfig:   cfg,
 	}
 }
 
@@ -158,4 +164,25 @@ func (cc *SequentialContractCaller) GetAllOperatorRestakedStrategies(ctx context
 		allResults = append(allResults, results...)
 	}
 	return allResults, nil
+}
+
+func (cc *SequentialContractCaller) GetDistributionRootByIndex(ctx context.Context, index uint64) (*IRewardsCoordinator.IRewardsCoordinatorDistributionRoot, error) {
+	ethClient, err := cc.EthereumClient.GetEthereumContractCaller()
+	if err != nil {
+		cc.Logger.Sugar().Errorw("Failed to get ethereum contractCaller client", zap.Error(err))
+		return nil, err
+	}
+	cClient, err := chainClient.NewChainClient(ctx, ethClient, "")
+	if err != nil {
+		cc.Logger.Sugar().Errorw("Failed to create new chain client", zap.Error(err))
+	}
+
+	rewardsCoordinatorAddress := common.HexToAddress(cc.globalConfig.GetContractsMapForChain().RewardsCoordinator)
+	transactor, err := services.NewTransactor(cClient, rewardsCoordinatorAddress)
+	if err != nil {
+		cc.Logger.Sugar().Errorw("Failed to initialize transactor", zap.Error(err))
+		return nil, err
+	}
+
+	return transactor.GetRootByIndex(index)
 }

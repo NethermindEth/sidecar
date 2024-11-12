@@ -1,6 +1,8 @@
 package types
 
-import "time"
+import (
+	"time"
+)
 
 type SubmittedDistributionRoot struct {
 	Root                      string
@@ -15,4 +17,11 @@ type SubmittedDistributionRoot struct {
 
 func (sdr *SubmittedDistributionRoot) GetSnapshotDate() string {
 	return sdr.RewardsCalculationEnd.UTC().Format(time.DateOnly)
+}
+
+type DisabledDistributionRoot struct {
+	RootIndex       uint64
+	BlockNumber     uint64
+	LogIndex        uint64
+	TransactionHash string
 }

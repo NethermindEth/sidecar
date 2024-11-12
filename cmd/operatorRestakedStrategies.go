@@ -10,13 +10,8 @@ import (
 	"github.com/Layr-Labs/go-sidecar/pkg/contractCaller/sequentialContractCaller"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/go-sidecar/pkg/contractStore/postgresContractStore"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/avsOperators"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/operatorShares"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/rewardSubmissions"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stakerDelegations"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stakerShares"
+	"github.com/Layr-Labs/go-sidecar/pkg/eigenState"
 	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stateManager"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/submittedDistributionRoots"
 	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/go-sidecar/pkg/indexer"
 	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
@@ -77,28 +72,13 @@ var runOperatorRestakedStrategiesCmd = &cobra.Command{
 
 		sm := stateManager.NewEigenStateManager(l, grm)
 
-		if _, err := avsOperators.NewAvsOperatorsModel(sm, grm, l, cfg); err != nil {
-			l.Sugar().Fatalw("Failed to create AvsOperatorsModel", zap.Error(err))
-		}
-		if _, err := operatorShares.NewOperatorSharesModel(sm, grm, l, cfg); err != nil {
-			l.Sugar().Fatalw("Failed to create OperatorSharesModel", zap.Error(err))
-		}
-		if _, err := stakerDelegations.NewStakerDelegationsModel(sm, grm, l, cfg); err != nil {
-			l.Sugar().Fatalw("Failed to create StakerDelegationsModel", zap.Error(err))
-		}
-		if _, err := stakerShares.NewStakerSharesModel(sm, grm, l, cfg); err != nil {
-			l.Sugar().Fatalw("Failed to create StakerSharesModel", zap.Error(err))
-		}
-		if _, err := submittedDistributionRoots.NewSubmittedDistributionRootsModel(sm, grm, l, cfg); err != nil {
-			l.Sugar().Fatalw("Failed to create SubmittedDistributionRootsModel", zap.Error(err))
-		}
-		if _, err := rewardSubmissions.NewRewardSubmissionsModel(sm, grm, l, cfg); err != nil {
-			l.Sugar().Fatalw("Failed to create RewardSubmissionsModel", zap.Error(err))
+		if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
+			l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
 		}
 
 		fetchr := fetcher.NewFetcher(client, cfg, l)
 
-		cc := sequentialContractCaller.NewSequentialContractCaller(client, l)
+		cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, l)
 
 		idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 

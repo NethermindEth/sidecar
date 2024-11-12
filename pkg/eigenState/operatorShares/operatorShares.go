@@ -306,3 +306,8 @@ func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []*OperatorShareDe
 func (osm *OperatorSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return osm.BaseEigenState.DeleteState("operator_share_deltas", startBlockNumber, endBlockNumber, osm.DB)
 }
+
+// IncludeStateRootForBlock returns true if the state root should be included for the given block number.
+func (osm *OperatorSharesModel) IncludeStateRootForBlock(blockNumber uint64) bool {
+	return true
+}

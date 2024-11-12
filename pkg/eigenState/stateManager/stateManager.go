@@ -109,11 +109,13 @@ func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64, blockHash stri
 
 	for _, state := range sortedIndexes {
 		state := e.StateModels[state]
-		leaf, err := e.encodeModelLeaf(state, blockNumber)
-		if err != nil {
-			return "", err
+		if state.IncludeStateRootForBlock(blockNumber) {
+			leaf, err := e.encodeModelLeaf(state, blockNumber)
+			if err != nil {
+				return "", err
+			}
+			roots = append(roots, leaf)
 		}
-		roots = append(roots, leaf)
 	}
 
 	tree, err := merkletree.NewTree(
