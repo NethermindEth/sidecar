@@ -1,5 +1,10 @@
 name: build-container
-on: push
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
 jobs:
   test:
     runs-on: ubuntu-24.04
