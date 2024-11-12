@@ -213,8 +213,17 @@ func (s *StakerDelegationsModel) GenerateStateRoot(blockNumber uint64) (types.St
 
 	inputs := s.sortValuesForMerkleTree(deltas)
 
+	if len(inputs) == 0 {
+		return "", nil
+	}
+
 	fullTree, err := s.MerkleizeState(blockNumber, inputs)
 	if err != nil {
+		s.logger.Sugar().Errorw("Failed to create merkle tree",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+			zap.Any("inputs", inputs),
+		)
 		return "", err
 	}
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
@@ -236,9 +245,4 @@ func (s *StakerDelegationsModel) sortValuesForMerkleTree(diffs []*StakerDelegati
 
 func (s *StakerDelegationsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return s.BaseEigenState.DeleteState("staker_delegation_changes", startBlockNumber, endBlockNumber, s.DB)
-}
-
-// IncludeStateRootForBlock returns true if the state root should be included for the given block number.
-func (s *StakerDelegationsModel) IncludeStateRootForBlock(blockNumber uint64) bool {
-	return true
 }

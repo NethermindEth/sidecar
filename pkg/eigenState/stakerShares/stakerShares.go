@@ -46,8 +46,8 @@ type StakerShareDeltas struct {
 	WithdrawalRootString string `gorm:"-"`
 }
 
-func NewSlotID(staker string, strategy string, transactionHash string, logIndex uint64) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%s_%s_%d", staker, strategy, transactionHash, logIndex))
+func NewSlotID(staker string, strategy string, strategyIndex uint64, transactionHash string, logIndex uint64) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%s_%d_%s_%d", staker, strategy, strategyIndex, transactionHash, logIndex))
 }
 
 type StakerSharesModel struct {
@@ -581,8 +581,17 @@ func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateR
 
 	inputs := ss.sortValuesForMerkleTree(deltas)
 
+	if len(inputs) == 0 {
+		return "", nil
+	}
+
 	fullTree, err := ss.MerkleizeState(blockNumber, inputs)
 	if err != nil {
+		ss.logger.Sugar().Errorw("Failed to create merkle tree",
+			zap.Error(err),
+			zap.Uint64("blockNumber", blockNumber),
+			zap.Any("inputs", inputs),
+		)
 		return "", err
 	}
 	return types.StateRoot(pkgUtils.ConvertBytesToString(fullTree.Root())), nil
@@ -592,7 +601,7 @@ func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerShareDeltas)
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, diff := range diffs {
 		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: NewSlotID(diff.Staker, diff.Strategy, diff.TransactionHash, diff.LogIndex),
+			SlotID: NewSlotID(diff.Staker, diff.Strategy, diff.StrategyIndex, diff.TransactionHash, diff.LogIndex),
 			Value:  []byte(diff.Shares),
 		})
 	}
@@ -605,9 +614,4 @@ func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerShareDeltas)
 
 func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return ss.BaseEigenState.DeleteState("staker_share_deltas", startBlockNumber, endBlockNumber, ss.DB)
-}
-
-// IncludeStateRootForBlock returns true if the state root should be included for the given block number.
-func (ss *StakerSharesModel) IncludeStateRootForBlock(blockNumber uint64) bool {
-	return true
 }

@@ -109,11 +109,13 @@ func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64, blockHash stri
 
 	for _, state := range sortedIndexes {
 		state := e.StateModels[state]
-		if state.IncludeStateRootForBlock(blockNumber) {
-			leaf, err := e.encodeModelLeaf(state, blockNumber)
-			if err != nil {
-				return "", err
-			}
+		leaf, err := e.encodeModelLeaf(state, blockNumber)
+		if err != nil {
+			return "", err
+		}
+
+		// a nil value indicates the model did not have any state changes for this block
+		if leaf != nil {
 			roots = append(roots, leaf)
 		}
 	}
@@ -160,6 +162,11 @@ func (e *EigenStateManager) encodeModelLeaf(model types.IEigenStateModel, blockN
 	root, err := model.GenerateStateRoot(blockNumber)
 	if err != nil {
 		return nil, err
+	}
+	// If there is no root string returned, it means nothing meaningful happened to the model
+	// during this block and should not be included in the state root.
+	if root == "" {
+		return nil, nil
 	}
 	return append([]byte(model.GetModelName()), []byte(root)...), nil
 }
