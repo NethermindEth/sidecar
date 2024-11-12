@@ -41,17 +41,17 @@ func Test_SequentialContractCaller(t *testing.T) {
 	scc := NewSequentialContractCaller(client, cfg, l)
 
 	t.Run("Get distribution root by index", func(t *testing.T) {
-		distirbutionRoot, err := scc.GetDistributionRootByIndex(context.Background(), 8)
+		distributionRoot, err := scc.GetDistributionRootByIndex(context.Background(), 8)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		rootString := utils.ConvertBytesToString(distirbutionRoot.Root[:])
+		rootString := utils.ConvertBytesToString(distributionRoot.Root[:])
 
-		assert.Equal(t, distirbutionRoot.Disabled, true)
+		assert.Equal(t, distributionRoot.Disabled, true)
 		assert.Equal(t, "0x8a7099a557f56bf18761cd2c303baeec71a60ee135107e7e02546dc547c16d99", rootString)
 
-		fmt.Printf("Distribution root: %+v\n", distirbutionRoot)
+		fmt.Printf("Distribution root: %+v\n", distributionRoot)
 
 	})
 }
