@@ -149,6 +149,24 @@ func (c *Client) GetBlockNumberUint64(ctx context.Context) (uint64, error) {
 	return blockNumberUint64, nil
 }
 
+func (c *Client) GetLatestSafeBlock(ctx context.Context) (uint64, error) {
+	rpcRequest := GetSafeBlockRequest(1)
+
+	res, err := c.Call(ctx, rpcRequest)
+	if err != nil {
+		return 0, err
+	}
+	ethBlock, err := RPCMethod_getBlockByNumber.ResponseParser(res.Result)
+	if err != nil {
+		c.Logger.Sugar().Errorw("failed to parse block",
+			zap.Error(err),
+			zap.Any("raw response", res.Result),
+		)
+		return 0, err
+	}
+	return ethBlock.Number.Value(), nil
+}
+
 func (c *Client) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*EthereumBlock, error) {
 	rpcRequest := GetBlockByNumberRequest(blockNumber, 1)
 
