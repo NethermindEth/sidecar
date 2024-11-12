@@ -48,8 +48,8 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 			return errors.New("Failed to get last indexed block")
 		}
 
-		// Get the latest block known from the ethereum node
-		latestTip, err := s.EthereumClient.GetBlockNumberUint64(ctx)
+		// Get the latest safe block from the Ethereum node
+		latestTip, err := s.EthereumClient.GetLatestSafeBlock(ctx)
 		if err != nil {
 			s.Logger.Sugar().Fatalw("Failed to get latest tip", zap.Error(err))
 			return errors.New("Failed to get latest tip")
