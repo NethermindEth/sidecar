@@ -319,3 +319,8 @@ func (sdr *SubmittedDistributionRootsModel) GetSubmittedRootsForBlock(blockNumbe
 	}
 	return records, nil
 }
+
+// IncludeStateRootForBlock returns true if the state root should be included for the given block number.
+func (sdr *SubmittedDistributionRootsModel) IncludeStateRootForBlock(blockNumber uint64) bool {
+	return true
+}
