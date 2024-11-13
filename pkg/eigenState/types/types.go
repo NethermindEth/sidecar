@@ -47,6 +47,6 @@ type IEigenStateModel interface {
 
 // StateTransitions
 // Map of block number to function that will transition the state to the next block.
-type StateTransitions[T interface{}] map[uint64]func(log *storage.TransactionLog) (*T, error)
+type StateTransitions[T any] map[uint64]func(log *storage.TransactionLog) (T, error)
 
 type SlotID string

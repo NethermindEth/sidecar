@@ -61,12 +61,13 @@ func Test_PostgresqlBlockstore(t *testing.T) {
 
 		t.Run("InsertBlockAtHeight", func(t *testing.T) {
 			block := &storage.Block{
-				Number:    100,
-				Hash:      "some hash",
-				BlockTime: time.Now(),
+				Number:     100,
+				Hash:       "some hash",
+				ParentHash: "parent hash",
+				BlockTime:  time.Now(),
 			}
 
-			insertedBlock, err := blockStore.InsertBlockAtHeight(block.Number, block.Hash, uint64(block.BlockTime.Unix()))
+			insertedBlock, err := blockStore.InsertBlockAtHeight(block.Number, block.Hash, block.ParentHash, uint64(block.BlockTime.Unix()))
 			if err != nil {
 				t.Errorf("Failed to insert block: %v", err)
 			}
@@ -78,12 +79,13 @@ func Test_PostgresqlBlockstore(t *testing.T) {
 		})
 		t.Run("Fail to insert a duplicate block", func(t *testing.T) {
 			block := &storage.Block{
-				Number:    100,
-				Hash:      "some hash",
-				BlockTime: time.Now(),
+				Number:     100,
+				Hash:       "some hash",
+				ParentHash: "parent hash",
+				BlockTime:  time.Now(),
 			}
 
-			_, err := blockStore.InsertBlockAtHeight(block.Number, block.Hash, uint64(block.BlockTime.Unix()))
+			_, err := blockStore.InsertBlockAtHeight(block.Number, block.Hash, block.ParentHash, uint64(block.BlockTime.Unix()))
 			assert.NotNil(t, err)
 			assert.Contains(t, err.Error(), "duplicate key value violates unique constraint")
 		})

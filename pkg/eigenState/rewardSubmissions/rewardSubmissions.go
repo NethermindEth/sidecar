@@ -1,7 +1,6 @@
 package rewardSubmissions
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
@@ -23,37 +22,29 @@ import (
 )
 
 type RewardSubmission struct {
-	Avs            string
-	RewardHash     string
-	Token          string
-	Amount         string
-	Strategy       string
-	StrategyIndex  uint64
-	Multiplier     string
-	StartTimestamp *time.Time
-	EndTimestamp   *time.Time
-	Duration       uint64
-	BlockNumber    uint64
-	RewardType     string // avs, all_stakers, all_earners
+	Avs             string
+	RewardHash      string
+	Token           string
+	Amount          string
+	Strategy        string
+	StrategyIndex   uint64
+	Multiplier      string
+	StartTimestamp  *time.Time
+	EndTimestamp    *time.Time
+	Duration        uint64
+	BlockNumber     uint64
+	RewardType      string // avs, all_stakers, all_earners
+	TransactionHash string
+	LogIndex        uint64
 }
 
-type RewardSubmissionDiff struct {
-	RewardSubmission *RewardSubmission
-	IsNew            bool
-	IsNoLongerActive bool
-}
-
-type RewardSubmissions struct {
-	Submissions []*RewardSubmission
-}
-
-func NewSlotID(rewardHash string, strategy string) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%s", rewardHash, strategy))
+func NewSlotID(transactionHash string, logIndex uint64, rewardHash string, strategyIndex uint64) types.SlotID {
+	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%d", rewardHash, strategyIndex))
 }
 
 type RewardSubmissionsModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[RewardSubmission]
+	StateTransitions types.StateTransitions[[]*RewardSubmission]
 	DB               *gorm.DB
 	Network          config.Network
 	Environment      config.Environment
@@ -117,7 +108,7 @@ func parseRewardSubmissionOutputData(outputDataStr string) (*rewardSubmissionOut
 	return outputData, err
 }
 
-func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storage.TransactionLog) (*RewardSubmissions, error) {
+func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storage.TransactionLog) ([]*RewardSubmission, error) {
 	arguments, err := rs.ParseLogArguments(log)
 	if err != nil {
 		return nil, err
@@ -137,7 +128,7 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 
 	rewardSubmissions := make([]*RewardSubmission, 0)
 
-	for _, strategyAndMultiplier := range actualOuputData.StrategiesAndMultipliers {
+	for i, strategyAndMultiplier := range actualOuputData.StrategiesAndMultipliers {
 		startTimestamp := time.Unix(int64(actualOuputData.StartTimestamp), 0)
 		endTimestamp := startTimestamp.Add(time.Duration(actualOuputData.Duration) * time.Second)
 
@@ -163,38 +154,42 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 		}
 
 		rewardSubmission := &RewardSubmission{
-			Avs:            strings.ToLower(arguments[0].Value.(string)),
-			RewardHash:     strings.ToLower(arguments[2].Value.(string)),
-			Token:          strings.ToLower(actualOuputData.Token),
-			Amount:         amountBig.String(),
-			Strategy:       strategyAndMultiplier.Strategy,
-			Multiplier:     multiplierBig.String(),
-			StartTimestamp: &startTimestamp,
-			EndTimestamp:   &endTimestamp,
-			Duration:       actualOuputData.Duration,
-			BlockNumber:    log.BlockNumber,
-			RewardType:     rewardType,
+			Avs:             strings.ToLower(arguments[0].Value.(string)),
+			RewardHash:      strings.ToLower(arguments[2].Value.(string)),
+			Token:           strings.ToLower(actualOuputData.Token),
+			Amount:          amountBig.String(),
+			Strategy:        strategyAndMultiplier.Strategy,
+			Multiplier:      multiplierBig.String(),
+			StartTimestamp:  &startTimestamp,
+			EndTimestamp:    &endTimestamp,
+			Duration:        actualOuputData.Duration,
+			BlockNumber:     log.BlockNumber,
+			RewardType:      rewardType,
+			TransactionHash: log.TransactionHash,
+			LogIndex:        log.LogIndex,
+			StrategyIndex:   uint64(i),
 		}
 		rewardSubmissions = append(rewardSubmissions, rewardSubmission)
 	}
 
-	return &RewardSubmissions{Submissions: rewardSubmissions}, nil
+	return rewardSubmissions, nil
 }
 
-func (rs *RewardSubmissionsModel) GetStateTransitions() (types.StateTransitions[RewardSubmissions], []uint64) {
-	stateChanges := make(types.StateTransitions[RewardSubmissions])
+func (rs *RewardSubmissionsModel) GetStateTransitions() (types.StateTransitions[[]*RewardSubmission], []uint64) {
+	stateChanges := make(types.StateTransitions[[]*RewardSubmission])
 
-	stateChanges[0] = func(log *storage.TransactionLog) (*RewardSubmissions, error) {
+	stateChanges[0] = func(log *storage.TransactionLog) ([]*RewardSubmission, error) {
 		rewardSubmissions, err := rs.handleRewardSubmissionCreatedEvent(log)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, rewardSubmission := range rewardSubmissions.Submissions {
-			slotId := NewSlotID(rewardSubmission.RewardHash, rewardSubmission.Strategy)
+		for _, rewardSubmission := range rewardSubmissions {
+			slotId := NewSlotID(rewardSubmission.TransactionHash, rewardSubmission.LogIndex, rewardSubmission.RewardHash, rewardSubmission.StrategyIndex)
 
 			_, ok := rs.stateAccumulator[log.BlockNumber][slotId]
 			if ok {
+				fmt.Printf("Submissions: %+v\n", rs.stateAccumulator[log.BlockNumber])
 				err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
 				rs.logger.Sugar().Errorw("Duplicate distribution root submitted", zap.Error(err))
 				return nil, err
@@ -268,76 +263,31 @@ func (rs *RewardSubmissionsModel) HandleStateChange(log *storage.TransactionLog)
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSubmissionDiff, []*RewardSubmissionDiff, error) {
+func (rs *RewardSubmissionsModel) prepareState(blockNumber uint64) ([]*RewardSubmission, error) {
 	accumulatedState, ok := rs.stateAccumulator[blockNumber]
 	if !ok {
 		err := xerrors.Errorf("No accumulated state found for block %d", blockNumber)
 		rs.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
-		return nil, nil, err
+		return nil, err
 	}
 
-	currentBlock := &storage.Block{}
-	err := rs.DB.Where("number = ?", blockNumber).First(currentBlock).Error
-	if err != nil {
-		rs.logger.Sugar().Errorw("Failed to fetch block", zap.Error(err), zap.Uint64("blockNumber", blockNumber))
-		return nil, nil, err
+	recordsToInsert := make([]*RewardSubmission, 0)
+	for _, submission := range accumulatedState {
+		recordsToInsert = append(recordsToInsert, submission)
 	}
-
-	inserts := make([]*RewardSubmissionDiff, 0)
-	for _, change := range accumulatedState {
-		if change == nil {
-			continue
-		}
-
-		inserts = append(inserts, &RewardSubmissionDiff{
-			RewardSubmission: change,
-			IsNew:            true,
-		})
-	}
-
-	// find all the records that are no longer active
-	noLongerActiveSubmissions := make([]*RewardSubmission, 0)
-	query := `
-		select
-			*
-		from reward_submissions
-		where
-			block_number = @previousBlock
-			and end_timestamp <= @blockTime
-	`
-	res := rs.DB.
-		Model(&RewardSubmission{}).
-		Raw(query,
-			sql.Named("previousBlock", blockNumber-1),
-			sql.Named("blockTime", currentBlock.BlockTime),
-		).
-		Find(&noLongerActiveSubmissions)
-
-	if res.Error != nil {
-		rs.logger.Sugar().Errorw("Failed to fetch no longer active submissions", zap.Error(res.Error))
-		return nil, nil, res.Error
-	}
-
-	deletes := make([]*RewardSubmissionDiff, 0)
-	for _, submission := range noLongerActiveSubmissions {
-		deletes = append(deletes, &RewardSubmissionDiff{
-			RewardSubmission: submission,
-			IsNoLongerActive: true,
-		})
-	}
-	return inserts, deletes, nil
+	return recordsToInsert, nil
 }
 
 // CommitFinalState commits the final state for the given block number.
 func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
-	recordsToInsert, _, err := rs.prepareState(blockNumber)
+	recordsToInsert, err := rs.prepareState(blockNumber)
 	if err != nil {
 		return err
 	}
 
 	if len(recordsToInsert) > 0 {
 		for _, record := range recordsToInsert {
-			res := rs.DB.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&record.RewardSubmission)
+			res := rs.DB.Model(&RewardSubmission{}).Clauses(clause.Returning{}).Create(&record)
 			if res.Error != nil {
 				rs.logger.Sugar().Errorw("Failed to insert records", zap.Error(res.Error))
 				return res.Error
@@ -349,16 +299,12 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
 func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
-	inserts, deletes, err := rs.prepareState(blockNumber)
+	inserts, err := rs.prepareState(blockNumber)
 	if err != nil {
 		return "", err
 	}
 
-	combinedResults := make([]*RewardSubmissionDiff, 0)
-	combinedResults = append(combinedResults, inserts...)
-	combinedResults = append(combinedResults, deletes...)
-
-	inputs := rs.sortValuesForMerkleTree(combinedResults)
+	inputs := rs.sortValuesForMerkleTree(inserts)
 
 	if len(inputs) == 0 {
 		return "", nil
@@ -376,14 +322,11 @@ func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.S
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardSubmissionDiff) []*base.MerkleTreeInput {
+func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardSubmission) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, submission := range submissions {
-		slotID := NewSlotID(submission.RewardSubmission.RewardHash, submission.RewardSubmission.Strategy)
+		slotID := NewSlotID(submission.TransactionHash, submission.LogIndex, submission.RewardHash, submission.StrategyIndex)
 		value := "added"
-		if submission.IsNoLongerActive {
-			value = "removed"
-		}
 		inputs = append(inputs, &base.MerkleTreeInput{
 			SlotID: slotID,
 			Value:  []byte(value),

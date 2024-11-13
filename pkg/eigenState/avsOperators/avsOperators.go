@@ -19,15 +19,12 @@ import (
 )
 
 type AvsOperatorStateChange struct {
-	Avs         string
-	Operator    string
-	Registered  bool
-	LogIndex    uint64
-	BlockNumber uint64
-}
-
-func NewSlotID(avs string, operator string, logIndex uint64) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%s_%d", avs, operator, logIndex))
+	Avs             string
+	Operator        string
+	Registered      bool
+	LogIndex        uint64
+	TransactionHash string
+	BlockNumber     uint64
 }
 
 // EigenState model for AVS operators that implements IEigenStateModel.
@@ -74,8 +71,8 @@ func (a *AvsOperatorsModel) GetModelName() string {
 //
 // Returns the map and a reverse sorted list of block numbers that can be traversed when
 // processing a log to determine which state change to apply.
-func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[AvsOperatorStateChange], []uint64) {
-	stateChanges := make(types.StateTransitions[AvsOperatorStateChange])
+func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[*AvsOperatorStateChange], []uint64) {
+	stateChanges := make(types.StateTransitions[*AvsOperatorStateChange])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*AvsOperatorStateChange, error) {
 		arguments, err := a.ParseLogArguments(log)
@@ -103,11 +100,12 @@ func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[AvsOpe
 
 		// Store the change in the delta accumulator
 		delta := &AvsOperatorStateChange{
-			Avs:         avs,
-			Operator:    operator,
-			Registered:  registered,
-			LogIndex:    log.LogIndex,
-			BlockNumber: log.BlockNumber,
+			Avs:             avs,
+			Operator:        operator,
+			Registered:      registered,
+			LogIndex:        log.LogIndex,
+			BlockNumber:     log.BlockNumber,
+			TransactionHash: log.TransactionHash,
 		}
 		a.stateAccumulator[log.BlockNumber] = append(a.stateAccumulator[log.BlockNumber], delta)
 
@@ -243,12 +241,12 @@ func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRo
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (a *AvsOperatorsModel) sortValuesForMerkleTree(diffs []*AvsOperatorStateChange) []*base.MerkleTreeInput {
+func (a *AvsOperatorsModel) sortValuesForMerkleTree(deltas []*AvsOperatorStateChange) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
-	for _, diff := range diffs {
+	for _, d := range deltas {
 		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: NewSlotID(diff.Avs, diff.Operator, diff.LogIndex),
-			Value:  []byte(fmt.Sprintf("%t", diff.Registered)),
+			SlotID: base.NewSlotID(d.TransactionHash, d.LogIndex),
+			Value:  []byte(fmt.Sprintf("%t", d.Registered)),
 		})
 	}
 	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {

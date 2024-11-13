@@ -47,7 +47,7 @@ type StakerShareDeltas struct {
 }
 
 func NewSlotID(staker string, strategy string, strategyIndex uint64, transactionHash string, logIndex uint64) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%s_%d_%s_%d", staker, strategy, strategyIndex, transactionHash, logIndex))
+	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%s_%d", staker, strategy, strategyIndex))
 }
 
 type StakerSharesModel struct {
@@ -362,8 +362,8 @@ type AccumulatedStateChanges struct {
 }
 
 // GetStateTransitions returns a map of block numbers to state transitions and a list of block numbers
-func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChanges], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChanges])
+func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[*AccumulatedStateChanges], []uint64) {
+	stateChanges := make(types.StateTransitions[*AccumulatedStateChanges])
 
 	/**
 	Order of StakerShare deposit and withdrawal events over time:
