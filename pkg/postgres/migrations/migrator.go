@@ -48,12 +48,26 @@ type Migrator struct {
 }
 
 func NewMigrator(db *sql.DB, gDb *gorm.DB, l *zap.Logger) *Migrator {
-	_ = gDb.AutoMigrate(&Migrations{})
+	err := initializeMigrationTable(gDb)
+	if err != nil {
+		l.Sugar().Fatalw("Failed to auto-migrate migrations table", zap.Error(err))
+	}
 	return &Migrator{
 		Db:     db,
 		GDb:    gDb,
 		Logger: l,
 	}
+}
+
+func initializeMigrationTable(db *gorm.DB) error {
+	query := `
+		create table if not exists migrations (
+    		name text primary key,
+    		created_at timestamp with time zone default current_timestamp,
+            updated_at timestamp with time zone default null
+		)`
+	result := db.Exec(query)
+	return result.Error
 }
 
 func (m *Migrator) MigrateAll() error {

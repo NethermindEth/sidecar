@@ -36,6 +36,7 @@ func init() {
 	rootCmd.PersistentFlags().String(config.DatabaseUser, "sidecar", `Defaults to 'sidecar'`)
 	rootCmd.PersistentFlags().String(config.DatabasePassword, "", ``)
 	rootCmd.PersistentFlags().String(config.DatabaseDbName, "sidecar", `Defaults to 'sidecar'`)
+	rootCmd.PersistentFlags().String(config.DatabaseSchemaName, "", `Defaults to "public"`)
 
 	rootCmd.PersistentFlags().Int("rpc.grpc-port", 7100, `e.g. 7100`)
 	rootCmd.PersistentFlags().Int("rpc.http-port", 7101, `e.g. 7101`)

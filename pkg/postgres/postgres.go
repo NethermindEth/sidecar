@@ -22,6 +22,7 @@ type PostgresConfig struct {
 	Password            string
 	DbName              string
 	CreateDbIfNotExists bool
+	SchemaName          string
 }
 
 type Postgres struct {
@@ -62,31 +63,50 @@ func GetTestPostgresDatabase(cfg config.DatabaseConfig, l *zap.Logger) (
 
 func PostgresConfigFromDbConfig(dbCfg *config.DatabaseConfig) *PostgresConfig {
 	return &PostgresConfig{
-		Host:     dbCfg.Host,
-		Port:     dbCfg.Port,
-		Username: dbCfg.User,
-		Password: dbCfg.Password,
-		DbName:   dbCfg.DbName,
+		Host:       dbCfg.Host,
+		Port:       dbCfg.Port,
+		Username:   dbCfg.User,
+		Password:   dbCfg.Password,
+		DbName:     dbCfg.DbName,
+		SchemaName: dbCfg.SchemaName,
 	}
 }
 
 func getPostgresRootConnection(cfg *PostgresConfig) (*sql.DB, error) {
-	postgresConnStr := fmt.Sprintf("host=%s port=%d dbname=postgres sslmode=disable",
-		cfg.Host,
-		cfg.Port,
-	)
-	if cfg.Username != "" {
-		postgresConnStr += fmt.Sprintf(" user=%s", cfg.Username)
-	}
-	if cfg.Password != "" {
-		postgresConnStr += fmt.Sprintf(" password=%s", cfg.Password)
-	}
+	postgresConnStr := getPostgresConnectionString(&PostgresConfig{
+		Host:     cfg.Host,
+		Port:     cfg.Port,
+		Username: cfg.Username,
+		Password: cfg.Password,
+		DbName:   "postgres",
+	})
 
 	postgresDB, err := sql.Open("postgres", postgresConnStr)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to postgres database: %v", err)
 	}
 	return postgresDB, nil
+}
+
+func getPostgresConnectionString(cfg *PostgresConfig) string {
+	authString := ""
+	if cfg.Username != "" {
+		authString = fmt.Sprintf("%s user=%s", authString, cfg.Username)
+	}
+	if cfg.Password != "" {
+		authString = fmt.Sprintf("%s password=%s", authString, cfg.Password)
+	}
+	baseString := fmt.Sprintf("host=%s %s dbname=%s port=%d sslmode=disable TimeZone=UTC",
+		cfg.Host,
+		authString,
+		cfg.DbName,
+		cfg.Port,
+	)
+	if cfg.SchemaName != "" {
+		baseString = fmt.Sprintf("%s search_path=%s", baseString, cfg.SchemaName)
+	}
+	fmt.Printf("Postgres connection string: %s\n", baseString)
+	return baseString
 }
 
 func DeleteTestDatabase(cfg *PostgresConfig, dbName string) error {
@@ -140,19 +160,8 @@ func NewPostgres(cfg *PostgresConfig) (*Postgres, error) {
 			return nil, xerrors.Errorf("Failed to create database if not exists %+v", err)
 		}
 	}
-	authString := ""
-	if cfg.Username != "" {
-		authString = fmt.Sprintf("%s user=%s", authString, cfg.Username)
-	}
-	if cfg.Password != "" {
-		authString = fmt.Sprintf("%s password=%s", authString, cfg.Password)
-	}
-	connectString := fmt.Sprintf("host=%s %s dbname=%s port=%d sslmode=disable TimeZone=UTC",
-		cfg.Host,
-		authString,
-		cfg.DbName,
-		cfg.Port,
-	)
+	connectString := getPostgresConnectionString(cfg)
+
 	db, err := sql.Open("postgres", connectString)
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to setup database %+v", err)

@@ -52,11 +52,12 @@ type EthereumRpcConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	DbName   string
+	Host       string
+	Port       int
+	User       string
+	Password   string
+	DbName     string
+	SchemaName string
 }
 
 type RpcConfig struct {
@@ -72,11 +73,12 @@ func StringWithDefault(value, defaultValue string) string {
 }
 
 var (
-	DatabaseHost     = "database.host"
-	DatabasePort     = "database.port"
-	DatabaseUser     = "database.user"
-	DatabasePassword = "database.password"
-	DatabaseDbName   = "database.db_name"
+	DatabaseHost       = "database.host"
+	DatabasePort       = "database.port"
+	DatabaseUser       = "database.user"
+	DatabasePassword   = "database.password"
+	DatabaseDbName     = "database.db_name"
+	DatabaseSchemaName = "database.schema_name"
 )
 
 func NewConfig() *Config {
@@ -91,11 +93,12 @@ func NewConfig() *Config {
 		},
 
 		DatabaseConfig: DatabaseConfig{
-			Host:     viper.GetString(normalizeFlagName(DatabaseHost)),
-			Port:     viper.GetInt(normalizeFlagName(DatabasePort)),
-			User:     viper.GetString(normalizeFlagName(DatabaseUser)),
-			Password: viper.GetString(normalizeFlagName(DatabasePassword)),
-			DbName:   viper.GetString(normalizeFlagName(DatabaseDbName)),
+			Host:       viper.GetString(normalizeFlagName(DatabaseHost)),
+			Port:       viper.GetInt(normalizeFlagName(DatabasePort)),
+			User:       viper.GetString(normalizeFlagName(DatabaseUser)),
+			Password:   viper.GetString(normalizeFlagName(DatabasePassword)),
+			DbName:     viper.GetString(normalizeFlagName(DatabaseDbName)),
+			SchemaName: viper.GetString(normalizeFlagName(DatabaseSchemaName)),
 		},
 
 		RpcConfig: RpcConfig{
