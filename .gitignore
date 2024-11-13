@@ -25,3 +25,5 @@ test-db
 /sqlite-extensions/build
 .DS_Store
 node_modules
+/release
+.release_version

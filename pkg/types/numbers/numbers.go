@@ -1,6 +1,5 @@
 package numbers
 
-import "C"
 import (
 	"math/big"
 )
