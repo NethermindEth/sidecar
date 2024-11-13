@@ -2,7 +2,7 @@ package tests
 
 import (
 	"fmt"
-	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/gocarina/gocsv"
 	"github.com/google/uuid"
 	"os"

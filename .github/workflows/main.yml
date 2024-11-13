@@ -1,5 +1,10 @@
 name: build-container
-on: push
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
 jobs:
   test:
     runs-on: ubuntu-24.04
@@ -47,6 +52,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set release version
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [[ $REF == refs/tags/* ]]; then
+            echo -n "${REF#refs/tags/}" > .release_version
+          else
+            v=$(git rev-parse --short HEAD) && echo -n $v > .release_version
+          fi
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:

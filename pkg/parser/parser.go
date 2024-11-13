@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
+	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 )
 
 type ParsedTransaction struct {

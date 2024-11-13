@@ -3,17 +3,17 @@ package pipeline
 import (
 	"context"
 	"errors"
-	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/pkg/fetcher"
-	"github.com/Layr-Labs/go-sidecar/pkg/indexer"
-	"github.com/Layr-Labs/go-sidecar/pkg/rewards"
-	"github.com/Layr-Labs/go-sidecar/pkg/storage"
-	"github.com/Layr-Labs/go-sidecar/pkg/utils"
+	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/fetcher"
+	"github.com/Layr-Labs/sidecar/pkg/indexer"
+	"github.com/Layr-Labs/sidecar/pkg/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/storage"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"go.uber.org/zap"
 )
 

@@ -3,9 +3,9 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
-	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/pkg/postgres/migrations"
+	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"

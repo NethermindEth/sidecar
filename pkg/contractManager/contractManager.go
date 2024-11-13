@@ -3,8 +3,8 @@ package contractManager
 import (
 	"fmt"
 	"github.com/DataDog/datadog-go/v5/statsd"
-	"github.com/Layr-Labs/go-sidecar/pkg/clients/ethereum"
-	"github.com/Layr-Labs/go-sidecar/pkg/contractStore"
+	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"go.uber.org/zap"
 )
 

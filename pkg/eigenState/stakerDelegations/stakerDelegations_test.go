@@ -2,15 +2,15 @@ package stakerDelegations
 
 import (
 	"database/sql"
-	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
-	"github.com/Layr-Labs/go-sidecar/pkg/storage"
+	"github.com/Layr-Labs/sidecar/pkg/postgres"
+	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"testing"
 	"time"
 
-	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

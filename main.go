@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/Layr-Labs/go-sidecar/cmd"
+	"github.com/Layr-Labs/sidecar/cmd"
 )
 
 func main() {

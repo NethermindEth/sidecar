@@ -2,7 +2,7 @@ package rewards
 
 import (
 	"database/sql"
-	"github.com/Layr-Labs/go-sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
 )
 

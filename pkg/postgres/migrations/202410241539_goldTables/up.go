@@ -2,8 +2,8 @@ package _202410241539_goldTables
 
 import (
 	"database/sql"
-	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/pkg/storage"
+	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"gorm.io/gorm"
 )
 

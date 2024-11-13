@@ -1,11 +1,11 @@
 package postgresContractStore
 
 import (
-	"github.com/Layr-Labs/go-sidecar/internal/config"
-	"github.com/Layr-Labs/go-sidecar/internal/logger"
-	"github.com/Layr-Labs/go-sidecar/internal/tests"
-	"github.com/Layr-Labs/go-sidecar/pkg/contractStore"
-	"github.com/Layr-Labs/go-sidecar/pkg/postgres"
+	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/contractStore"
+	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

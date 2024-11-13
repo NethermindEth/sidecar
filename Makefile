@@ -25,7 +25,9 @@ clean:
 
 .PHONY: build/cmd/sidecar
 build/cmd/sidecar:
-	$(ALL_FLAGS) $(GO) build -o bin/sidecar main.go
+	$(ALL_FLAGS) $(GO) build \
+		-ldflags "-X 'github.com/Layr-Labs/sidecar/internal/version.Version=$(shell cat .release_version || "unknown")' -X 'github.com/Layr-Labs/sidecar/internal/version.Commit=$(shell git rev-parse --short HEAD)'" \
+		-o bin/sidecar main.go
 
 .PHONY: build
 build: build/cmd/sidecar
