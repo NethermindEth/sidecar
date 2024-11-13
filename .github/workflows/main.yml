@@ -90,6 +90,7 @@ jobs:
           fi
   build-binary:
     runs-on: ubuntu-latest
+    needs: [lint, test]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
