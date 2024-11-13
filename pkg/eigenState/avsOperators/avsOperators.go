@@ -241,12 +241,12 @@ func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRo
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (a *AvsOperatorsModel) sortValuesForMerkleTree(changes []*AvsOperatorStateChange) []*base.MerkleTreeInput {
+func (a *AvsOperatorsModel) sortValuesForMerkleTree(deltas []*AvsOperatorStateChange) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
-	for _, diff := range changes {
+	for _, d := range deltas {
 		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: base.NewSlotID(diff.TransactionHash, diff.LogIndex),
-			Value:  []byte(fmt.Sprintf("%t", diff.Registered)),
+			SlotID: base.NewSlotID(d.TransactionHash, d.LogIndex),
+			Value:  []byte(fmt.Sprintf("%t", d.Registered)),
 		})
 	}
 	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {
