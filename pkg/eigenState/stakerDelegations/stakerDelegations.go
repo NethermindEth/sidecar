@@ -19,15 +19,12 @@ import (
 )
 
 type StakerDelegationChange struct {
-	Staker      string
-	Operator    string
-	BlockNumber uint64
-	Delegated   bool
-	LogIndex    uint64
-}
-
-func NewSlotID(staker string, operator string, logIndex uint64) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%s_%d", staker, operator, logIndex))
+	Staker          string
+	Operator        string
+	BlockNumber     uint64
+	Delegated       bool
+	LogIndex        uint64
+	TransactionHash string
 }
 
 type StakerDelegationsModel struct {
@@ -90,10 +87,11 @@ func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[*
 		operator := strings.ToLower(arguments[1].Value.(string))
 
 		delta := &StakerDelegationChange{
-			Staker:      staker,
-			Operator:    operator,
-			BlockNumber: log.BlockNumber,
-			LogIndex:    log.LogIndex,
+			Staker:          staker,
+			Operator:        operator,
+			BlockNumber:     log.BlockNumber,
+			LogIndex:        log.LogIndex,
+			TransactionHash: log.TransactionHash,
 		}
 		if log.EventName == "StakerUndelegated" {
 			delta.Delegated = false
@@ -229,12 +227,12 @@ func (s *StakerDelegationsModel) GenerateStateRoot(blockNumber uint64) (types.St
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (s *StakerDelegationsModel) sortValuesForMerkleTree(diffs []*StakerDelegationChange) []*base.MerkleTreeInput {
+func (s *StakerDelegationsModel) sortValuesForMerkleTree(deltas []*StakerDelegationChange) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
-	for _, diff := range diffs {
+	for _, d := range deltas {
 		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: NewSlotID(diff.Staker, diff.Operator, diff.LogIndex),
-			Value:  []byte(fmt.Sprintf("%t", diff.Delegated)),
+			SlotID: base.NewSlotID(d.TransactionHash, d.LogIndex),
+			Value:  []byte(fmt.Sprintf("%t", d.Delegated)),
 		})
 	}
 	slices.SortFunc(inputs, func(i, j *base.MerkleTreeInput) int {

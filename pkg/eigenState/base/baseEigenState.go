@@ -138,3 +138,11 @@ func (b *BaseEigenState) MerkleizeState(blockNumber uint64, inputs []*MerkleTree
 func encodeMerkleLeaf(slotID types.SlotID, value []byte) []byte {
 	return append([]byte(slotID), value...)
 }
+
+func NewSlotID(txHash string, logIndex uint64) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%d", txHash, logIndex))
+}
+
+func NewSlotIDWithSuffix(txHash string, logIndex uint64, suffix string) types.SlotID {
+	return types.SlotID(fmt.Sprintf("%s_%d_%s", txHash, logIndex, suffix))
+}

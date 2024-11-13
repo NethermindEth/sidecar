@@ -16,10 +16,6 @@ import (
 	"sort"
 )
 
-func NewSlotID(rootIndex uint64) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%d", rootIndex))
-}
-
 type DisabledDistributionRootsModel struct {
 	base.BaseEigenState
 	StateTransitions types.StateTransitions[types.DisabledDistributionRoot]
@@ -73,7 +69,7 @@ func (ddr *DisabledDistributionRootsModel) GetStateTransitions() (types.StateTra
 		// json numbers are float64s but we want a uint64
 		rootIndex := uint64(arguments[0].Value.(float64))
 
-		slotId := NewSlotID(rootIndex)
+		slotId := base.NewSlotID(log.TransactionHash, log.LogIndex)
 		_, ok := ddr.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := xerrors.Errorf("Duplicate disabledDistributionRoot for slot %s at block %d", slotId, log.BlockNumber)
@@ -193,8 +189,8 @@ func (ddr *DisabledDistributionRootsModel) sortValuesForMerkleTree(inputs []*typ
 	values := make([]*base.MerkleTreeInput, 0)
 	for _, input := range inputs {
 		values = append(values, &base.MerkleTreeInput{
-			SlotID: NewSlotID(input.RootIndex),
-			Value:  []byte("disabled"),
+			SlotID: base.NewSlotID(input.TransactionHash, input.LogIndex),
+			Value:  []byte(fmt.Sprintf("%d", input.RootIndex)),
 		})
 	}
 	return values

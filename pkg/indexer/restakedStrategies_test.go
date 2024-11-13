@@ -34,7 +34,7 @@ func setup() (
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Holesky
 	cfg.StatsdUrl = "localhost:8125"
-	cfg.Debug = true
+	cfg.Debug = false
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})

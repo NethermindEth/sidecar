@@ -47,7 +47,7 @@ type StakerShareDeltas struct {
 }
 
 func NewSlotID(staker string, strategy string, strategyIndex uint64, transactionHash string, logIndex uint64) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%s_%d_%s_%d", staker, strategy, strategyIndex, transactionHash, logIndex))
+	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%s_%d", staker, strategy, strategyIndex))
 }
 
 type StakerSharesModel struct {

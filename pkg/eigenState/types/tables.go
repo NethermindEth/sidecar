@@ -13,6 +13,8 @@ type SubmittedDistributionRoot struct {
 	ActivatedAt               time.Time
 	ActivatedAtUnit           string
 	CreatedAtBlockNumber      uint64
+	LogIndex                  uint64
+	TransactionHash           string
 }
 
 func (sdr *SubmittedDistributionRoot) GetSnapshotDate() string {

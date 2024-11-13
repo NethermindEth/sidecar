@@ -62,7 +62,7 @@ type OperatorShareDeltas struct {
 }
 
 func NewSlotID(operator string, strategy string, staker string, transactionHash string, logIndex uint64) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%s_%s_%s_%d", operator, strategy, staker, transactionHash, logIndex))
+	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%s_%s", operator, strategy, staker))
 }
 
 // Implements IEigenStateModel.

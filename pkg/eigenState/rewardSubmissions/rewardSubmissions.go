@@ -38,8 +38,8 @@ type RewardSubmission struct {
 	LogIndex        uint64
 }
 
-func NewSlotID(rewardHash string, strategy string) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%s", rewardHash, strategy))
+func NewSlotID(transactionHash string, logIndex uint64, rewardHash string, strategyIndex uint64) types.SlotID {
+	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%d", rewardHash, strategyIndex))
 }
 
 type RewardSubmissionsModel struct {
@@ -128,7 +128,7 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 
 	rewardSubmissions := make([]*RewardSubmission, 0)
 
-	for _, strategyAndMultiplier := range actualOuputData.StrategiesAndMultipliers {
+	for i, strategyAndMultiplier := range actualOuputData.StrategiesAndMultipliers {
 		startTimestamp := time.Unix(int64(actualOuputData.StartTimestamp), 0)
 		endTimestamp := startTimestamp.Add(time.Duration(actualOuputData.Duration) * time.Second)
 
@@ -167,6 +167,7 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 			RewardType:      rewardType,
 			TransactionHash: log.TransactionHash,
 			LogIndex:        log.LogIndex,
+			StrategyIndex:   uint64(i),
 		}
 		rewardSubmissions = append(rewardSubmissions, rewardSubmission)
 	}
@@ -184,10 +185,11 @@ func (rs *RewardSubmissionsModel) GetStateTransitions() (types.StateTransitions[
 		}
 
 		for _, rewardSubmission := range rewardSubmissions {
-			slotId := NewSlotID(rewardSubmission.RewardHash, rewardSubmission.Strategy)
+			slotId := NewSlotID(rewardSubmission.TransactionHash, rewardSubmission.LogIndex, rewardSubmission.RewardHash, rewardSubmission.StrategyIndex)
 
 			_, ok := rs.stateAccumulator[log.BlockNumber][slotId]
 			if ok {
+				fmt.Printf("Submissions: %+v\n", rs.stateAccumulator[log.BlockNumber])
 				err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
 				rs.logger.Sugar().Errorw("Duplicate distribution root submitted", zap.Error(err))
 				return nil, err
@@ -323,7 +325,7 @@ func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.S
 func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardSubmission) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, submission := range submissions {
-		slotID := NewSlotID(submission.RewardHash, submission.Strategy)
+		slotID := NewSlotID(submission.TransactionHash, submission.LogIndex, submission.RewardHash, submission.StrategyIndex)
 		value := "added"
 		inputs = append(inputs, &base.MerkleTreeInput{
 			SlotID: slotID,

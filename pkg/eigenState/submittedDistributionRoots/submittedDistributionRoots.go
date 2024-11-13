@@ -2,7 +2,6 @@ package submittedDistributionRoots
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"reflect"
@@ -21,10 +20,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
-
-func NewSlotID(root string, rootIndex uint64) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%d", root, rootIndex))
-}
 
 type SubmittedDistributionRootsModel struct {
 	base.BaseEigenState
@@ -137,7 +132,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 
 		activatedAt := outputData.ActivatedAt
 
-		slotId := NewSlotID(root, rootIndex)
+		slotId := base.NewSlotID(log.TransactionHash, log.LogIndex)
 		_, ok := sdr.stateAccumulator[log.BlockNumber][slotId]
 		if ok {
 			err := xerrors.Errorf("Duplicate distribution root submitted for slot %s at block %d", slotId, log.BlockNumber)
@@ -154,6 +149,8 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 			ActivatedAt:               time.Unix(int64(activatedAt), 0),
 			ActivatedAtUnit:           "timestamp",
 			CreatedAtBlockNumber:      log.BlockNumber,
+			TransactionHash:           log.TransactionHash,
+			LogIndex:                  log.LogIndex,
 		}
 		sdr.stateAccumulator[log.BlockNumber][slotId] = record
 
@@ -271,7 +268,7 @@ func (sdr *SubmittedDistributionRootsModel) sortValuesForMerkleTree(inputs []typ
 	values := make([]*base.MerkleTreeInput, 0)
 	for _, input := range inputs {
 		values = append(values, &base.MerkleTreeInput{
-			SlotID: NewSlotID(input.Root, input.RootIndex),
+			SlotID: base.NewSlotID(input.TransactionHash, input.LogIndex),
 			Value:  []byte(input.Root),
 		})
 	}

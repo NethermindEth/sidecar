@@ -19,15 +19,12 @@ import (
 )
 
 type AvsOperatorStateChange struct {
-	Avs         string
-	Operator    string
-	Registered  bool
-	LogIndex    uint64
-	BlockNumber uint64
-}
-
-func NewSlotID(avs string, operator string, logIndex uint64) types.SlotID {
-	return types.SlotID(fmt.Sprintf("%s_%s_%d", avs, operator, logIndex))
+	Avs             string
+	Operator        string
+	Registered      bool
+	LogIndex        uint64
+	TransactionHash string
+	BlockNumber     uint64
 }
 
 // EigenState model for AVS operators that implements IEigenStateModel.
@@ -103,11 +100,12 @@ func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[*AvsOp
 
 		// Store the change in the delta accumulator
 		delta := &AvsOperatorStateChange{
-			Avs:         avs,
-			Operator:    operator,
-			Registered:  registered,
-			LogIndex:    log.LogIndex,
-			BlockNumber: log.BlockNumber,
+			Avs:             avs,
+			Operator:        operator,
+			Registered:      registered,
+			LogIndex:        log.LogIndex,
+			BlockNumber:     log.BlockNumber,
+			TransactionHash: log.TransactionHash,
 		}
 		a.stateAccumulator[log.BlockNumber] = append(a.stateAccumulator[log.BlockNumber], delta)
 
@@ -243,11 +241,11 @@ func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRo
 	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
 }
 
-func (a *AvsOperatorsModel) sortValuesForMerkleTree(diffs []*AvsOperatorStateChange) []*base.MerkleTreeInput {
+func (a *AvsOperatorsModel) sortValuesForMerkleTree(changes []*AvsOperatorStateChange) []*base.MerkleTreeInput {
 	inputs := make([]*base.MerkleTreeInput, 0)
-	for _, diff := range diffs {
+	for _, diff := range changes {
 		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: NewSlotID(diff.Avs, diff.Operator, diff.LogIndex),
+			SlotID: base.NewSlotID(diff.TransactionHash, diff.LogIndex),
 			Value:  []byte(fmt.Sprintf("%t", diff.Registered)),
 		})
 	}
