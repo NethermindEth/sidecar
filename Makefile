@@ -1,6 +1,5 @@
 .PHONY: deps
 
-CGO_ENABLED = 1
 GO=$(shell which go)
 ALL_FLAGS=
 
@@ -18,7 +17,6 @@ deps-system:
 
 deps: deps-system deps/go deps/dev
 
-
 .PHONY: clean
 clean:
 	rm -rf bin || true
@@ -28,6 +26,25 @@ build/cmd/sidecar:
 	$(ALL_FLAGS) $(GO) build \
 		-ldflags "-X 'github.com/Layr-Labs/sidecar/internal/version.Version=$(shell cat .release_version || "unknown")' -X 'github.com/Layr-Labs/sidecar/internal/version.Commit=$(shell git rev-parse --short HEAD)'" \
 		-o bin/sidecar main.go
+
+build/cmd/sidecar/darwin-arm64:
+	GOOS=darwin GOARCH=arm64 $(ALL_FLAGS) $(GO) build -o release/darwin-arm64/sidecar main.go
+
+build/cmd/sidecar/darwin-amd64:
+	GOOS=darwin GOARCH=amd64 $(ALL_FLAGS) $(GO) build -o release/darwin-amd64/sidecar main.go
+
+build/cmd/sidecar/linux-arm64:
+	GOOS=linux GOARCH=arm64 $(ALL_FLAGS) $(GO) build -o release/linux-arm64/sidecar main.go
+
+build/cmd/sidecar/linux-amd64:
+	GOOS=linux GOARCH=amd64 $(ALL_FLAGS) $(GO) build -o release/linux-amd64/sidecar main.go
+
+.PHONY: release
+release:
+	$(MAKE) build/cmd/sidecar/darwin-arm64
+	$(MAKE) build/cmd/sidecar/darwin-amd64
+	$(MAKE) build/cmd/sidecar/linux-arm64
+	$(MAKE) build/cmd/sidecar/linux-amd64
 
 .PHONY: build
 build: build/cmd/sidecar
