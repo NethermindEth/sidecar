@@ -46,7 +46,7 @@ type StakerShareDeltas struct {
 	WithdrawalRootString string `gorm:"-"`
 }
 
-func NewSlotID(staker string, strategy string, strategyIndex uint64, transactionHash string, logIndex uint64) types.SlotID {
+func NewSlotID(transactionHash string, logIndex uint64, staker string, strategy string, strategyIndex uint64) types.SlotID {
 	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%s_%d", staker, strategy, strategyIndex))
 }
 
@@ -601,7 +601,7 @@ func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerShareDeltas)
 	inputs := make([]*base.MerkleTreeInput, 0)
 	for _, diff := range diffs {
 		inputs = append(inputs, &base.MerkleTreeInput{
-			SlotID: NewSlotID(diff.Staker, diff.Strategy, diff.StrategyIndex, diff.TransactionHash, diff.LogIndex),
+			SlotID: NewSlotID(diff.TransactionHash, diff.LogIndex, diff.Staker, diff.Strategy, diff.StrategyIndex),
 			Value:  []byte(diff.Shares),
 		})
 	}
