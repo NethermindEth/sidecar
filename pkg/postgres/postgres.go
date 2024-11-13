@@ -105,7 +105,6 @@ func getPostgresConnectionString(cfg *PostgresConfig) string {
 	if cfg.SchemaName != "" {
 		baseString = fmt.Sprintf("%s search_path=%s", baseString, cfg.SchemaName)
 	}
-	fmt.Printf("Postgres connection string: %s\n", baseString)
 	return baseString
 }
 
