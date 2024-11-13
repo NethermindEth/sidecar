@@ -66,7 +66,7 @@ type blockRange struct {
 	MaxBlockNumber uint64
 }
 
-func Test_StakeDelegationsIntegration(t *testing.T) {
+func Test_StakerDelegationsIntegration(t *testing.T) {
 	dbName, grm, l, cfg, err := setup()
 
 	if err != nil {
