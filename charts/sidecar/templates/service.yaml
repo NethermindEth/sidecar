@@ -1,0 +1,17 @@
+{{- if .Values.sidecar.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "sidecar.name" . }}
+  labels:
+    {{- include "sidecar.labels" . | nindent 4 }}
+spec:
+  ports:
+{{- range $key, $port := .Values.sidecar.ports }}
+  -
+{{ $port | toYaml | indent 4 }}
+{{- end }}
+  clusterIP: None
+  selector:
+  {{- include "sidecar.selectorLabels" . | nindent 6 }}
+{{- end }}

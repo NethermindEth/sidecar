@@ -33,3 +33,18 @@ spec:
           resources:
             {{- toYaml .Values.sidecar.resources | nindent 12 }}
         {{- end }}
+          env:
+        {{- range $k, $v := .Values.sidecar.env }}
+          - name: {{ $k }}
+            value: '{{ $v }}'
+        {{- end }}
+        {{- if .Values.sidecar.secret.data }}
+        {{- range $k, $v := .Values.sidecar.secret.data }}
+          - name: {{ $k }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.sidecar.secret.name }}
+                key: {{ $k }}
+        {{- end}}
+        {{ .Values.sidecar.additionalEnv | nindent 12 }}
+        {{- end}}
