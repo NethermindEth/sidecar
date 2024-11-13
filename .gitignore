@@ -26,3 +26,4 @@ test-db
 .DS_Store
 node_modules
 /release
+.release_version
