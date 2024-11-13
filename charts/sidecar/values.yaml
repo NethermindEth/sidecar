@@ -7,8 +7,7 @@ sidecar:
   replicas: 1
   nameOverride: ''
   additionalLabels: {}
-  command:
-    - run
+  args: ["run"]
   env:
     SIDECAR_CHAIN: "mainnet"
     SIDECAR_DEBUG: "false"

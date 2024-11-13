@@ -14,9 +14,8 @@ RUN make deps
 
 RUN make build
 
-RUN mv /build/bin/sidecar /usr/local/bin/sidecar
+FROM debian:testing-slim
 
-RUN  apt clean && \
-    rm -rf /var/lib/apt/lists/*
+COPY --from=builder /build/bin/sidecar /build/bin/sidecar
 
 ENTRYPOINT ["/usr/local/bin/sidecar"]
