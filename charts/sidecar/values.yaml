@@ -1,0 +1,24 @@
+image:
+  repository: public.ecr.aws/z6g0f8n7/sidecar
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+sidecar:
+  replicas: 1
+  nameOverride: ''
+  additionalLabels: {}
+  ports:
+    - name: grpc
+      port: 7100
+      containerPort: 7100
+      protocol: TCP
+    - name: http
+      port: 7101
+      containerPort: 7101
+      protocol: TCP
+  resources: {}
+  metadataLabels: {}
+  serviceAccount:
+    name: default
+
