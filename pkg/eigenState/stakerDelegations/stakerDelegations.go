@@ -72,8 +72,8 @@ func (s *StakerDelegationsModel) GetModelName() string {
 	return "StakerDelegationsModel"
 }
 
-func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[StakerDelegationChange], []uint64) {
-	stateChanges := make(types.StateTransitions[StakerDelegationChange])
+func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[*StakerDelegationChange], []uint64) {
+	stateChanges := make(types.StateTransitions[*StakerDelegationChange])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*StakerDelegationChange, error) {
 		arguments, err := s.ParseLogArguments(log)

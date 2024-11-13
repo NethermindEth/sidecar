@@ -74,8 +74,8 @@ func (a *AvsOperatorsModel) GetModelName() string {
 //
 // Returns the map and a reverse sorted list of block numbers that can be traversed when
 // processing a log to determine which state change to apply.
-func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[AvsOperatorStateChange], []uint64) {
-	stateChanges := make(types.StateTransitions[AvsOperatorStateChange])
+func (a *AvsOperatorsModel) GetStateTransitions() (types.StateTransitions[*AvsOperatorStateChange], []uint64) {
+	stateChanges := make(types.StateTransitions[*AvsOperatorStateChange])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*AvsOperatorStateChange, error) {
 		arguments, err := a.ParseLogArguments(log)

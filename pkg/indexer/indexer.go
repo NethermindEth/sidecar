@@ -198,6 +198,7 @@ func (idx *Indexer) ParseAndIndexTransactionLogs(ctx context.Context, fetchedBlo
 func (idx *Indexer) IndexFetchedBlock(fetchedBlock *fetcher.FetchedBlock) (*storage.Block, bool, error) {
 	blockNumber := fetchedBlock.Block.Number.Value()
 	blockHash := fetchedBlock.Block.Hash.Value()
+	parentHash := fetchedBlock.Block.ParentHash.Value()
 
 	foundBlock, err := idx.MetadataStore.GetBlockByNumber(blockNumber)
 	if err != nil {
@@ -213,7 +214,7 @@ func (idx *Indexer) IndexFetchedBlock(fetchedBlock *fetcher.FetchedBlock) (*stor
 	}
 
 	// TODO(seanmcgary): store previous block hash
-	insertedBlock, err := idx.MetadataStore.InsertBlockAtHeight(blockNumber, blockHash, fetchedBlock.Block.Timestamp.Value())
+	insertedBlock, err := idx.MetadataStore.InsertBlockAtHeight(blockNumber, blockHash, parentHash, fetchedBlock.Block.Timestamp.Value())
 	if err != nil {
 		idx.Logger.Sugar().Errorw("Failed to insert block at height",
 			zap.Error(err),

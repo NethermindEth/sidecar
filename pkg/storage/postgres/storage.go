@@ -37,12 +37,14 @@ func NewPostgresBlockStore(db *gorm.DB, l *zap.Logger, cfg *config.Config) *Post
 func (s *PostgresBlockStore) InsertBlockAtHeight(
 	blockNumber uint64,
 	hash string,
+	parentHash string,
 	blockTime uint64,
 ) (*storage.Block, error) {
 	block := &storage.Block{
-		Number:    blockNumber,
-		Hash:      hash,
-		BlockTime: time.Unix(int64(blockTime), 0),
+		Number:     blockNumber,
+		Hash:       hash,
+		ParentHash: parentHash,
+		BlockTime:  time.Unix(int64(blockTime), 0),
 	}
 
 	res := s.Db.Model(&storage.Block{}).Clauses(clause.Returning{}).Create(&block)

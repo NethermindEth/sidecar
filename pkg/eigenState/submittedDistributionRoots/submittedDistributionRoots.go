@@ -79,8 +79,8 @@ func parseLogOutputForDistributionRootSubmitted(outputDataStr string) (*distribu
 	return outputData, err
 }
 
-func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTransitions[types.SubmittedDistributionRoot], []uint64) {
-	stateChanges := make(types.StateTransitions[types.SubmittedDistributionRoot])
+func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTransitions[*types.SubmittedDistributionRoot], []uint64) {
+	stateChanges := make(types.StateTransitions[*types.SubmittedDistributionRoot])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*types.SubmittedDistributionRoot, error) {
 		arguments, err := sdr.ParseLogArguments(log)

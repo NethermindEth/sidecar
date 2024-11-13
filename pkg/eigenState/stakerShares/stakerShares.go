@@ -362,8 +362,8 @@ type AccumulatedStateChanges struct {
 }
 
 // GetStateTransitions returns a map of block numbers to state transitions and a list of block numbers
-func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[AccumulatedStateChanges], []uint64) {
-	stateChanges := make(types.StateTransitions[AccumulatedStateChanges])
+func (ss *StakerSharesModel) GetStateTransitions() (types.StateTransitions[*AccumulatedStateChanges], []uint64) {
+	stateChanges := make(types.StateTransitions[*AccumulatedStateChanges])
 
 	/**
 	Order of StakerShare deposit and withdrawal events over time:

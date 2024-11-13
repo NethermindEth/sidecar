@@ -119,8 +119,8 @@ func parseLogOutputForOperatorShares(outputDataStr string) (*operatorSharesOutpu
 	return outputData, err
 }
 
-func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[OperatorShareDeltas], []uint64) {
-	stateChanges := make(types.StateTransitions[OperatorShareDeltas])
+func (osm *OperatorSharesModel) GetStateTransitions() (types.StateTransitions[*OperatorShareDeltas], []uint64) {
+	stateChanges := make(types.StateTransitions[*OperatorShareDeltas])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*OperatorShareDeltas, error) {
 		arguments, err := osm.ParseLogArguments(log)

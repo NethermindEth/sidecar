@@ -30,6 +30,7 @@ import (
 	_202411071011_updateOperatorSharesDelta "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411071011_updateOperatorSharesDelta"
 	_202411081039_operatorRestakedStrategiesConstraint "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411081039_operatorRestakedStrategiesConstraint"
 	_202411120947_disabledDistributionRoots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411120947_disabledDistributionRoots"
+	_202411130953_addHashColumns "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411130953_addHashColumns"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -84,6 +85,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202411071011_updateOperatorSharesDelta.Migration{},
 		&_202411081039_operatorRestakedStrategiesConstraint.Migration{},
 		&_202411120947_disabledDistributionRoots.Migration{},
+		&_202411130953_addHashColumns.Migration{},
 	}
 
 	for _, migration := range migrations {

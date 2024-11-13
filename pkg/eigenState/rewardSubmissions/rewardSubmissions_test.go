@@ -119,10 +119,10 @@ func Test_RewardSubmissions(t *testing.T) {
 				{"0xdccf401fd121d8c542e96bc1d0078884422afad2", "5000000000000000000"},
 			}
 
-			typedChange := change.(*RewardSubmissions)
-			assert.Equal(t, len(strategiesAndMultipliers), len(typedChange.Submissions))
+			typedChange := change.([]*RewardSubmission)
+			assert.Equal(t, len(strategiesAndMultipliers), len(typedChange))
 
-			for i, submission := range typedChange.Submissions {
+			for i, submission := range typedChange {
 				assert.Equal(t, strings.ToLower("0x00526A07855f743964F05CccAeCcf7a9E34847fF"), strings.ToLower(submission.Avs))
 				assert.Equal(t, strings.ToLower("0x94373a4919b3240d86ea41593d5eba789fef3848"), strings.ToLower(submission.Token))
 				assert.Equal(t, strings.ToLower("0x58959fBe6661daEA647E20dF7c6d2c7F0d2215fB"), strings.ToLower(submission.RewardHash))
@@ -194,10 +194,10 @@ func Test_RewardSubmissions(t *testing.T) {
 				{"0xd523267698c81a372191136e477fdebfa33d9fb4", "4500000000000000000"},
 			}
 
-			typedChange := change.(*RewardSubmissions)
-			assert.Equal(t, len(strategiesAndMultipliers), len(typedChange.Submissions))
+			typedChange := change.([]*RewardSubmission)
+			assert.Equal(t, len(strategiesAndMultipliers), len(typedChange))
 
-			for i, submission := range typedChange.Submissions {
+			for i, submission := range typedChange {
 				assert.Equal(t, strings.ToLower("0x00526A07855f743964F05CccAeCcf7a9E34847fF"), strings.ToLower(submission.Avs))
 				assert.Equal(t, strings.ToLower("0x3f1c547b21f65e10480de3ad8e19faac46c95034"), strings.ToLower(submission.Token))
 				assert.Equal(t, strings.ToLower("0x69193C881C4BfA9015F1E9B2631e31238BedB93e"), strings.ToLower(submission.RewardHash))
@@ -266,10 +266,10 @@ func Test_RewardSubmissions(t *testing.T) {
 				{"0x5074dfd18e9498d9e006fb8d4f3fecdc9af90a2c", "1000000000000000000"},
 			}
 
-			typedChange := change.(*RewardSubmissions)
-			assert.Equal(t, len(strategiesAndMultipliers), len(typedChange.Submissions))
+			typedChange := change.([]*RewardSubmission)
+			assert.Equal(t, len(strategiesAndMultipliers), len(typedChange))
 
-			for i, submission := range typedChange.Submissions {
+			for i, submission := range typedChange {
 				assert.Equal(t, strings.ToLower("0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101"), strings.ToLower(submission.Avs))
 				assert.Equal(t, strings.ToLower("0x0ddd9dc88e638aef6a8e42d0c98aaa6a48a98d24"), strings.ToLower(submission.Token))
 				assert.Equal(t, strings.ToLower("0x7402669fb2c8a0cfe8108acb8a0070257c77ec6906ecb07d97c38e8a5ddc66a9"), strings.ToLower(submission.RewardHash))
@@ -339,10 +339,10 @@ func Test_RewardSubmissions(t *testing.T) {
 				{"0xdccf401fd121d8c542e96bc1d0078884422afad2", "2000000000000000000"},
 			}
 
-			typedChange := change.(*RewardSubmissions)
-			assert.Equal(t, len(strategiesAndMultipliers), len(typedChange.Submissions))
+			typedChange := change.([]*RewardSubmission)
+			assert.Equal(t, len(strategiesAndMultipliers), len(typedChange))
 
-			for i, submission := range typedChange.Submissions {
+			for i, submission := range typedChange {
 				assert.Equal(t, strings.ToLower("0x66ae7d7c4d492e4e012b95977f14715b74498bc5"), strings.ToLower(submission.Avs))
 				assert.Equal(t, strings.ToLower("0x554c393923c753d146aa34608523ad7946b61662"), strings.ToLower(submission.Token))
 				assert.Equal(t, strings.ToLower("0x99ebccb0f68eedbf3dff04c7773d6ff94fc439e0eebdd80918b3785ae8099f96"), strings.ToLower(submission.RewardHash))
@@ -411,10 +411,10 @@ func Test_RewardSubmissions(t *testing.T) {
 				{"0x43252609bff8a13dfe5e057097f2f45a24387a84", "1000000000000000000"},
 			}
 
-			typedChange := change.(*RewardSubmissions)
-			assert.Equal(t, len(strategiesAndMultipliers), len(typedChange.Submissions))
+			typedChange := change.([]*RewardSubmission)
+			assert.Equal(t, len(strategiesAndMultipliers), len(typedChange))
 
-			for i, submission := range typedChange.Submissions {
+			for i, submission := range typedChange {
 				assert.Equal(t, strings.ToLower("0x8daae33cb2da8da23595adb19f271ef41e34bd8c"), strings.ToLower(submission.Avs))
 				assert.Equal(t, strings.ToLower("0x3b78576f7d6837500ba3de27a60c7f594934027e"), strings.ToLower(submission.Token))
 				assert.Equal(t, strings.ToLower("0xeb2a1f63fd3274fa701ad2045c04b4f1274c6d7b5ff8a83d75d87e812b589c9c"), strings.ToLower(submission.RewardHash))
@@ -486,7 +486,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		change, err := model.HandleStateChange(log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
-		typedChange := change.(*RewardSubmissions)
+		typedChange := change.([]*RewardSubmission)
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -496,7 +496,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		res := model.DB.Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, len(typedChange.Submissions), count)
+		assert.Equal(t, len(typedChange), count)
 
 		stateRoot, err := model.GenerateStateRoot(blockNumber)
 		assert.Nil(t, err)
@@ -532,7 +532,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		change, err = model.HandleStateChange(log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
-		typedChange = change.(*RewardSubmissions)
+		typedChange = change.([]*RewardSubmission)
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -546,7 +546,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		res = model.DB.Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, len(typedChange.Submissions), count)
+		assert.Equal(t, len(typedChange), count)
 
 		// -----
 
@@ -576,7 +576,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		change, err = model.HandleStateChange(log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
-		typedChange = change.(*RewardSubmissions)
+		typedChange = change.([]*RewardSubmission)
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -590,7 +590,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		res = model.DB.Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, len(typedChange.Submissions), count)
+		assert.Equal(t, len(typedChange), count)
 
 		// -----
 
@@ -620,7 +620,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		change, err = model.HandleStateChange(log)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
-		typedChange = change.(*RewardSubmissions)
+		typedChange = change.([]*RewardSubmission)
 
 		err = model.CommitFinalState(blockNumber)
 		assert.Nil(t, err)
@@ -634,7 +634,7 @@ func Test_RewardSubmissions(t *testing.T) {
 		res = model.DB.Raw(query, blockNumber).Scan(&count)
 
 		assert.Nil(t, res.Error)
-		assert.Equal(t, len(typedChange.Submissions), count)
+		assert.Equal(t, len(typedChange), count)
 
 		t.Cleanup(func() {
 			teardown(model)
@@ -665,9 +665,9 @@ func Test_RewardSubmissions(t *testing.T) {
 			change, err := model.HandleStateChange(log)
 			assert.Nil(t, err)
 			assert.NotNil(t, change)
-			typedChange := change.(*RewardSubmissions)
+			typedChange := change.([]*RewardSubmission)
 
-			submissionCounter += len(typedChange.Submissions)
+			submissionCounter += len(typedChange)
 		}
 
 		// First RangePaymentCreated

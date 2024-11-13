@@ -57,8 +57,8 @@ func (ddr *DisabledDistributionRootsModel) GetModelName() string {
 	return MODEL_NAME
 }
 
-func (ddr *DisabledDistributionRootsModel) GetStateTransitions() (types.StateTransitions[types.DisabledDistributionRoot], []uint64) {
-	stateChanges := make(types.StateTransitions[types.DisabledDistributionRoot])
+func (ddr *DisabledDistributionRootsModel) GetStateTransitions() (types.StateTransitions[*types.DisabledDistributionRoot], []uint64) {
+	stateChanges := make(types.StateTransitions[*types.DisabledDistributionRoot])
 
 	stateChanges[0] = func(log *storage.TransactionLog) (*types.DisabledDistributionRoot, error) {
 		arguments, err := ddr.ParseLogArguments(log)
