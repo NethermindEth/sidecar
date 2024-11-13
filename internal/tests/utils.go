@@ -23,11 +23,12 @@ func GenerateTestDbName() (string, error) {
 
 func GetDbConfigFromEnv() *config.DatabaseConfig {
 	return &config.DatabaseConfig{
-		Host:     os.Getenv(config.GetEnvVarVar(config.DatabaseHost)),
-		Port:     config.StringVarToInt(os.Getenv(config.GetEnvVarVar(config.DatabasePort))),
-		User:     os.Getenv(config.GetEnvVarVar(config.DatabaseUser)),
-		Password: os.Getenv(config.GetEnvVarVar(config.DatabasePassword)),
-		DbName:   os.Getenv(config.GetEnvVarVar(config.DatabaseDbName)),
+		Host:       os.Getenv(config.GetEnvVarVar(config.DatabaseHost)),
+		Port:       config.StringVarToInt(os.Getenv(config.GetEnvVarVar(config.DatabasePort))),
+		User:       os.Getenv(config.GetEnvVarVar(config.DatabaseUser)),
+		Password:   os.Getenv(config.GetEnvVarVar(config.DatabasePassword)),
+		DbName:     os.Getenv(config.GetEnvVarVar(config.DatabaseDbName)),
+		SchemaName: os.Getenv(config.GetEnvVarVar(config.DatabaseSchemaName)),
 	}
 }
 

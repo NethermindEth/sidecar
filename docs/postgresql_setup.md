@@ -1,4 +1,7 @@
-## Linux (Ubuntu 24.04+)
+
+## Running PostgreSQL with the Sidecar
+
+_Instructions for Linux (Ubuntu 24.04+)_
 
 ```bash
 su root
@@ -38,17 +41,37 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO sidecar;
 
 -- Grant permissions for future objects
 ALTER DEFAULT PRIVILEGES IN SCHEMA public 
-GRANT ALL ON TABLES TO sidecar;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public 
-GRANT ALL ON SEQUENCES TO sidecar;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public 
+GRANT ALL ON TABLES TO sidecar; 
+GRANT ALL ON SEQUENCES TO sidecar; 
 GRANT ALL ON FUNCTIONS TO sidecar;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public 
 GRANT ALL ON TYPES TO sidecar;
 ```
+
+### Using a custom schema name
+
+```bash
+psql --dbname <your db name>
+```
+
+```sql
+
+-- Create the schema
+create schema if not exists <your schema name>;
+
+-- Set the default search path
+alter database <your db name> set search_path to <your schema name>;
+      
+ALTER SCHEMA <your schema name> OWNER TO sidecar;
+
+-- Grant all privileges on existing tables and sequences (there shouldnt be any if this is brand new) 
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA <your schema name> TO sidecar;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA <your schema name> TO sidecar;
+
+-- Grant permissions for future objects
+ALTER DEFAULT PRIVILEGES IN SCHEMA <your schema name> 
+```
+
+## Appendix
 
 ### Tuned PostgreSQL parameters
 
