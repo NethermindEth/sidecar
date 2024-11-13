@@ -81,13 +81,13 @@ jobs:
         env:
           REGISTRY: "public.ecr.aws/z6g0f8n7"
           REPOSITORY: ${{ github.event.repository.name }}
-          IMAGE_TAG: ${{ github.sha }}
-          PLATFORMS: "linux/amd64"
+          PLATFORMS: "linux/amd64,linux/arm64"
         run: |
+          VERSION=$(cat .release_version)
           if [[ $GITHUB_REF == refs/heads/master ]]; then
-            docker buildx build --platform $PLATFORMS -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest --push .
+            docker buildx build --platform $PLATFORMS -t $REGISTRY/$REPOSITORY:$VERSION -t $REGISTRY/$REPOSITORY:latest --push .
           else
-            docker buildx build --platform $PLATFORMS -t $REGISTRY/$REPOSITORY:$IMAGE_TAG --push .
+            docker buildx build --platform $PLATFORMS -t $REGISTRY/$REPOSITORY:$VERSION --push .
           fi
   build-binary:
     runs-on: ubuntu-latest
