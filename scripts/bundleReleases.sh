@@ -11,5 +11,5 @@ fi
 for i in $(ls release); do
     fileName="sidecar-${i}-${VERSION}.tar.gz"
 
-    tar -cvf "./release/${fileName}" "./release/${i}/sidecar"
+    tar -cvf "./release/${fileName}" -C "./release/${i}/" sidecar
 done

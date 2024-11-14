@@ -17,7 +17,7 @@ sidecar:
     SIDECAR_DATABASE_USER: "sidecar"
     SIDECAR_DATABASE_DB_NAME: "sidecar"
     # SIDECAR_STATSD_URL: ""
-  additionalEnv: {}
+  additionalEnv: []
   #  - name: ENV_NAME
   #    value: "env value"
   ports:
