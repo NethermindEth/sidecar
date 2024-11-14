@@ -40,12 +40,18 @@ spec:
             value: '{{ $v }}'
         {{- end }}
         {{- if .Values.sidecar.secret.data }}
+        {{- $secretName := .Values.sidecar.secret.name -}}
         {{- range $k, $v := .Values.sidecar.secret.data }}
           - name: {{ $k }}
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.sidecar.secret.name }}
+                name: {{ $secretName }}
                 key: {{ $k }}
         {{- end}}
-        {{ .Values.sidecar.additionalEnv | nindent 12 }}
         {{- end}}
+        {{- if .Values.sidecar.additionalEnv }}
+        {{- range $k, $v := .Values.sidecar.additionalEnv }}
+          - name: {{ $v.name }}
+            value: '{{ $v.value }}'
+        {{- end }}
+        {{- end }}
