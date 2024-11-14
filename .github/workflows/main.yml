@@ -92,6 +92,7 @@ jobs:
   build-create-release:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    needs: [build-container]
     permissions: write-all
     steps:
       - name: Checkout
