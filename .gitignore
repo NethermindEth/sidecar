@@ -27,3 +27,4 @@ test-db
 node_modules
 /release
 .release_version
+chart_releases
