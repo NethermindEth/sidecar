@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  sidecar:
+  - apiVersion: v2
+    appVersion: v1.0.0-beta.1
+    created: "2024-11-13T21:23:12.29288-06:00"
+    description: A Helm chart for the EigenLayer sidecar
+    digest: bb14bb5ec625c6b4596a042aa9b4a1661bb58f1e9710e1cd17250e71ae3e31ec
+    name: sidecar
+    type: application
+    urls:
+    - https://eigenlayer-sidecar.s3.amazonaws.com/helm/sidecar-0.1.0-beta.1.tgz
+    version: 0.1.0-beta.1
+generated: "2024-11-13T21:23:12.292376-06:00"
