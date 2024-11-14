@@ -16,6 +16,6 @@ RUN make build
 
 FROM debian:testing-slim
 
-COPY --from=builder /build/bin/sidecar /build/bin/sidecar
+COPY --from=builder /build/bin/sidecar /usr/local/bin/sidecar
 
 ENTRYPOINT ["/usr/local/bin/sidecar"]

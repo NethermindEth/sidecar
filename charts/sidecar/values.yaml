@@ -1,7 +1,7 @@
 image:
   repository: public.ecr.aws/z6g0f8n7/sidecar
   pullPolicy: Always
-  tag: "v1.0.0-beta.1"
+  tag: "v1.0.0-beta.4"
 
 sidecar:
   replicas: 1

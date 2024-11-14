@@ -27,7 +27,7 @@ if [[ "$OS" == "linux" ]]; then
 
     which go
     if [[ $? != 0 ]]; then
-        echo "Installing Go 1.22"
+        echo "Installing Go 1.23"
         apt-get install -y golang
     fi
 fi
