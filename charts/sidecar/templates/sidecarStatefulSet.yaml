@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "sidecar.name" . }}
+  labels:
+    {{- include "sidecar.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.sidecar.replicas }}
+  selector:
+    matchLabels:
+      {{- include "sidecar.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "sidecar.metadataLabels" . | nindent 8 }}
+    spec:
+    {{- if .Values.sidecar.serviceAccount }}
+      serviceAccountName: {{ .Values.sidecar.serviceAccount.name }}
+    {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: {{ .Values.sidecar.args | toJson}}
+        {{- if .Values.sidecar.ports }}
+          ports:
+          {{- range $k, $v := .Values.sidecar.ports }}
+            - name: {{ $v.name }}
+              containerPort: {{ $v.containerPort }}
+              protocol: {{ $v.protocol }}
+          {{- end -}}
+        {{- end }}
+        {{- if .Values.sidecar.resources }}
+          resources:
+            {{- toYaml .Values.sidecar.resources | nindent 12 }}
+        {{- end }}
+          env:
+        {{- range $k, $v := .Values.sidecar.env }}
+          - name: {{ $k }}
+            value: '{{ $v }}'
+        {{- end }}
+        {{- if .Values.sidecar.secret.data }}
+        {{- range $k, $v := .Values.sidecar.secret.data }}
+          - name: {{ $k }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.sidecar.secret.name }}
+                key: {{ $k }}
+        {{- end}}
+        {{ .Values.sidecar.additionalEnv | nindent 12 }}
+        {{- end}}
