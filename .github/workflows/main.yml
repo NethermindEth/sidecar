@@ -150,7 +150,7 @@ jobs:
   release-helm-chart:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master'
-    needs: [build-create-release]
+    needs: [build-container]
     permissions: write-all
     steps:
       - name: Checkout
