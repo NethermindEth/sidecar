@@ -91,7 +91,7 @@ jobs:
   build-create-release:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-container]
+    needs: [build-container, lint, test]
     permissions: write-all
     steps:
       - name: Checkout
@@ -149,7 +149,7 @@ jobs:
   release-helm-chart:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master'
-    needs: [build-container]
+    needs: [build-container, lint, test]
     permissions: write-all
     steps:
       - name: Checkout
