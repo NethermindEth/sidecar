@@ -1,7 +1,7 @@
 image:
   repository: public.ecr.aws/z6g0f8n7/sidecar
   pullPolicy: Always
-  tag: "v1.0.0-beta.4"
+  tag: "v1.0.0-beta.5"
 
 sidecar:
   replicas: 1
@@ -23,11 +23,11 @@ sidecar:
   ports:
     - name: grpc
       port: 7100
-      containerPort: 7100
+      targetPort: 7100
       protocol: TCP
     - name: http
       port: 7101
-      containerPort: 7101
+      targetPort: 7101
       protocol: TCP
   resources: {}
   metadataLabels: {}

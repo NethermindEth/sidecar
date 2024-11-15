@@ -240,11 +240,13 @@ func (c *Config) GetOperatorRestakedStrategiesStartBlock() uint64 {
 func (c *Config) CanIgnoreIncorrectRewardsRoot(blockNumber uint64) bool {
 	switch c.Chain {
 	case Chain_Preprod:
-		if blockNumber < 2125282 {
+		// roughly 2024-08-01
+		if blockNumber < 2046020 {
 			return true
 		}
 	case Chain_Holesky:
-		if blockNumber < 2125282 {
+		// roughly 2024-08-01
+		if blockNumber < 2046020 {
 			return true
 		}
 	case Chain_Mainnet:
