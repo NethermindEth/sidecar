@@ -13,7 +13,7 @@ func InitStatsdClient(addr string) (*statsd.Client, error) {
 	// if the addr is empty, statsd will look at the envvar DD_DOGSTATSD_URL
 	var err error
 	s, err := statsd.New(addr,
-		statsd.WithNamespace("blocklake."),
+		statsd.WithNamespace("sidecar."),
 		statsd.WithBufferFlushInterval(time.Second*2),
 	)
 
