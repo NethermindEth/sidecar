@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/version"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
@@ -39,6 +40,11 @@ var runCmd = &cobra.Command{
 		ctx := context.Background()
 
 		l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+
+		l.Sugar().Infow("sidecar run",
+			zap.String("version", version.GetVersion()),
+			zap.String("commit", version.GetCommit()),
+		)
 
 		sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
 		if err != nil {
