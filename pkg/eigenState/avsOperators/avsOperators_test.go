@@ -127,7 +127,7 @@ func Test_AvsOperatorState(t *testing.T) {
 				Scan(&states)
 
 			if statesRes.Error != nil {
-				t.Fatalf("Failed to fetch registered_avs_operators: %v", statesRes.Error)
+				t.Fatalf("Failed to fetch avs_operator_state_changes: %v", statesRes.Error)
 			}
 
 			assert.Equal(t, 1, len(states))
