@@ -40,7 +40,6 @@ func setup() (
 
 func teardown(model *StakerDelegationsModel) {
 	model.DB.Exec("truncate table staker_delegation_changes cascade")
-	model.DB.Exec("truncate table delegated_stakers cascade")
 	model.DB.Exec("truncate table staker_delegation_changes cascade")
 }
 
@@ -125,7 +124,7 @@ func Test_DelegatedStakersState(t *testing.T) {
 				Scan(&states)
 
 			if statesRes.Error != nil {
-				t.Fatalf("Failed to fetch delegated_stakers: %v", statesRes.Error)
+				t.Fatalf("Failed to fetch staker_delegation_changes: %v", statesRes.Error)
 			}
 
 			assert.Equal(t, 1, len(states))

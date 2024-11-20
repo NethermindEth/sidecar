@@ -32,6 +32,7 @@ import (
 	_202411120947_disabledDistributionRoots "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411120947_disabledDistributionRoots"
 	_202411130953_addHashColumns "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411130953_addHashColumns"
 	_202411131200_eigenStateModelConstraints "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411131200_eigenStateModelConstraints"
+	_202411191947_cleanupUnusedTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191947_cleanupUnusedTables"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -102,6 +103,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202411120947_disabledDistributionRoots.Migration{},
 		&_202411130953_addHashColumns.Migration{},
 		&_202411131200_eigenStateModelConstraints.Migration{},
+		&_202411191947_cleanupUnusedTables.Migration{},
 	}
 
 	for _, migration := range migrations {
