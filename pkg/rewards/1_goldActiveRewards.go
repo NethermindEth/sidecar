@@ -12,7 +12,10 @@ WITH active_rewards_modified as (
            amount/(duration/86400) as tokens_per_day,
            cast(@cutoffDate AS TIMESTAMP(6)) as global_end_inclusive -- Inclusive means we DO USE this day as a snapshot
     FROM combined_rewards
-        WHERE end_timestamp >= TIMESTAMP '{{.rewardsStart}}' and start_timestamp <= TIMESTAMP '{{.cutoffDate}}'
+        WHERE
+    		end_timestamp >= TIMESTAMP '{{.rewardsStart}}'
+    		and start_timestamp <= TIMESTAMP '{{.cutoffDate}}'
+    		and block_time <= TIMESTAMP '{{.cutoffDate}}' -- Always ensure we're not using future data. Should never happen since we're never backfilling, but here for safety and consistency.
 ),
 -- Cut each reward's start and end windows to handle the global range
 active_rewards_updated_end_timestamps as (
