@@ -29,5 +29,6 @@ jobs:
           else
             echo "Branch is not up to date with master"
             echo "Please rebase your branch"
+            echo "$res"
             exit 1
           fi
