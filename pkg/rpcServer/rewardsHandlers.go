@@ -3,6 +3,7 @@ package rpcServer
 import (
 	"context"
 	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -12,10 +13,10 @@ func (rpc *RpcServer) GetRewardsRoot(ctx context.Context, req *sidecarV1.GetRewa
 }
 
 func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *sidecarV1.GenerateRewardsRequest) (*sidecarV1.GenerateRewardsResponse, error) {
-	snapshotDate := req.GetSnapshot()
+	cutoffDate := req.GetCutoffDate()
 
-	if snapshotDate != "" {
-		if err := rpc.rewardsCalculator.CalculateRewardsForSnapshotDate(snapshotDate); err != nil {
+	if cutoffDate != "" {
+		if err := rpc.rewardsCalculator.CalculateRewardsForSnapshotDate(cutoffDate); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	} else {
@@ -23,15 +24,46 @@ func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *sidecarV1.Genera
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		snapshotDate = sd
+		cutoffDate = sd
 	}
 	return &sidecarV1.GenerateRewardsResponse{
-		Snapshot: snapshotDate,
+		CutoffDate: cutoffDate,
 	}, nil
 }
 
 func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *sidecarV1.GenerateRewardsRootRequest) (*sidecarV1.GenerateRewardsRootResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GenerateRewardsRoot not implemented")
+	cutoffDate := req.GetCutoffDate()
+	if cutoffDate == "" {
+		return nil, status.Error(codes.InvalidArgument, "snapshot date is required")
+	}
+
+	err := rpc.rewardsCalculator.CalculateRewardsForSnapshotDate(cutoffDate)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	rewardsCalcEndDate, err := rpc.rewardsCalculator.GetMaxSnapshotDateForCutoffDate(cutoffDate)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if rewardsCalcEndDate == "" {
+		return nil, status.Error(codes.NotFound, "no rewards calculated for the given snapshot date")
+	}
+
+	accountTree, _, err := rpc.rewardsCalculator.MerkelizeRewardsForSnapshot(rewardsCalcEndDate)
+	if err != nil {
+		rpc.Logger.Sugar().Errorw("failed to merkelize rewards for snapshot",
+			zap.Error(err),
+			zap.String("cutOffDate", cutoffDate),
+			zap.String("rewardsCalcEndDate", rewardsCalcEndDate),
+		)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &sidecarV1.GenerateRewardsRootResponse{
+		RewardsRoot:        string(accountTree.Root()[:]),
+		RewardsCalcEndDate: rewardsCalcEndDate,
+	}, nil
 }
 
 func (rpc *RpcServer) GetRewardsForSnapshot(ctx context.Context, req *sidecarV1.GetRewardsForSnapshotRequest) (*sidecarV1.GetRewardsForSnapshotResponse, error) {
