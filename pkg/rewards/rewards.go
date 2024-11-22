@@ -156,6 +156,8 @@ func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (*
 		})
 	}
 
+	rc.logger.Sugar().Infow("Loaded earner lines", "count", len(earnerLines))
+
 	if err := distro.LoadLines(earnerLines); err != nil {
 		rc.logger.Error("Failed to load lines", zap.Error(err))
 		return nil, nil, err

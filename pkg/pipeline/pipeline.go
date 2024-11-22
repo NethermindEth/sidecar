@@ -205,16 +205,19 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 			//
 			// For example, the first mainnet root has a rewardsCalculationEnd of 2024-08-01 00:00:00, but
 			// the cutoff date used to generate that data is actually 2024-08-02 00:00:00.
-			snapshotDate := rs.RewardsCalculationEnd.UTC().Add(time.Hour * 24).Format(time.DateOnly)
+			rewardsCalculationEnd := time.Unix(int64(rewardsRoot.RewardsCalculationEndTimestamp), 0).UTC().Format(time.DateOnly)
+
+			cutoffDate := time.Unix(int64(rewardsRoot.RewardsCalculationEndTimestamp), 0).UTC().Add(time.Hour * 24).Format(time.DateOnly)
 
 			p.Logger.Sugar().Infow("Calculating rewards for snapshot date",
-				zap.String("snapshotDate", snapshotDate),
+				zap.String("cutoffDate", cutoffDate),
+				zap.String("rewardsCalculationEnd", rewardsCalculationEnd),
 				zap.Uint64("blockNumber", blockNumber),
 			)
 
-			if err = p.rewardsCalculator.CalculateRewardsForSnapshotDate(snapshotDate); err != nil {
+			if err = p.rewardsCalculator.CalculateRewardsForSnapshotDate(cutoffDate); err != nil {
 				p.Logger.Sugar().Errorw("Failed to calculate rewards for snapshot date",
-					zap.String("snapshotDate", snapshotDate), zap.Error(err),
+					zap.String("cutoffDate", cutoffDate), zap.Error(err),
 					zap.Uint64("blockNumber", blockNumber),
 					zap.Any("distributionRoot", rs),
 				)
@@ -222,13 +225,13 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 			}
 
 			p.Logger.Sugar().Infow("Merkelizing rewards for snapshot date",
-				zap.String("snapshotDate", snapshotDate),
+				zap.String("cutoffDate", cutoffDate),
 				zap.Uint64("blockNumber", blockNumber),
 			)
-			accountTree, _, err := p.rewardsCalculator.MerkelizeRewardsForSnapshot(snapshotDate)
+			accountTree, _, err := p.rewardsCalculator.MerkelizeRewardsForSnapshot(rewardsCalculationEnd)
 			if err != nil {
 				p.Logger.Sugar().Errorw("Failed to merkelize rewards for snapshot date",
-					zap.String("snapshotDate", snapshotDate), zap.Error(err),
+					zap.String("cutoffDate", cutoffDate), zap.Error(err),
 					zap.Uint64("blockNumber", blockNumber),
 				)
 				return err
@@ -241,7 +244,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 			if strings.ToLower(root) != strings.ToLower(rs.Root) {
 				if !p.globalConfig.CanIgnoreIncorrectRewardsRoot(blockNumber) {
 					p.Logger.Sugar().Errorw("Roots do not match",
-						zap.String("snapshotDate", snapshotDate),
+						zap.String("cutoffDate", cutoffDate),
 						zap.Uint64("blockNumber", blockNumber),
 						zap.String("expectedRoot", rs.Root),
 						zap.String("actualRoot", root),
@@ -250,14 +253,14 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					return errors.New("roots do not match")
 				}
 				p.Logger.Sugar().Warnw("Roots do not match, but allowed to ignore",
-					zap.String("snapshotDate", snapshotDate),
+					zap.String("cutoffDate", cutoffDate),
 					zap.Uint64("blockNumber", blockNumber),
 					zap.String("expectedRoot", rs.Root),
 					zap.String("actualRoot", root),
 					zap.Int64("rewardsTotalTimeMs", rewardsTotalTimeMs),
 				)
 			} else {
-				p.Logger.Sugar().Infow("Roots match", zap.String("snapshotDate", snapshotDate), zap.Uint64("blockNumber", blockNumber))
+				p.Logger.Sugar().Infow("Roots match", zap.String("cutoffDate", cutoffDate), zap.Uint64("blockNumber", blockNumber))
 			}
 		}
 	}
