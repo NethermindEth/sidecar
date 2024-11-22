@@ -1,0 +1,36 @@
+name: check-pr-merge
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - master
+      - "release/*"
+jobs:
+  check-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check if branch is up to date
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          baseRef="origin/${BASE_REF}"
+          echo "Targeting '$baseRef'"
+          
+          git fetch origin
+          
+          res=$(git --no-pager log HEAD..$baseRef --oneline)
+          if [[ -z "$res" ]]; then
+            echo "Branch is up to date with master"
+          else
+            echo "Branch is not up to date with master"
+            echo "Please rebase your branch"
+            echo "$res"
+            exit 1
+          fi
