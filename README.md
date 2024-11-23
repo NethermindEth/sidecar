@@ -222,6 +222,19 @@ services:
 POSTGRES_DATA_PATH=<path to store postgres data> docker-compose up
 ```
 
+# Boot from a snapshot
+
+* Mainnet (not yet available)
+* Testnet ([2024-11-22](https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky-20241122.dump))
+
+```bash
+curl -LO https://eigenlayer-sidecar.s3.amazonaws.com/snapshots/testnet/sidecar-testnet-2024-11-22.tar.gz
+
+tar -xvf sidecar-testnet-2024-11-22.tar.gz
+
+pg_restore --host <hostname> --port 5432 --username <username> --dbname <dbname> --no-owner sidecar-testnet-2024-11-22.dump
+```
+
 ## RPC Routes
 
 ### Get current block height
