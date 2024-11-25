@@ -32,19 +32,3 @@ func (rpc *RpcServer) GetStateRoot(ctx context.Context, req *sidecarV1.GetStateR
 		StateRoot:      stateRoot.StateRoot,
 	}, nil
 }
-
-func (rpc *RpcServer) GetRewardsRoot(ctx context.Context, req *sidecarV1.GetRewardsRootRequest) (*sidecarV1.GetRewardsRootResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetRewardsRoot not implemented")
-}
-
-func (rpc *RpcServer) GenerateClaimProof(ctx context.Context, req *sidecarV1.GenerateClaimProofRequest) (*sidecarV1.GenerateClaimProofResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GenerateClaimProof not implemented")
-}
-
-func (rpc *RpcServer) GetAvailableRewards(ctx context.Context, req *sidecarV1.GetAvailableRewardsRequest) (*sidecarV1.GetAvailableRewardsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetAvailableRewards not implemented")
-}
-
-func (rpc *RpcServer) GetAvailableRewardsTokens(ctx context.Context, req *sidecarV1.GetAvailableRewardsTokensRequest) (*sidecarV1.GetAvailableRewardsTokensResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetAvailableRewardsTokens not implemented")
-}

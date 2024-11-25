@@ -14,7 +14,6 @@ import (
 
 type RpcServer struct {
 	v1.UnimplementedRpcServer
-	v1.UnimplementedRewardsServer
 	Logger            *zap.Logger
 	blockStore        storage.BlockStore
 	stateManager      *stateManager.EigenStateManager
