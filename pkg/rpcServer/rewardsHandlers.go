@@ -3,6 +3,7 @@ package rpcServer
 import (
 	"context"
 	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1"
+	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -60,8 +61,10 @@ func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *sidecarV1.Ge
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	rootString := utils.ConvertBytesToString(accountTree.Root())
+
 	return &sidecarV1.GenerateRewardsRootResponse{
-		RewardsRoot:        string(accountTree.Root()[:]),
+		RewardsRoot:        rootString,
 		RewardsCalcEndDate: rewardsCalcEndDate,
 	}, nil
 }
