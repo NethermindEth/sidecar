@@ -246,8 +246,8 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					p.Logger.Sugar().Errorw("Roots do not match",
 						zap.String("cutoffDate", cutoffDate),
 						zap.Uint64("blockNumber", blockNumber),
-						zap.String("expectedRoot", rs.Root),
-						zap.String("actualRoot", root),
+						zap.String("postedRoot", rs.Root),
+						zap.String("computedRoot", root),
 						zap.Int64("rewardsTotalTimeMs", rewardsTotalTimeMs),
 					)
 					return errors.New("roots do not match")
@@ -255,8 +255,8 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				p.Logger.Sugar().Warnw("Roots do not match, but allowed to ignore",
 					zap.String("cutoffDate", cutoffDate),
 					zap.Uint64("blockNumber", blockNumber),
-					zap.String("expectedRoot", rs.Root),
-					zap.String("actualRoot", root),
+					zap.String("postedRoot", rs.Root),
+					zap.String("computedRoot", root),
 					zap.Int64("rewardsTotalTimeMs", rewardsTotalTimeMs),
 				)
 			} else {
