@@ -172,7 +172,7 @@ func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) 
 	goldStagingTableName := getGoldTableNames(cutoffDate)[Table_7_GoldStaging]
 
 	var maxSnapshotStr string
-	query := fmt.Sprintf(`select max(snapshot) from %s`, goldStagingTableName)
+	query := fmt.Sprintf(`select to_char(max(snapshot), 'YYYY-MM-DD') as snapshot from %s`, goldStagingTableName)
 	res := rc.grm.Raw(query).Scan(&maxSnapshotStr)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to get max snapshot date", "error", res.Error)

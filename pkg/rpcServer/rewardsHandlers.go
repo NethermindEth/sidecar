@@ -50,6 +50,10 @@ func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *sidecarV1.Ge
 	if rewardsCalcEndDate == "" {
 		return nil, status.Error(codes.NotFound, "no rewards calculated for the given snapshot date")
 	}
+	rpc.Logger.Sugar().Infow("Rewards calculated for snapshot date",
+		zap.String("cutoffDate", cutoffDate),
+		zap.String("rewardsCalcEndDate", rewardsCalcEndDate),
+	)
 
 	accountTree, _, err := rpc.rewardsCalculator.MerkelizeRewardsForSnapshot(rewardsCalcEndDate)
 	if err != nil {
@@ -62,6 +66,11 @@ func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *sidecarV1.Ge
 	}
 
 	rootString := utils.ConvertBytesToString(accountTree.Root())
+	rpc.Logger.Sugar().Infow("Rewards root generated",
+		zap.String("root", rootString),
+		zap.String("rewardsCalcEndDate", rewardsCalcEndDate),
+		zap.String("cutoffDate", cutoffDate),
+	)
 
 	return &sidecarV1.GenerateRewardsRootResponse{
 		RewardsRoot:        rootString,
