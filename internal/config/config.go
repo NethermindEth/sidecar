@@ -244,6 +244,10 @@ func (c *Config) CanIgnoreIncorrectRewardsRoot(blockNumber uint64) bool {
 		if blockNumber < 2046020 {
 			return true
 		}
+		// test root posted that was invalid for 2024-11-23 (cutoff date 2024-11-24)
+		if blockNumber == 2812052 {
+			return true
+		}
 	case Chain_Holesky:
 		// roughly 2024-08-01
 		if blockNumber < 2046020 {
