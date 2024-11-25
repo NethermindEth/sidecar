@@ -216,8 +216,8 @@ func (sdr *SubmittedDistributionRootsModel) HandleStateChange(log *storage.Trans
 }
 
 // prepareState prepares the state for commit by adding the new state to the existing state.
-func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]types.SubmittedDistributionRoot, error) {
-	preparedState := make([]types.SubmittedDistributionRoot, 0)
+func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]*types.SubmittedDistributionRoot, error) {
+	preparedState := make([]*types.SubmittedDistributionRoot, 0)
 
 	accumulatedState, ok := sdr.stateAccumulator[blockNumber]
 	if !ok {
@@ -227,18 +227,7 @@ func (sdr *SubmittedDistributionRootsModel) prepareState(blockNumber uint64) ([]
 	}
 
 	for _, newState := range accumulatedState {
-		prepared := types.SubmittedDistributionRoot{
-			Root:                      newState.Root,
-			BlockNumber:               blockNumber,
-			RootIndex:                 newState.RootIndex,
-			RewardsCalculationEnd:     newState.RewardsCalculationEnd,
-			RewardsCalculationEndUnit: newState.RewardsCalculationEndUnit,
-			ActivatedAt:               newState.ActivatedAt,
-			ActivatedAtUnit:           newState.ActivatedAtUnit,
-			CreatedAtBlockNumber:      newState.CreatedAtBlockNumber,
-		}
-
-		preparedState = append(preparedState, prepared)
+		preparedState = append(preparedState, newState)
 	}
 	return preparedState, nil
 }
@@ -260,8 +249,8 @@ func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64)
 	return nil
 }
 
-func (sdr *SubmittedDistributionRootsModel) sortValuesForMerkleTree(inputs []types.SubmittedDistributionRoot) []*base.MerkleTreeInput {
-	slices.SortFunc(inputs, func(i, j types.SubmittedDistributionRoot) int {
+func (sdr *SubmittedDistributionRootsModel) sortValuesForMerkleTree(inputs []*types.SubmittedDistributionRoot) []*base.MerkleTreeInput {
+	slices.SortFunc(inputs, func(i, j *types.SubmittedDistributionRoot) int {
 		return int(i.RootIndex - j.RootIndex)
 	})
 
