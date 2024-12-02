@@ -1,6 +1,7 @@
 package rewards
 
 import (
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
 
@@ -36,17 +37,17 @@ SELECT * FROM distinct_operators
 `
 
 func (rc *RewardsCalculator) GenerateGold6RfaeOperatorsTable(snapshotDate string) error {
-	allTableNames := getGoldTableNames(snapshotDate)
-	destTableName := allTableNames[Table_6_RfaeOperators]
+	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
+	destTableName := allTableNames[rewardsUtils.Table_6_RfaeOperators]
 
 	rc.logger.Sugar().Infow("Generating rfae operators table",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := renderQueryTemplate(_6_goldRfaeOperatorsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_6_goldRfaeOperatorsQuery, map[string]string{
 		"destTableName":    destTableName,
-		"rfaeStakersTable": allTableNames[Table_5_RfaeStakers],
+		"rfaeStakersTable": allTableNames[rewardsUtils.Table_5_RfaeStakers],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

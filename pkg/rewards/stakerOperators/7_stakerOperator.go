@@ -55,7 +55,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert7StakerOperator(cutoffDate
 		zap.String("cutoffDate", cutoffDate),
 	)
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
-	destTableName := allTableNames[rewardsUtils.Sot_7_StakerOperatorTable]
+	destTableName := rewardsUtils.Sot_7_StakerOperatorTable
 
 	sog.logger.Sugar().Infow("Generating 7_stakerOperator",
 		zap.String("destTableName", destTableName),

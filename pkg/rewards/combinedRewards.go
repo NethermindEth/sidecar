@@ -1,5 +1,7 @@
 package rewards
 
+import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+
 const rewardsCombinedQuery = `
 	with combined_rewards as (
 		select
@@ -43,7 +45,7 @@ const rewardsCombinedQuery = `
 func (r *RewardsCalculator) GenerateAndInsertCombinedRewards(snapshotDate string) error {
 	tableName := "combined_rewards"
 
-	query, err := renderQueryTemplate(rewardsCombinedQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(rewardsCombinedQuery, map[string]string{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {

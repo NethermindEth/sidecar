@@ -35,7 +35,6 @@ var goldTableBaseNames = map[string]string{
 	Table_8_GoldTable:             Table_8_GoldTable,
 
 	Sot_6_StakerOperatorStaging: Sot_6_StakerOperatorStaging,
-	Sot_7_StakerOperatorTable:   Sot_7_StakerOperatorTable,
 }
 
 func GetGoldTableNames(snapshotDate string) map[string]string {

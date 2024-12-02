@@ -1,5 +1,7 @@
 package rewards
 
+import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+
 const stakerDelegationSnapshotsQuery = `
 with staker_delegations_with_block_info as (
 	select
@@ -60,7 +62,7 @@ select * from final_results
 func (r *RewardsCalculator) GenerateAndInsertStakerDelegationSnapshots(snapshotDate string) error {
 	tableName := "staker_delegation_snapshots"
 
-	query, err := renderQueryTemplate(stakerDelegationSnapshotsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(stakerDelegationSnapshotsQuery, map[string]string{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {

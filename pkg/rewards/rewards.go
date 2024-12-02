@@ -1,7 +1,6 @@
 package rewards
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
@@ -16,7 +15,6 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"text/template"
 )
 
 type RewardsCalculator struct {
@@ -172,7 +170,7 @@ func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (*
 }
 
 func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) (string, error) {
-	goldStagingTableName := getGoldTableNames(cutoffDate)[Table_7_GoldStaging]
+	goldStagingTableName := rewardsUtils.GetGoldTableNames(cutoffDate)[rewardsUtils.Table_7_GoldStaging]
 
 	var maxSnapshotStr string
 	query := fmt.Sprintf(`select to_char(max(snapshot), 'YYYY-MM-DD') as snapshot from %s`, goldStagingTableName)
@@ -193,7 +191,7 @@ type Reward struct {
 
 func (rc *RewardsCalculator) fetchRewardsForSnapshot(snapshotDate string) ([]*Reward, error) {
 	var goldRows []*Reward
-	query, err := renderQueryTemplate(`
+	query, err := rewardsUtils.RenderQueryTemplate(`
 		select
 			earner,
 			token,
@@ -378,29 +376,4 @@ func (rc *RewardsCalculator) generateAndInsertFromQuery(
 		variables,
 		rc.logger,
 	)
-}
-
-var (
-	Table_1_ActiveRewards         = "gold_1_active_rewards"
-	Table_2_StakerRewardAmounts   = "gold_2_staker_reward_amounts"
-	Table_3_OperatorRewardAmounts = "gold_3_operator_reward_amounts"
-	Table_4_RewardsForAll         = "gold_4_rewards_for_all"
-	Table_5_RfaeStakers           = "gold_5_rfae_stakers"
-	Table_6_RfaeOperators         = "gold_6_rfae_operators"
-	Table_7_GoldStaging           = "gold_7_staging"
-	Table_8_GoldTable             = "gold_table"
-)
-
-func getGoldTableNames(snapshotDate string) map[string]string {
-	return rewardsUtils.GetGoldTableNames(snapshotDate)
-}
-
-func renderQueryTemplate(query string, variables map[string]string) (string, error) {
-	queryTmpl := template.Must(template.New("").Parse(query))
-
-	var dest bytes.Buffer
-	if err := queryTmpl.Execute(&dest, variables); err != nil {
-		return "", err
-	}
-	return dest.String(), nil
 }

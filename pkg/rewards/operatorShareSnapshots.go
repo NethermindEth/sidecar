@@ -1,5 +1,7 @@
 package rewards
 
+import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+
 const operatorShareSnapshotsQuery = `
 WITH ranked_operator_records as (
     SELECT *,
@@ -48,7 +50,7 @@ FROM
 func (r *RewardsCalculator) GenerateAndInsertOperatorShareSnapshots(snapshotDate string) error {
 	tableName := "operator_share_snapshots"
 
-	query, err := renderQueryTemplate(operatorShareSnapshotsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(operatorShareSnapshotsQuery, map[string]string{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {

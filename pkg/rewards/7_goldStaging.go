@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
 
@@ -85,21 +86,21 @@ FROM deduped_earners
 `
 
 func (rc *RewardsCalculator) GenerateGold7StagingTable(snapshotDate string) error {
-	allTableNames := getGoldTableNames(snapshotDate)
-	destTableName := allTableNames[Table_7_GoldStaging]
+	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
+	destTableName := allTableNames[rewardsUtils.Table_7_GoldStaging]
 
 	rc.logger.Sugar().Infow("Generating gold staging",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := renderQueryTemplate(_7_goldStagingQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_7_goldStagingQuery, map[string]string{
 		"destTableName":              destTableName,
-		"stakerRewardAmountsTable":   allTableNames[Table_2_StakerRewardAmounts],
-		"operatorRewardAmountsTable": allTableNames[Table_3_OperatorRewardAmounts],
-		"rewardsForAllTable":         allTableNames[Table_4_RewardsForAll],
-		"rfaeStakerTable":            allTableNames[Table_5_RfaeStakers],
-		"rfaeOperatorTable":          allTableNames[Table_6_RfaeOperators],
+		"stakerRewardAmountsTable":   allTableNames[rewardsUtils.Table_2_StakerRewardAmounts],
+		"operatorRewardAmountsTable": allTableNames[rewardsUtils.Table_3_OperatorRewardAmounts],
+		"rewardsForAllTable":         allTableNames[rewardsUtils.Table_4_RewardsForAll],
+		"rfaeStakerTable":            allTableNames[rewardsUtils.Table_5_RfaeStakers],
+		"rfaeOperatorTable":          allTableNames[rewardsUtils.Table_6_RfaeOperators],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
@@ -123,10 +124,10 @@ type GoldStagingRow struct {
 }
 
 func (rc *RewardsCalculator) ListGoldStagingRowsForSnapshot(snapshotDate string) ([]*GoldStagingRow, error) {
-	allTableNames := getGoldTableNames(snapshotDate)
+	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 
 	results := make([]*GoldStagingRow, 0)
-	query, err := renderQueryTemplate(`
+	query, err := rewardsUtils.RenderQueryTemplate(`
 	SELECT
 		earner,
 		snapshot::text as snapshot,
@@ -134,7 +135,7 @@ func (rc *RewardsCalculator) ListGoldStagingRowsForSnapshot(snapshotDate string)
 		token,
 		amount
 	FROM {{.goldStagingTable}} WHERE DATE(snapshot) < @cutoffDate`, map[string]string{
-		"goldStagingTable": allTableNames[Table_7_GoldStaging],
+		"goldStagingTable": allTableNames[rewardsUtils.Table_7_GoldStaging],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

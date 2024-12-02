@@ -3,6 +3,7 @@ package rewards
 import (
 	"database/sql"
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
 
@@ -118,17 +119,17 @@ ORDER BY reward_hash, snapshot, staker, operator
 `
 
 func (rc *RewardsCalculator) GenerateGold5RfaeStakersTable(snapshotDate string, forks config.ForkMap) error {
-	allTableNames := getGoldTableNames(snapshotDate)
-	destTableName := allTableNames[Table_5_RfaeStakers]
+	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
+	destTableName := allTableNames[rewardsUtils.Table_5_RfaeStakers]
 
 	rc.logger.Sugar().Infow("Generating rfae stakers table",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := renderQueryTemplate(_5_goldRfaeStakersQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_5_goldRfaeStakersQuery, map[string]string{
 		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[Table_1_ActiveRewards],
+		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

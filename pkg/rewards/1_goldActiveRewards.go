@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
 
@@ -100,8 +101,8 @@ select * from active_rewards_final
 // @param startDate: The lower bound of when to calculate rewards from. If we're running rewards for the first time,
 // this will be "1970-01-01". If this is a subsequent run, this will be the last snapshot date.
 func (r *RewardsCalculator) Generate1ActiveRewards(snapshotDate string) error {
-	allTableNames := getGoldTableNames(snapshotDate)
-	destTableName := allTableNames[Table_1_ActiveRewards]
+	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
+	destTableName := allTableNames[rewardsUtils.Table_1_ActiveRewards]
 
 	rewardsStart := "1970-01-01 00:00:00" // This will always start as this date and get's updated later in the query
 
@@ -111,7 +112,7 @@ func (r *RewardsCalculator) Generate1ActiveRewards(snapshotDate string) error {
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := renderQueryTemplate(_1_goldActiveRewardsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_1_goldActiveRewardsQuery, map[string]string{
 		"destTableName": destTableName,
 		"rewardsStart":  rewardsStart,
 		"cutoffDate":    snapshotDate,

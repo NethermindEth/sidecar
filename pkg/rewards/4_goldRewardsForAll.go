@@ -1,6 +1,7 @@
 package rewards
 
 import (
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 )
 
@@ -67,17 +68,17 @@ SELECT * from staker_tokens
 `
 
 func (rc *RewardsCalculator) GenerateGold4RewardsForAllTable(snapshotDate string) error {
-	allTableNames := getGoldTableNames(snapshotDate)
-	destTableName := allTableNames[Table_4_RewardsForAll]
+	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
+	destTableName := allTableNames[rewardsUtils.Table_4_RewardsForAll]
 
 	rc.logger.Sugar().Infow("Generating rewards for all table",
 		zap.String("cutoffDate", snapshotDate),
 		zap.String("destTableName", destTableName),
 	)
 
-	query, err := renderQueryTemplate(_4_goldRewardsForAllQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(_4_goldRewardsForAllQuery, map[string]string{
 		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[Table_1_ActiveRewards],
+		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
