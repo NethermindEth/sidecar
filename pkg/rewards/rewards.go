@@ -10,6 +10,7 @@ import (
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-merkletree/v2"
 	"gorm.io/gorm/clause"
+	"sync/atomic"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -23,6 +24,8 @@ type RewardsCalculator struct {
 	blockStore   storage.BlockStore
 	sog          *stakerOperators.StakerOperatorsGenerator
 	globalConfig *config.Config
+
+	isGenerating atomic.Bool
 }
 
 func NewRewardsCalculator(
@@ -43,12 +46,39 @@ func NewRewardsCalculator(
 	return rc, nil
 }
 
+func (rc *RewardsCalculator) GetIsGenerating() bool {
+	return rc.isGenerating.Load()
+}
+
+func (rc *RewardsCalculator) acquireGenerationLock() {
+	rc.isGenerating.Store(true)
+}
+
+func (rc *RewardsCalculator) releaseGenerationLock() {
+	rc.isGenerating.Store(false)
+}
+
+type RewardsCalculationInProgressError struct{}
+
+func (e *RewardsCalculationInProgressError) Error() string {
+	return "rewards calculation already in progress"
+}
+
 // CalculateRewardsForSnapshotDate calculates the rewards for a given snapshot date.
 //
 // @param snapshotDate: The date for which to calculate rewards, formatted as "YYYY-MM-DD".
 //
 // If there is no previous DistributionRoot, the rewards are calculated from EigenLayer Genesis.
-func (rc *RewardsCalculator) CalculateRewardsForSnapshotDate(snapshotDate string) error {
+func (rc *RewardsCalculator) calculateRewardsForSnapshotDate(snapshotDate string) error {
+	if rc.GetIsGenerating() {
+		err := &RewardsCalculationInProgressError{}
+		rc.logger.Sugar().Infow(err.Error())
+		return err
+	}
+	rc.acquireGenerationLock()
+	rc.logger.Sugar().Infow("Acquired rewards generation lock", zap.String("snapshotDate", snapshotDate))
+	defer rc.releaseGenerationLock()
+
 	// First make sure that the snapshot date is valid as provided.
 	// The time should be at 00:00:00 UTC. and should be in the past.
 	snapshotDateTime, err := time.Parse(time.DateOnly, snapshotDate)
@@ -97,6 +127,26 @@ func (rc *RewardsCalculator) CalculateRewardsForSnapshotDate(snapshotDate string
 
 	// Calculate the rewards for the period.
 	return rc.calculateRewards(snapshotDate)
+}
+
+func (rc *RewardsCalculator) CalculateRewardsForSnapshotDate(snapshotDate string) error {
+	// Since we can only have a single rewards calculation running at one time,
+	// we will retry the calculation every minute until we can acquire a lock.
+	errorChan := make(chan error)
+	go func() {
+		for {
+			err := rc.calculateRewardsForSnapshotDate(snapshotDate)
+			if errors.Is(err, &RewardsCalculationInProgressError{}) {
+				rc.logger.Sugar().Infow("Rewards calculation already in progress, sleeping", zap.String("snapshotDate", snapshotDate))
+				time.Sleep(1 * time.Minute)
+			} else {
+				errorChan <- err
+				return
+			}
+		}
+	}()
+	err := <-errorChan
+	return err
 }
 
 func (rc *RewardsCalculator) CalculateRewardsForLatestSnapshot() (string, error) {
