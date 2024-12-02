@@ -34,9 +34,14 @@ var runOperatorRestakedStrategiesCmd = &cobra.Command{
 
 		l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-		sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
+		metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 		if err != nil {
-			l.Sugar().Fatal("Failed to setup statsd client", zap.Error(err))
+			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
+		}
+
+		sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
+		if err != nil {
+			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 		}
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)

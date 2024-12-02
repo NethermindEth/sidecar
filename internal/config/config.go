@@ -37,16 +37,6 @@ func normalizeFlagName(name string) string {
 	return strings.ReplaceAll(name, "-", "_")
 }
 
-type Config struct {
-	Debug             bool
-	StatsdUrl         string
-	EthereumRpcConfig EthereumRpcConfig
-	DatabaseConfig    DatabaseConfig
-	RpcConfig         RpcConfig
-	Chain             Chain
-	Rewards           RewardsConfig
-}
-
 type EthereumRpcConfig struct {
 	BaseUrl               string
 	ContractCallBatchSize int  // Number of contract calls to make in parallel
@@ -74,6 +64,32 @@ type RewardsConfig struct {
 	GenerateStakerOperatorsTable bool
 }
 
+type StatsdConfig struct {
+	Enabled bool
+	Url     string
+}
+
+type DataDogConfig struct {
+	StatsdConfig StatsdConfig
+}
+
+type PrometheusConfig struct {
+	Enabled bool
+	Port    int
+}
+
+type Config struct {
+	Debug             bool
+	StatsdUrl         string
+	EthereumRpcConfig EthereumRpcConfig
+	DatabaseConfig    DatabaseConfig
+	RpcConfig         RpcConfig
+	Chain             Chain
+	Rewards           RewardsConfig
+	DataDogConfig     DataDogConfig
+	PrometheusConfig  PrometheusConfig
+}
+
 func StringWithDefault(value, defaultValue string) string {
 	if value == "" {
 		return defaultValue
@@ -97,6 +113,12 @@ var (
 	EthereumRpcUseNativeBatchCall    = "ethereum.use_native_batch_call"
 	EthereumRpcNativeBatchCallSize   = "ethereum.native_batch_call_size"
 	EthereumRpcChunkedBatchCallSize  = "ethereum.chunked_batch_call_size"
+
+	DataDogStatsdEnabled = "datadog.statsd.enabled"
+	DataDogStatsdUrl     = "datadog.statsd.url"
+
+	PrometheusEnabled = "prometheus.enabled"
+	PrometheusPort    = "prometheus.port"
 )
 
 func NewConfig() *Config {
@@ -130,6 +152,18 @@ func NewConfig() *Config {
 		Rewards: RewardsConfig{
 			ValidateRewardsRoot:          viper.GetBool(normalizeFlagName(RewardsValidateRewardsRoot)),
 			GenerateStakerOperatorsTable: viper.GetBool(normalizeFlagName(RewardsGenerateStakerOperatorsTable)),
+		},
+
+		DataDogConfig: DataDogConfig{
+			StatsdConfig: StatsdConfig{
+				Enabled: viper.GetBool(normalizeFlagName(DataDogStatsdEnabled)),
+				Url:     viper.GetString(normalizeFlagName(DataDogStatsdUrl)),
+			},
+		},
+
+		PrometheusConfig: PrometheusConfig{
+			Enabled: viper.GetBool(normalizeFlagName(PrometheusEnabled)),
+			Port:    viper.GetInt(normalizeFlagName(PrometheusPort)),
 		},
 	}
 }

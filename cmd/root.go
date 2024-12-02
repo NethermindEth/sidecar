@@ -47,6 +47,12 @@ func init() {
 	rootCmd.PersistentFlags().Int("rpc.grpc-port", 7100, `gRPC port`)
 	rootCmd.PersistentFlags().Int("rpc.http-port", 7101, `http rpc port`)
 
+	rootCmd.PersistentFlags().Bool("datadog.statsd.enabled", false, `e.g. "true" or "false"`)
+	rootCmd.PersistentFlags().String("datadog.statsd.url", "", `e.g. "localhost:8125"`)
+
+	rootCmd.PersistentFlags().Bool("prometheus.enabled", false, `e.g. "true" or "false"`)
+	rootCmd.PersistentFlags().Int("prometheus.port", 2112, `The port to run the prometheus server on`)
+
 	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		key := config.KebabToSnakeCase(f.Name)
 		viper.BindPFlag(key, f) //nolint:errcheck

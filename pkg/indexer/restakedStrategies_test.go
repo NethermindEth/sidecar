@@ -72,7 +72,16 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 	ethConfig.BaseUrl = baseUrl
 
 	client := ethereum.NewClient(ethConfig, l)
-	sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
+
+	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
+	if err != nil {
+		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
+	}
+
+	sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
+	if err != nil {
+		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
+	}
 
 	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
 	if err := contractStore.InitializeCoreContracts(); err != nil {

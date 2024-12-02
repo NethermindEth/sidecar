@@ -1,30 +1,84 @@
 package metrics
 
 import (
-	"errors"
-	"time"
-
-	"github.com/DataDog/datadog-go/v5/statsd"
+	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/metrics/dogstatsd"
+	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
+	"github.com/Layr-Labs/sidecar/internal/metrics/prometheus"
+	"go.uber.org/zap"
 )
 
-var statsdClient *statsd.Client
-
-func InitStatsdClient(addr string) (*statsd.Client, error) {
-	// if the addr is empty, statsd will look at the envvar DD_DOGSTATSD_URL
-	var err error
-	s, err := statsd.New(addr,
-		statsd.WithNamespace("sidecar."),
-		statsd.WithBufferFlushInterval(time.Second*2),
-	)
-
-	statsdClient = s
-
-	return s, err
+type MetricsSink struct {
+	clients []metricsTypes.IMetricsClient
+	config  *MetricsSinkConfig
 }
 
-func GetStatsdClient() *statsd.Client {
-	if statsdClient == nil {
-		panic(errors.New("statsd client not initialized"))
+type MetricsSinkConfig struct {
+	DefaultLabels []metricsTypes.MetricsLabel
+}
+
+func NewMetricsSink(cfg *MetricsSinkConfig, clients []metricsTypes.IMetricsClient) (*MetricsSink, error) {
+	if cfg.DefaultLabels == nil {
+		cfg.DefaultLabels = []metricsTypes.MetricsLabel{}
 	}
-	return statsdClient
+	return &MetricsSink{
+		clients: clients,
+		config:  cfg,
+	}, nil
+}
+
+func mergeLabels(labels []metricsTypes.MetricsLabel, defaultLabels []metricsTypes.MetricsLabel) []metricsTypes.MetricsLabel {
+	if labels == nil {
+		return defaultLabels
+	}
+	mergedLabels := make([]metricsTypes.MetricsLabel, 0)
+	mergedLabels = append(mergedLabels, defaultLabels...)
+	mergedLabels = append(mergedLabels, labels...)
+	return mergedLabels
+}
+
+func (ms *MetricsSink) Incr(name string, labels []metricsTypes.MetricsLabel, value float64) error {
+	mergedLabels := mergeLabels(labels, ms.config.DefaultLabels)
+	for _, client := range ms.clients {
+		err := client.Incr(name, mergedLabels, value)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ms *MetricsSink) Gauge(name string, value float64, labels []metricsTypes.MetricsLabel) error {
+	mergedLabels := mergeLabels(labels, ms.config.DefaultLabels)
+	for _, client := range ms.clients {
+		err := client.Gauge(name, value, mergedLabels)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func InitMetricsSinksFromConfig(cfg *config.Config, l *zap.Logger) ([]metricsTypes.IMetricsClient, error) {
+	clients := []metricsTypes.IMetricsClient{}
+
+	if cfg.DataDogConfig.StatsdConfig.Enabled {
+		dd, err := dogstatsd.NewDogStatsdMetricsClient(cfg.DataDogConfig.StatsdConfig.Url, l)
+		if err != nil {
+			return nil, err
+		}
+		clients = append(clients, dd)
+	}
+
+	if cfg.PrometheusConfig.Enabled {
+		pm, err := prometheus.NewPrometheusMetricsClient(&prometheus.PrometheusMetricsConfig{
+			Metrics: metricsTypes.MetricTypes,
+		}, l)
+		if err != nil {
+			return nil, err
+		}
+		clients = append(clients, pm)
+	}
+
+	return clients, nil
 }

@@ -48,9 +48,14 @@ var runCmd = &cobra.Command{
 			zap.String("chain", cfg.Chain.String()),
 		)
 
-		sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
+		metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 		if err != nil {
-			l.Sugar().Fatal("Failed to setup statsd client", zap.Error(err))
+			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
+		}
+
+		sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
+		if err != nil {
+			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 		}
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
@@ -103,7 +108,7 @@ var runCmd = &cobra.Command{
 			l.Sugar().Fatalw("Failed to create rewards calculator", zap.Error(err))
 		}
 
-		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
+		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, cfg, sdc, l)
 
 		// Create new sidecar instance
 		sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
@@ -115,6 +120,11 @@ var runCmd = &cobra.Command{
 		err = sidecar.WithRpcServer(ctx, mds, sm, rc, rpcChannel)
 		if err != nil {
 			l.Sugar().Fatalw("Failed to start RPC server", zap.Error(err))
+		}
+
+		promChan := make(chan bool)
+		if cfg.PrometheusConfig.Enabled {
+			sidecar.WithPrometheusServer(promChan)
 		}
 
 		// Start the sidecar main process in a goroutine so that we can listen for a shutdown signal

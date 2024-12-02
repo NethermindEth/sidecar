@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/metrics"
+	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -25,6 +27,7 @@ type Pipeline struct {
 	stateManager      *stateManager.EigenStateManager
 	rewardsCalculator *rewards.RewardsCalculator
 	globalConfig      *config.Config
+	metricsSink       *metrics.MetricsSink
 }
 
 func NewPipeline(
@@ -34,6 +37,7 @@ func NewPipeline(
 	sm *stateManager.EigenStateManager,
 	rc *rewards.RewardsCalculator,
 	gc *config.Config,
+	ms *metrics.MetricsSink,
 	l *zap.Logger,
 ) *Pipeline {
 	return &Pipeline{
@@ -44,6 +48,7 @@ func NewPipeline(
 		rewardsCalculator: rc,
 		BlockStore:        bs,
 		globalConfig:      gc,
+		metricsSink:       ms,
 	}
 }
 
@@ -294,6 +299,8 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 		zap.Int64("indexTime", time.Since(blockFetchTime).Milliseconds()),
 		zap.Int64("totalTime", time.Since(totalRunTime).Milliseconds()),
 	)
+	_ = p.metricsSink.Incr(metricsTypes.Metric_Incr_BlockProcessed, nil, 1)
+	_ = p.metricsSink.Gauge(metricsTypes.Metric_Gauge_CurrentBlockHeight, float64(blockNumber), nil)
 
 	// Push cleanup to the background since it doesnt need to be blocking
 	go func() {
