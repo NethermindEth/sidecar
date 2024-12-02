@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
-	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
+	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	gethcommon "github.com/ethereum/go-ethereum/common"
@@ -23,6 +24,7 @@ type RewardsCalculator struct {
 	logger       *zap.Logger
 	grm          *gorm.DB
 	blockStore   storage.BlockStore
+	sog          *stakerOperators.StakerOperatorsGenerator
 	globalConfig *config.Config
 }
 
@@ -30,12 +32,14 @@ func NewRewardsCalculator(
 	cfg *config.Config,
 	grm *gorm.DB,
 	bs storage.BlockStore,
+	sog *stakerOperators.StakerOperatorsGenerator,
 	l *zap.Logger,
 ) (*RewardsCalculator, error) {
 	rc := &RewardsCalculator{
 		logger:       l,
 		grm:          grm,
 		blockStore:   bs,
+		sog:          sog,
 		globalConfig: cfg,
 	}
 
@@ -231,6 +235,12 @@ func (rc *RewardsCalculator) calculateRewards(snapshotDate string) error {
 		return err
 	}
 
+	if err = rc.sog.GenerateStakerOperatorsTable(snapshotDate); err != nil {
+		_ = rc.UpdateRewardSnapshotStatus(snapshotDate, storage.RewardSnapshotStatusFailed)
+		rc.logger.Sugar().Errorw("Failed to generate staker operators table", "error", err)
+		return err
+	}
+
 	if err = rc.UpdateRewardSnapshotStatus(snapshotDate, storage.RewardSnapshotStatusCompleted); err != nil {
 		rc.logger.Sugar().Errorw("Failed to update reward snapshot status", "error", err)
 		return err
@@ -366,32 +376,13 @@ func (rc *RewardsCalculator) generateAndInsertFromQuery(
 	query string,
 	variables map[string]interface{},
 ) error {
-	tmpTableName := fmt.Sprintf("%s_tmp", tableName)
-
-	queryWithInsert := fmt.Sprintf("CREATE TABLE %s AS %s", tmpTableName, query)
-
-	_, err := helpers.WrapTxAndCommit(func(tx *gorm.DB) (interface{}, error) {
-		queries := []string{
-			queryWithInsert,
-			fmt.Sprintf(`drop table if exists %s`, tableName),
-			fmt.Sprintf(`alter table %s rename to %s`, tmpTableName, tableName),
-		}
-		for i, query := range queries {
-			var res *gorm.DB
-			if i == 0 && variables != nil {
-				res = tx.Exec(query, variables)
-			} else {
-				res = tx.Exec(query)
-			}
-			if res.Error != nil {
-				rc.logger.Sugar().Errorw("Failed to execute query", "query", query, "error", res.Error)
-				return nil, res.Error
-			}
-		}
-		return nil, nil
-	}, rc.grm, nil)
-
-	return err
+	return rewardsUtils.GenerateAndInsertFromQuery(
+		rc.grm,
+		tableName,
+		query,
+		variables,
+		rc.logger,
+	)
 }
 
 var (
@@ -405,23 +396,8 @@ var (
 	Table_8_GoldTable             = "gold_table"
 )
 
-var goldTableBaseNames = map[string]string{
-	Table_1_ActiveRewards:         "gold_1_active_rewards",
-	Table_2_StakerRewardAmounts:   "gold_2_staker_reward_amounts",
-	Table_3_OperatorRewardAmounts: "gold_3_operator_reward_amounts",
-	Table_4_RewardsForAll:         "gold_4_rewards_for_all",
-	Table_5_RfaeStakers:           "gold_5_rfae_stakers",
-	Table_6_RfaeOperators:         "gold_6_rfae_operators",
-	Table_7_GoldStaging:           "gold_7_staging",
-	Table_8_GoldTable:             "gold_table",
-}
-
 func getGoldTableNames(snapshotDate string) map[string]string {
-	tableNames := make(map[string]string)
-	for key, baseName := range goldTableBaseNames {
-		tableNames[key] = formatTableName(baseName, snapshotDate)
-	}
-	return tableNames
+	return rewardsUtils.GetGoldTableNames(snapshotDate)
 }
 
 func renderQueryTemplate(query string, variables map[string]string) (string, error) {

@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
+	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -94,6 +95,8 @@ func setupRewards() (
 	error,
 ) {
 	cfg := tests.GetConfig()
+	cfg.Rewards.GenerateStakerOperatorsTable = true
+	cfg.Rewards.ValidateRewardsRoot = true
 	cfg.Chain = config.Chain_Mainnet
 
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
@@ -128,8 +131,10 @@ func Test_Rewards(t *testing.T) {
 	// 	t.Fatal(err)
 	// }
 
+	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+
 	t.Run("Should initialize the rewards calculator", func(t *testing.T) {
-		rc, err := NewRewardsCalculator(cfg, grm, nil, l)
+		rc, err := NewRewardsCalculator(cfg, grm, nil, sog, l)
 		assert.Nil(t, err)
 		if err != nil {
 			t.Fatal(err)
@@ -311,6 +316,10 @@ func Test_Rewards(t *testing.T) {
 			if invalidAmounts > 0 {
 				t.Fatalf("Invalid amounts: %d", invalidAmounts)
 			}
+
+			t.Logf("Generating staker operators table")
+			err = rc.sog.GenerateStakerOperatorsTable(snapshotDate)
+			assert.Nil(t, err)
 
 			accountTree, _, err := rc.MerkelizeRewardsForSnapshot(snapshotDate)
 			assert.Nil(t, err)

@@ -14,6 +14,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/pipeline"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/shutdown"
 	"github.com/Layr-Labs/sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
@@ -94,7 +95,9 @@ var runCmd = &cobra.Command{
 
 		idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 
-		rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, l)
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+
+		rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, sog, l)
 		if err != nil {
 			l.Sugar().Fatalw("Failed to create rewards calculator", zap.Error(err))
 		}
