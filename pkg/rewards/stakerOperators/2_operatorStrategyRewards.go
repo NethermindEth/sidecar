@@ -102,11 +102,14 @@ type OperatorStrategyRewards struct {
 }
 
 func (osr *OperatorStrategyRewards) TableName() string {
-	return "sot_operator_strategy_rewards"
+	return "sot_2_operator_strategy_rewards"
 }
 
 func (sog *StakerOperatorsGenerator) GenerateAndInsert2OperatorStrategyRewards(cutoffDate string) error {
-	tableName := "sot_operator_strategy_rewards"
+	sog.logger.Sugar().Infow("Generating and inserting 2_operatorStrategyRewards",
+		"cutoffDate", cutoffDate,
+	)
+	tableName := "sot_2_operator_strategy_rewards"
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_2_operatorStrategyRewardsQuery, map[string]string{

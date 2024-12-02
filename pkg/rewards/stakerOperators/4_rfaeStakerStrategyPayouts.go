@@ -124,11 +124,14 @@ type RfaeStakerStrategyPayout struct {
 }
 
 func (osr *RfaeStakerStrategyPayout) TableName() string {
-	return "sot_rfae_staker_strategy_payout"
+	return "sot_4_rfae_staker_strategy_payout"
 }
 
 func (sog *StakerOperatorsGenerator) GenerateAndInsert4RfaeStakerStrategyPayout(cutoffDate string) error {
-	tableName := "sot_rfae_staker_strategy_payout"
+	sog.logger.Sugar().Infow("Generating and inserting 4_rfaeStakerStrategyPayout",
+		"cutoffDate", cutoffDate,
+	)
+	tableName := "sot_4_rfae_staker_strategy_payout"
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_4_rfaeStakerStrategyPayoutsQuery, map[string]string{

@@ -117,11 +117,15 @@ type StakerStrategyPayout struct {
 }
 
 func (ssp *StakerStrategyPayout) TableName() string {
-	return "sot_staker_strategy_payouts"
+	return "sot_1_staker_strategy_payouts"
 }
 
 func (sog *StakerOperatorsGenerator) GenerateAndInsert1StakerStrategyPayouts(cutoffDate string) error {
-	tableName := "sot_staker_strategy_payouts"
+	sog.logger.Sugar().Infow("Generating and inserting 1_stakerStrategyPayouts",
+		"cutoffDate", cutoffDate,
+	)
+
+	tableName := "sot_1_staker_strategy_payouts"
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_1_stakerStrategyPayoutsQuery, map[string]string{

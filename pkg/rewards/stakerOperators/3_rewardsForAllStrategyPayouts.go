@@ -39,7 +39,7 @@ rejoined_staker_strategies AS (
     rss.*,
     rfa.staker_tokens
   FROM reward_snapshot_stakers rss
-  JOIN {{.rewardsForAllTable}}  rfa
+  JOIN {{.rewardsForAllTable}} rfa
   ON
     rss.snapshot = rfa.snapshot AND
     rss.reward_hash = rfa.reward_hash AND
@@ -92,16 +92,19 @@ type RewardsForAllStrategyPayout struct {
 }
 
 func (osr *RewardsForAllStrategyPayout) TableName() string {
-	return "sot_rewards_for_all_strategy_payout"
+	return "sot_3_rewards_for_all_strategy_payout"
 }
 
 func (sog *StakerOperatorsGenerator) GenerateAndInsert3RewardsForAllStrategyPayout(cutoffDate string) error {
-	tableName := "sot_rewards_for_all_strategy_payout"
+	sog.logger.Sugar().Infow("Generating and inserting 3_rewardsForAllStrategyPayoutsQuery",
+		"cutoffDate", cutoffDate,
+	)
+	tableName := "sot_3_rewards_for_all_strategy_payout"
 	allTableNames := rewardsUtils.GetGoldTableNames(cutoffDate)
 
 	query, err := rewardsUtils.RenderQueryTemplate(_3_rewardsForAllStrategyPayoutsQuery, map[string]string{
 		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
-		"rewardForAllTable":  allTableNames[rewardsUtils.Table_4_RewardsForAll],
+		"rewardsForAllTable": allTableNames[rewardsUtils.Table_4_RewardsForAll],
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 3_rewardsForAllStrategyPayoutsQuery query", "error", err)

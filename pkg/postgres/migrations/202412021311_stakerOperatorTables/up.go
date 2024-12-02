@@ -10,41 +10,20 @@ type Migration struct {
 
 func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
 	queries := []string{
-		`CREATE TABLE IF NOT EXISTS sot_staker_strategy_payouts (
-			reward_hash varchar NOT NULL,
-			snapshot TIMESTAMP NOT NULL,
-			token varchar NOT NULL,
-			tokens_per_day double precision NOT NULL,
-			avs varchar NOT NULL,
-			strategy varchar NOT NULL,
-			multiplier numeric NOT NULL,
-			reward_type varchar NOT NULL,
-			operator varchar NOT NULL,
-			staker varchar NOT NULL,
-			shares numeric NOT NULL,
-			staker_tokens numeric NOT NULL,
-			staker_strategy_weight numeric NOT NULL,
-			staker_total_strategy_weight numeric NOT NULL,
-			staker_strategy_proportion numeric NOT NULL,
-			staker_strategy_tokens numeric NOT NULL
+		`CREATE TABLE IF NOT EXISTS staker_operator (
+			earner text,
+			operator text,
+			reward_type text,
+			avs text,
+			token text,
+			strategy text,
+			multiplier numeric(78),
+			shares numeric,
+			amount numeric,
+			reward_hash text,
+			snapshot date
 		);`,
-		`CREATE TABLE IF NOT EXISTS sot_operator_strategy_rewards (
-			reward_hash varchar NOT NULL,
-			snapshot TIMESTAMP NOT NULL,
-			token varchar NOT NULL,
-			tokens_per_day double precision NOT NULL,
-			avs varchar NOT NULL,
-			strategy varchar NOT NULL,
-			multiplier numeric NOT NULL,
-			reward_type varchar NOT NULL,
-			operator varchar NOT NULL,
-			shares numeric NOT NULL,
-			operator_tokens numeric NOT NULL,
-			operator_strategy_weight numeric NOT NULL,
-			operator_total_strategy_weight numeric NOT NULL,
-			operator_strategy_proportion numeric NOT NULL,
-			operator_strategy_tokens numeric NOT NULL
-		)`,
+		`alter table staker_operator add constraint uniq_staker_operator unique (earner, operator, snapshot, reward_hash, strategy, reward_type);`,
 	}
 
 	for _, query := range queries {
