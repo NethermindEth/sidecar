@@ -1,5 +1,7 @@
 package rewards
 
+import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+
 const operatorSharesQuery = `
 	select
 		operator,
@@ -17,7 +19,7 @@ const operatorSharesQuery = `
 func (r *RewardsCalculator) GenerateAndInsertOperatorShares(snapshotDate string) error {
 	tableName := "operator_shares"
 
-	query, err := renderQueryTemplate(operatorSharesQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(operatorSharesQuery, map[string]string{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {

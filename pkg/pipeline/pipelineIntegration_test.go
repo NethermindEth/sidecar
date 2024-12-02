@@ -13,6 +13,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
 	"log"
@@ -79,8 +80,8 @@ func setup() (
 	if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
 	}
-
-	rc, _ := rewards.NewRewardsCalculator(cfg, grm, mds, l)
+	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+	rc, _ := rewards.NewRewardsCalculator(cfg, grm, mds, sog, l)
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 

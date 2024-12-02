@@ -1,5 +1,7 @@
 package rewards
 
+import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+
 // Operator AVS Registration Windows: Ranges at which an operator has registered for an AVS
 // 0. Ranked: Rank the operator state changes by block_time and log_index since sqlite lacks LEAD/LAG functions
 // 1. Marked_statuses: Denote which registration status comes after one another
@@ -103,7 +105,7 @@ CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, 
 func (r *RewardsCalculator) GenerateAndInsertOperatorAvsRegistrationSnapshots(snapshotDate string) error {
 	tableName := "operator_avs_registration_snapshots"
 
-	query, err := renderQueryTemplate(operatorAvsRegistrationSnapshotsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(operatorAvsRegistrationSnapshotsQuery, map[string]string{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {

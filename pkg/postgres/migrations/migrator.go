@@ -33,6 +33,7 @@ import (
 	_202411130953_addHashColumns "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411130953_addHashColumns"
 	_202411131200_eigenStateModelConstraints "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411131200_eigenStateModelConstraints"
 	_202411191947_cleanupUnusedTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191947_cleanupUnusedTables"
+	_202412021311_stakerOperatorTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412021311_stakerOperatorTables"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -104,6 +105,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202411130953_addHashColumns.Migration{},
 		&_202411131200_eigenStateModelConstraints.Migration{},
 		&_202411191947_cleanupUnusedTables.Migration{},
+		&_202412021311_stakerOperatorTables.Migration{},
 	}
 
 	for _, migration := range migrations {

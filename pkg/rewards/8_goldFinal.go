@@ -1,6 +1,7 @@
 package rewards
 
 import (
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 	"time"
 )
@@ -25,14 +26,14 @@ type GoldRow struct {
 }
 
 func (rc *RewardsCalculator) GenerateGold8FinalTable(snapshotDate string) error {
-	allTableNames := getGoldTableNames(snapshotDate)
+	allTableNames := rewardsUtils.GetGoldTableNames(snapshotDate)
 
 	rc.logger.Sugar().Infow("Generating gold final table",
 		zap.String("cutoffDate", snapshotDate),
 	)
 
-	query, err := renderQueryTemplate(_8_goldFinalQuery, map[string]string{
-		"goldStagingTable": allTableNames[Table_7_GoldStaging],
+	query, err := rewardsUtils.RenderQueryTemplate(_8_goldFinalQuery, map[string]string{
+		"goldStagingTable": allTableNames[rewardsUtils.Table_7_GoldStaging],
 	})
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)

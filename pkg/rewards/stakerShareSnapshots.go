@@ -1,5 +1,7 @@
 package rewards
 
+import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+
 const stakerShareSnapshotsQuery = `
 WITH ranked_staker_records as (
     SELECT *,
@@ -48,7 +50,7 @@ CROSS JOIN
 func (r *RewardsCalculator) GenerateAndInsertStakerShareSnapshots(snapshotDate string) error {
 	tableName := "staker_share_snapshots"
 
-	query, err := renderQueryTemplate(stakerShareSnapshotsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(stakerShareSnapshotsQuery, map[string]string{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {

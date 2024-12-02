@@ -1,13 +1,12 @@
 package rewards
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
-	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
+	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-merkletree/v2"
 	"gorm.io/gorm/clause"
@@ -16,13 +15,13 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"text/template"
 )
 
 type RewardsCalculator struct {
 	logger       *zap.Logger
 	grm          *gorm.DB
 	blockStore   storage.BlockStore
+	sog          *stakerOperators.StakerOperatorsGenerator
 	globalConfig *config.Config
 }
 
@@ -30,12 +29,14 @@ func NewRewardsCalculator(
 	cfg *config.Config,
 	grm *gorm.DB,
 	bs storage.BlockStore,
+	sog *stakerOperators.StakerOperatorsGenerator,
 	l *zap.Logger,
 ) (*RewardsCalculator, error) {
 	rc := &RewardsCalculator{
 		logger:       l,
 		grm:          grm,
 		blockStore:   bs,
+		sog:          sog,
 		globalConfig: cfg,
 	}
 
@@ -169,7 +170,7 @@ func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (*
 }
 
 func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) (string, error) {
-	goldStagingTableName := getGoldTableNames(cutoffDate)[Table_7_GoldStaging]
+	goldStagingTableName := rewardsUtils.GetGoldTableNames(cutoffDate)[rewardsUtils.Table_7_GoldStaging]
 
 	var maxSnapshotStr string
 	query := fmt.Sprintf(`select to_char(max(snapshot), 'YYYY-MM-DD') as snapshot from %s`, goldStagingTableName)
@@ -190,7 +191,7 @@ type Reward struct {
 
 func (rc *RewardsCalculator) fetchRewardsForSnapshot(snapshotDate string) ([]*Reward, error) {
 	var goldRows []*Reward
-	query, err := renderQueryTemplate(`
+	query, err := rewardsUtils.RenderQueryTemplate(`
 		select
 			earner,
 			token,
@@ -228,6 +229,12 @@ func (rc *RewardsCalculator) calculateRewards(snapshotDate string) error {
 	if err = rc.generateGoldTables(snapshotDate); err != nil {
 		_ = rc.UpdateRewardSnapshotStatus(snapshotDate, storage.RewardSnapshotStatusFailed)
 		rc.logger.Sugar().Errorw("Failed to generate gold tables", "error", err)
+		return err
+	}
+
+	if err = rc.sog.GenerateStakerOperatorsTable(snapshotDate); err != nil {
+		_ = rc.UpdateRewardSnapshotStatus(snapshotDate, storage.RewardSnapshotStatusFailed)
+		rc.logger.Sugar().Errorw("Failed to generate staker operators table", "error", err)
 		return err
 	}
 
@@ -357,79 +364,16 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 	return nil
 }
 
-func formatTableName(tableName string, snapshotDate string) string {
-	return fmt.Sprintf("%s_%s", tableName, utils.SnakeCase(snapshotDate))
-}
-
 func (rc *RewardsCalculator) generateAndInsertFromQuery(
 	tableName string,
 	query string,
 	variables map[string]interface{},
 ) error {
-	tmpTableName := fmt.Sprintf("%s_tmp", tableName)
-
-	queryWithInsert := fmt.Sprintf("CREATE TABLE %s AS %s", tmpTableName, query)
-
-	_, err := helpers.WrapTxAndCommit(func(tx *gorm.DB) (interface{}, error) {
-		queries := []string{
-			queryWithInsert,
-			fmt.Sprintf(`drop table if exists %s`, tableName),
-			fmt.Sprintf(`alter table %s rename to %s`, tmpTableName, tableName),
-		}
-		for i, query := range queries {
-			var res *gorm.DB
-			if i == 0 && variables != nil {
-				res = tx.Exec(query, variables)
-			} else {
-				res = tx.Exec(query)
-			}
-			if res.Error != nil {
-				rc.logger.Sugar().Errorw("Failed to execute query", "query", query, "error", res.Error)
-				return nil, res.Error
-			}
-		}
-		return nil, nil
-	}, rc.grm, nil)
-
-	return err
-}
-
-var (
-	Table_1_ActiveRewards         = "gold_1_active_rewards"
-	Table_2_StakerRewardAmounts   = "gold_2_staker_reward_amounts"
-	Table_3_OperatorRewardAmounts = "gold_3_operator_reward_amounts"
-	Table_4_RewardsForAll         = "gold_4_rewards_for_all"
-	Table_5_RfaeStakers           = "gold_5_rfae_stakers"
-	Table_6_RfaeOperators         = "gold_6_rfae_operators"
-	Table_7_GoldStaging           = "gold_7_staging"
-	Table_8_GoldTable             = "gold_table"
-)
-
-var goldTableBaseNames = map[string]string{
-	Table_1_ActiveRewards:         "gold_1_active_rewards",
-	Table_2_StakerRewardAmounts:   "gold_2_staker_reward_amounts",
-	Table_3_OperatorRewardAmounts: "gold_3_operator_reward_amounts",
-	Table_4_RewardsForAll:         "gold_4_rewards_for_all",
-	Table_5_RfaeStakers:           "gold_5_rfae_stakers",
-	Table_6_RfaeOperators:         "gold_6_rfae_operators",
-	Table_7_GoldStaging:           "gold_7_staging",
-	Table_8_GoldTable:             "gold_table",
-}
-
-func getGoldTableNames(snapshotDate string) map[string]string {
-	tableNames := make(map[string]string)
-	for key, baseName := range goldTableBaseNames {
-		tableNames[key] = formatTableName(baseName, snapshotDate)
-	}
-	return tableNames
-}
-
-func renderQueryTemplate(query string, variables map[string]string) (string, error) {
-	queryTmpl := template.Must(template.New("").Parse(query))
-
-	var dest bytes.Buffer
-	if err := queryTmpl.Execute(&dest, variables); err != nil {
-		return "", err
-	}
-	return dest.String(), nil
+	return rewardsUtils.GenerateAndInsertFromQuery(
+		rc.grm,
+		tableName,
+		query,
+		variables,
+		rc.logger,
+	)
 }

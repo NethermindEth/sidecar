@@ -1,5 +1,7 @@
 package rewards
 
+import "github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+
 // Operator AVS Strategy Windows: Ranges for which an Operator, Strategy is restaked on an AVS
 // 1. Ranked_records: Order all records. Round up block_time to 0 UTC
 // 2. Latest_records: Get latest records for each (operator, avs, strategy, day) combination
@@ -142,7 +144,7 @@ func (r *RewardsCalculator) GenerateAndInsertOperatorAvsStrategySnapshots(snapsh
 	tableName := "operator_avs_strategy_snapshots"
 	contractAddresses := r.globalConfig.GetContractsMapForChain()
 
-	query, err := renderQueryTemplate(operatorAvsStrategyWindowsQuery, map[string]string{
+	query, err := rewardsUtils.RenderQueryTemplate(operatorAvsStrategyWindowsQuery, map[string]string{
 		"cutoffDate": snapshotDate,
 	})
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
+	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -109,7 +110,8 @@ func Test_CombinedRewards(t *testing.T) {
 		}
 	})
 	t.Run("Should generate the proper combinedRewards", func(t *testing.T) {
-		rewards, _ := NewRewardsCalculator(cfg, grm, nil, l)
+		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+		rewards, _ := NewRewardsCalculator(cfg, grm, nil, sog, l)
 
 		err = rewards.GenerateAndInsertCombinedRewards(snapshotDate)
 		assert.Nil(t, err)
