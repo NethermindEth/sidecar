@@ -8,7 +8,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-merkletree/v2"
 	"gorm.io/gorm/clause"
@@ -365,10 +364,6 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 	}
 
 	return nil
-}
-
-func formatTableName(tableName string, snapshotDate string) string {
-	return fmt.Sprintf("%s_%s", tableName, utils.SnakeCase(snapshotDate))
 }
 
 func (rc *RewardsCalculator) generateAndInsertFromQuery(
