@@ -199,6 +199,15 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				continue
 			}
 
+			if !p.globalConfig.Rewards.ValidateRewardsRoot {
+				p.Logger.Sugar().Warnw("Rewards validation is disabled, skipping rewards validation",
+					zap.Uint64("blockNumber", blockNumber),
+					zap.Uint64("rootIndex", rs.RootIndex),
+					zap.String("root", rs.Root),
+				)
+				continue
+			}
+
 			// The RewardsCalculationEnd date is the max(snapshot) from the gold table at the time, NOT the exclusive
 			// cutoff date that was actually used to generate the rewards. To get that proper cutoff date, we need
 			// to add 1 day to the RewardsCalculationEnd date.

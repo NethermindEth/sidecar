@@ -38,6 +38,9 @@ func init() {
 	rootCmd.PersistentFlags().String(config.DatabaseDbName, "sidecar", `Defaults to 'sidecar'`)
 	rootCmd.PersistentFlags().String(config.DatabaseSchemaName, "", `Defaults to "public"`)
 
+	rootCmd.PersistentFlags().Bool(config.RewardsValidateRewardsRoot, true, `Validate rewards roots while indexing`)
+	rootCmd.PersistentFlags().Bool(config.RewardsGenerateStakerOperatorsTable, false, `Generate staker operators table while indexing`)
+
 	rootCmd.PersistentFlags().Int("rpc.grpc-port", 7100, `e.g. 7100`)
 	rootCmd.PersistentFlags().Int("rpc.http-port", 7101, `e.g. 7101`)
 

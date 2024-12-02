@@ -44,6 +44,7 @@ type Config struct {
 	DatabaseConfig    DatabaseConfig
 	RpcConfig         RpcConfig
 	Chain             Chain
+	Rewards           RewardsConfig
 }
 
 type EthereumRpcConfig struct {
@@ -65,6 +66,11 @@ type RpcConfig struct {
 	HttpPort int
 }
 
+type RewardsConfig struct {
+	ValidateRewardsRoot          bool
+	GenerateStakerOperatorsTable bool
+}
+
 func StringWithDefault(value, defaultValue string) string {
 	if value == "" {
 		return defaultValue
@@ -79,6 +85,9 @@ var (
 	DatabasePassword   = "database.password"
 	DatabaseDbName     = "database.db_name"
 	DatabaseSchemaName = "database.schema_name"
+
+	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
+	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
 )
 
 func NewConfig() *Config {
@@ -104,6 +113,11 @@ func NewConfig() *Config {
 		RpcConfig: RpcConfig{
 			GrpcPort: viper.GetInt(normalizeFlagName("rpc.grpc_port")),
 			HttpPort: viper.GetInt(normalizeFlagName("rpc.http_port")),
+		},
+
+		Rewards: RewardsConfig{
+			ValidateRewardsRoot:          viper.GetBool(normalizeFlagName(RewardsValidateRewardsRoot)),
+			GenerateStakerOperatorsTable: viper.GetBool(normalizeFlagName(RewardsGenerateStakerOperatorsTable)),
 		},
 	}
 }
