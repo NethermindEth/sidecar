@@ -30,7 +30,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func setup() (
+func setup(ethConfig *ethereum.EthereumClientConfig) (
 	*fetcher.Fetcher,
 	*indexer.Indexer,
 	storage.BlockStore,
@@ -59,7 +59,8 @@ func setup() (
 		l.Sugar().Fatal("Failed to setup statsd client", zap.Error(err))
 	}
 
-	client := ethereum.NewClient(rpcUrl, l)
+	ethConfig.BaseUrl = rpcUrl
+	client := ethereum.NewClient(ethConfig, l)
 
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
@@ -85,7 +86,7 @@ func setup() (
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 
-	cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, l)
+	cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, 10, l)
 
 	idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 
@@ -94,13 +95,10 @@ func setup() (
 }
 
 func Test_PipelineIntegration(t *testing.T) {
-	fetchr, idxr, mds, sm, rc, cfg, l, grm, dbName := setup()
-	t.Run("Should create a new Pipeline", func(t *testing.T) {
-		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
-		assert.NotNil(t, p)
-	})
 
-	t.Run("Should index a block, transaction with logs", func(t *testing.T) {
+	t.Run("Should index a block, transaction with logs using native batched ethereum client", func(t *testing.T) {
+		ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
+		fetchr, idxr, mds, sm, rc, cfg, l, grm, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
 		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
@@ -122,8 +120,38 @@ func Test_PipelineIntegration(t *testing.T) {
 		assert.Equal(t, "0xe7d0894ac9266f5cbe8f8e750ac6cbe128fbbeb7", avsOperatorChanges[0].Avs)
 		assert.Equal(t, uint64(128), avsOperatorChanges[0].LogIndex)
 		assert.Equal(t, blockNumber, avsOperatorChanges[0].BlockNumber)
+
+		t.Cleanup(func() {
+			postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+		})
 	})
-	t.Cleanup(func() {
-		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+	t.Run("Should index a block, transaction with logs using chunked ethereum client", func(t *testing.T) {
+		ethConfig := ethereum.DefaultChunkedCallEthereumClientConfig()
+		fetchr, idxr, mds, sm, rc, cfg, l, grm, dbName := setup(ethConfig)
+		blockNumber := uint64(20386320)
+
+		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
+
+		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
+		assert.Nil(t, err)
+
+		query := `select * from avs_operator_state_changes where block_number = @blockNumber`
+		avsOperatorChanges := make([]avsOperators.AvsOperatorStateChange, 0)
+		res := grm.Raw(query, sql.Named("blockNumber", blockNumber)).Scan(&avsOperatorChanges)
+		assert.Nil(t, res.Error)
+
+		for _, change := range avsOperatorChanges {
+			fmt.Printf("Change: %+v\n", change)
+		}
+
+		assert.Equal(t, 1, len(avsOperatorChanges))
+		assert.Equal(t, "0xf6ad76de4c80c056a51fcb457942df40a6d99f76", avsOperatorChanges[0].Operator)
+		assert.Equal(t, "0xe7d0894ac9266f5cbe8f8e750ac6cbe128fbbeb7", avsOperatorChanges[0].Avs)
+		assert.Equal(t, uint64(128), avsOperatorChanges[0].LogIndex)
+		assert.Equal(t, blockNumber, avsOperatorChanges[0].BlockNumber)
+
+		t.Cleanup(func() {
+			postgres.TeardownTestDatabase(dbName, cfg, grm, l)
+		})
 	})
 }

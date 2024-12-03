@@ -67,7 +67,11 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client := ethereum.NewClient("http://34.229.43.36:8545", l)
+	baseUrl := "http://34.229.43.36:8545"
+	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
+	ethConfig.BaseUrl = baseUrl
+
+	client := ethereum.NewClient(ethConfig, l)
 	sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
 
 	contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
@@ -81,7 +85,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 
 	mccc := multicallContractCaller.NewMulticallContractCaller(client, l)
 
-	scc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, l)
+	scc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, 10, l)
 
 	cm := contractManager.NewContractManager(contractStore, client, sdc, l)
 

@@ -36,9 +36,12 @@ func Test_SequentialContractCaller(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
+	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
+	ethConfig.BaseUrl = cfg.EthereumRpcConfig.BaseUrl
 
-	scc := NewSequentialContractCaller(client, cfg, l)
+	client := ethereum.NewClient(ethConfig, l)
+
+	scc := NewSequentialContractCaller(client, cfg, 10, l)
 
 	t.Run("Get distribution root by index", func(t *testing.T) {
 		distributionRoot, err := scc.GetDistributionRootByIndex(context.Background(), 8)

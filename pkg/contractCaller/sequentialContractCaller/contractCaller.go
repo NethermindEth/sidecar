@@ -23,18 +23,30 @@ type SequentialContractCaller struct {
 	EthereumClient *ethereum.Client
 	Logger         *zap.Logger
 	globalConfig   *config.Config
+	batchSize      int
 }
 
-func NewSequentialContractCaller(ec *ethereum.Client, cfg *config.Config, l *zap.Logger) *SequentialContractCaller {
+func NewSequentialContractCaller(
+	ec *ethereum.Client,
+	cfg *config.Config,
+	batchSize int,
+	l *zap.Logger,
+) *SequentialContractCaller {
 	return &SequentialContractCaller{
 		EthereumClient: ec,
 		Logger:         l,
+		batchSize:      batchSize,
 		globalConfig:   cfg,
 	}
 }
 
 func isExecutionRevertedError(err error) bool {
 	r := regexp.MustCompile(`execution reverted`)
+	return r.MatchString(err.Error())
+}
+
+func isMissingTrieNodeError(err error) bool {
+	r := regexp.MustCompile(`missing trie node`)
 	return r.MatchString(err.Error())
 }
 
@@ -50,6 +62,15 @@ func getOperatorRestakedStrategiesRetryable(ctx context.Context, avs string, ope
 				zap.Uint64("blockNumber", blockNumber),
 				zap.Error(err),
 			)
+			// If the node is missing data, dont bother retrying, immediately exit with the error
+			if isMissingTrieNodeError(err) {
+				l.Sugar().Errorw("GetOperatorRestakedStrategiesRetryable - missing trie node, aborting retries",
+					zap.String("avs", avs),
+					zap.String("operator", operator),
+					zap.Uint64("blockNumber", blockNumber),
+				)
+				return nil, err
+			}
 			time.Sleep(time.Second * time.Duration(backoff))
 		} else {
 			return results, nil
@@ -128,8 +149,6 @@ func (cc *SequentialContractCaller) getOperatorRestakedStrategiesBatch(ctx conte
 	return allResponses, nil
 }
 
-const BATCH_SIZE = 25
-
 func (cc *SequentialContractCaller) GetAllOperatorRestakedStrategies(ctx context.Context, operatorRestakedStrategies []*contractCaller.OperatorRestakedStrategy, blockNumber uint64) ([]*contractCaller.OperatorRestakedStrategy, error) {
 	cc.Logger.Sugar().Infow("SequentialContractCaller.GetAllOperatorRestakedStrategies",
 		zap.Int("total", len(operatorRestakedStrategies)),
@@ -139,12 +158,12 @@ func (cc *SequentialContractCaller) GetAllOperatorRestakedStrategies(ctx context
 	batches := make([][]*contractCaller.OperatorRestakedStrategy, 0)
 	currentIndex := 0
 	for {
-		endIndex := currentIndex + BATCH_SIZE
+		endIndex := currentIndex + cc.batchSize
 		if endIndex >= len(operatorRestakedStrategies) {
 			endIndex = len(operatorRestakedStrategies)
 		}
 		batches = append(batches, operatorRestakedStrategies[currentIndex:endIndex])
-		currentIndex = currentIndex + BATCH_SIZE
+		currentIndex = currentIndex + cc.batchSize
 		if currentIndex >= len(operatorRestakedStrategies) {
 			break
 		}
@@ -153,6 +172,7 @@ func (cc *SequentialContractCaller) GetAllOperatorRestakedStrategies(ctx context
 		zap.Int("batches", len(batches)),
 		zap.Int("total", len(operatorRestakedStrategies)),
 		zap.Uint64("blockNumber", blockNumber),
+		zap.Int("batchSize", cc.batchSize),
 	)
 
 	allResults := make([]*contractCaller.OperatorRestakedStrategy, 0)
