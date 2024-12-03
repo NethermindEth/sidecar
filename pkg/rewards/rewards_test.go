@@ -354,6 +354,7 @@ func Test_RewardsCalculatorLock(t *testing.T) {
 
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 	rc, err := NewRewardsCalculator(cfg, grm, bs, sog, l)
+	assert.Nil(t, err)
 
 	// Setup all tables and source data
 	_, err = hydrateAllBlocksTable(grm, l)
