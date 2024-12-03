@@ -64,7 +64,7 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 
 		// If the latest tip is equal to the latest indexed block, sleep for a bit
 		if latestTip == uint64(latestIndexedBlock) {
-			s.Logger.Sugar().Debugw("Latest tip is equal to latest indexed block, sleeping for a bit")
+			s.Logger.Sugar().Infow("Latest tip is equal to latest indexed block, sleeping for a bit")
 			time.Sleep(BLOCK_POLL_INTERVAL)
 			continue
 		}
