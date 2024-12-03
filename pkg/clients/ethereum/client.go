@@ -101,7 +101,7 @@ func NewClient(cfg *EthereumClientConfig, l *zap.Logger) *Client {
 		Timeout: time.Second * 10,
 	}
 
-	l.Sugar().Debugw(fmt.Sprintf("Creating new Ethereum client with url '%s'", cfg.BaseUrl))
+	l.Sugar().Infow("Creating new Ethereum client", zap.Any("config", cfg))
 
 	return &Client{
 		httpClient:   client,
@@ -346,7 +346,7 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 	return destination, nil
 }
 
-func (c *Client) ChunkedNativeBatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
+func (c *Client) chunkedNativeBatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
 	batches := [][]*RPCRequest{}
 
 	currentIndex := 0
@@ -397,11 +397,11 @@ type BatchedResponse struct {
 	Response *RPCResponse
 }
 
-// ChunkedBatchCall splits the requests into chunks of CHUNKED_BATCH_SIZE and sends them in parallel
+// chunkedBatchCall splits the requests into chunks of CHUNKED_BATCH_SIZE and sends them in parallel
 // by calling the regular client.call method rather than relying on the batch call method.
 //
 // This function allows for better retry and error handling over the batch call method.
-func (c *Client) ChunkedBatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
+func (c *Client) chunkedBatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
 	batches := [][]*IndexedRpcRequestResponse{}
 
 	// all requests in a flat list with their index stored
@@ -482,6 +482,13 @@ func (c *Client) ChunkedBatchCall(ctx context.Context, requests []*RPCRequest) (
 		return nil, xerrors.Errorf("Failed to fetch results for all requests. Expected %d, got %d", len(requests), len(allResults))
 	}
 	return allResults, nil
+}
+
+func (c *Client) BatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
+	if c.clientConfig.UseNativeBatchCall {
+		return c.chunkedNativeBatchCall(ctx, requests)
+	}
+	return c.chunkedBatchCall(ctx, requests)
 }
 
 func (c *Client) call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse, error) {

@@ -65,14 +65,13 @@ func (f *Fetcher) FetchReceiptsForBlock(ctx context.Context, block *ethereum.Eth
 		zap.Uint64("blockNumber", blockNumber),
 	)
 
-	receiptResponses, err := f.EthClient.ChunkedBatchCall(ctx, txReceiptRequests)
+	receiptResponses, err := f.EthClient.BatchCall(ctx, txReceiptRequests)
 	if err != nil {
 		f.Logger.Sugar().Errorw("failed to batch call for transaction receipts", zap.Error(err))
 		return nil, err
 	}
 
 	// Ensure that we have all the receipts.
-	// The ChunkedBatchCall will retry until it either exhausts its retries or gets all the responses.
 	if len(receiptResponses) != len(txReceiptRequests) {
 		f.Logger.Sugar().Errorw("failed to fetch all transaction receipts",
 			zap.Int("fetched", len(receiptResponses)),
@@ -143,7 +142,7 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 		blockRequests = append(blockRequests, ethereum.GetBlockByNumberRequest(n, uint(i)))
 	}
 
-	blockResponses, err := f.EthClient.ChunkedBatchCall(ctx, blockRequests)
+	blockResponses, err := f.EthClient.BatchCall(ctx, blockRequests)
 	if err != nil {
 		f.Logger.Sugar().Errorw("failed to batch call for blocks", zap.Error(err))
 		return nil, err

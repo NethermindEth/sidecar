@@ -45,6 +45,7 @@ var runCmd = &cobra.Command{
 		l.Sugar().Infow("sidecar run",
 			zap.String("version", version.GetVersion()),
 			zap.String("commit", version.GetCommit()),
+			zap.String("chain", cfg.Chain.String()),
 		)
 
 		sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
