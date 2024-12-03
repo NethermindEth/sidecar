@@ -48,8 +48,11 @@ type Config struct {
 }
 
 type EthereumRpcConfig struct {
-	BaseUrl string
-	WsUrl   string
+	BaseUrl               string
+	ContractCallBatchSize int  // Number of contract calls to make in parallel
+	UseNativeBatchCall    bool // Use the native eth_call method for batch calls
+	NativeBatchCallSize   int  // Number of calls to put in a single eth_call request
+	ChunkedBatchCallSize  int  // Number of calls to make in parallel
 }
 
 type DatabaseConfig struct {
@@ -88,6 +91,12 @@ var (
 
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
+
+	EthereumRpcBaseUrl               = "ethereum.rpc_url"
+	EthereumRpcContractCallBatchSize = "ethereum.contract_call_batch_size"
+	EthereumRpcUseNativeBatchCall    = "ethereum.use_native_batch_call"
+	EthereumRpcNativeBatchCallSize   = "ethereum.native_batch_call_size"
+	EthereumRpcChunkedBatchCallSize  = "ethereum.chunked_batch_call_size"
 )
 
 func NewConfig() *Config {
@@ -97,8 +106,11 @@ func NewConfig() *Config {
 		StatsdUrl: viper.GetString(normalizeFlagName("statsd.url")),
 
 		EthereumRpcConfig: EthereumRpcConfig{
-			BaseUrl: viper.GetString(normalizeFlagName("ethereum.rpc_url")),
-			WsUrl:   viper.GetString(normalizeFlagName("ethereum.ws_url")),
+			BaseUrl:               viper.GetString(normalizeFlagName(EthereumRpcBaseUrl)),
+			ContractCallBatchSize: viper.GetInt(normalizeFlagName(EthereumRpcContractCallBatchSize)),
+			UseNativeBatchCall:    viper.GetBool(normalizeFlagName(EthereumRpcUseNativeBatchCall)),
+			NativeBatchCallSize:   viper.GetInt(normalizeFlagName(EthereumRpcNativeBatchCallSize)),
+			ChunkedBatchCallSize:  viper.GetInt(normalizeFlagName(EthereumRpcChunkedBatchCallSize)),
 		},
 
 		DatabaseConfig: DatabaseConfig{

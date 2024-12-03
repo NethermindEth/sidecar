@@ -59,7 +59,9 @@ func setup() (
 		l.Sugar().Fatal("Failed to setup statsd client", zap.Error(err))
 	}
 
-	client := ethereum.NewClient(rpcUrl, l)
+	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
+	ethConfig.BaseUrl = rpcUrl
+	client := ethereum.NewClient(ethConfig, l)
 
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
 	if err != nil {
@@ -85,7 +87,7 @@ func setup() (
 
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 
-	cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, l)
+	cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, 10, l)
 
 	idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 

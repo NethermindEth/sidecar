@@ -52,7 +52,7 @@ var runCmd = &cobra.Command{
 			l.Sugar().Fatal("Failed to setup statsd client", zap.Error(err))
 		}
 
-		client := ethereum.NewClient(cfg.EthereumRpcConfig.BaseUrl, l)
+		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
@@ -91,7 +91,7 @@ var runCmd = &cobra.Command{
 
 		fetchr := fetcher.NewFetcher(client, cfg, l)
 
-		cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, l)
+		cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, cfg.EthereumRpcConfig.ContractCallBatchSize, l)
 
 		idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 

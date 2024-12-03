@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"io"
 	"net/http"
 	"strings"
@@ -58,37 +59,59 @@ type ClientParams struct {
 var jsonRPCVersion = "2.0"
 
 type Client struct {
-	BaseURL string
-	Logger  *zap.Logger
-
-	httpClient *http.Client
+	Logger       *zap.Logger
+	httpClient   *http.Client
+	clientConfig *EthereumClientConfig
 }
 
-func NewClient(baseUrl string, l *zap.Logger) *Client {
+type EthereumClientConfig struct {
+	BaseUrl              string
+	UseNativeBatchCall   bool // Use the native eth_call method for batch calls
+	NativeBatchCallSize  int  // Number of calls to put in a single eth_call request
+	ChunkedBatchCallSize int  // Number of calls to make in parallel
+}
+
+func ConvertGlobalConfigToEthereumConfig(cfg *config.EthereumRpcConfig) *EthereumClientConfig {
+	return &EthereumClientConfig{
+		BaseUrl:              cfg.BaseUrl,
+		UseNativeBatchCall:   cfg.UseNativeBatchCall,
+		NativeBatchCallSize:  cfg.NativeBatchCallSize,
+		ChunkedBatchCallSize: cfg.ChunkedBatchCallSize,
+	}
+}
+
+func DefaultNativeCallEthereumClientConfig() *EthereumClientConfig {
+	return &EthereumClientConfig{
+		UseNativeBatchCall:   true,
+		NativeBatchCallSize:  500,
+		ChunkedBatchCallSize: 25,
+	}
+}
+
+func DefaultChunkedCallEthereumClientConfig() *EthereumClientConfig {
+	return &EthereumClientConfig{
+		UseNativeBatchCall:   false,
+		NativeBatchCallSize:  500,
+		ChunkedBatchCallSize: 25,
+	}
+}
+
+func NewClient(cfg *EthereumClientConfig, l *zap.Logger) *Client {
 	client := &http.Client{
 		Timeout: time.Second * 10,
 	}
 
-	l.Sugar().Debugw(fmt.Sprintf("Creating new Ethereum client with url '%s'", baseUrl))
+	l.Sugar().Debugw(fmt.Sprintf("Creating new Ethereum client with url '%s'", cfg.BaseUrl))
 
 	return &Client{
-		BaseURL:    baseUrl,
-		httpClient: client,
-		Logger:     l,
+		httpClient:   client,
+		Logger:       l,
+		clientConfig: cfg,
 	}
-}
-
-func (c *Client) GetWebsocketConnection(wsUrl string) (*ethclient.Client, error) {
-	d, err := ethclient.Dial(wsUrl)
-	if err != nil {
-		return nil, err
-	}
-
-	return d, nil
 }
 
 func (c *Client) GetEthereumContractCaller() (*ethclient.Client, error) {
-	d, err := ethclient.Dial(c.BaseURL)
+	d, err := ethclient.Dial(c.clientConfig.BaseUrl)
 	if err != nil {
 		c.Logger.Sugar().Error("Failed to create new eth client", zap.Error(err))
 		return nil, err
@@ -274,7 +297,7 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 	ctx, cancel := context.WithTimeout(ctx, time.Second*20)
 	defer cancel()
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.clientConfig.BaseUrl, bytes.NewReader(requestBody))
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to make request: %s", err)
 	}
@@ -323,19 +346,17 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 	return destination, nil
 }
 
-const batchSize = 500
-
 func (c *Client) ChunkedNativeBatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
 	batches := [][]*RPCRequest{}
 
 	currentIndex := 0
 	for {
-		endIndex := currentIndex + batchSize
+		endIndex := currentIndex + c.clientConfig.NativeBatchCallSize
 		if endIndex >= len(requests) {
 			endIndex = len(requests)
 		}
 		batches = append(batches, requests[currentIndex:endIndex])
-		currentIndex = currentIndex + batchSize
+		currentIndex = currentIndex + c.clientConfig.NativeBatchCallSize
 		if currentIndex >= len(requests) {
 			break
 		}
@@ -364,8 +385,6 @@ func (c *Client) ChunkedNativeBatchCall(ctx context.Context, requests []*RPCRequ
 	c.Logger.Sugar().Debugw(fmt.Sprintf("Received '%d' results", len(results)))
 	return results, nil
 }
-
-const CHUNKED_BATCH_SIZE = 25
 
 type IndexedRpcRequestResponse struct {
 	Index    int
@@ -396,12 +415,12 @@ func (c *Client) ChunkedBatchCall(ctx context.Context, requests []*RPCRequest) (
 
 	currentIndex := 0
 	for {
-		endIndex := currentIndex + CHUNKED_BATCH_SIZE
+		endIndex := currentIndex + c.clientConfig.ChunkedBatchCallSize
 		if endIndex >= len(orderedRequestResponses) {
 			endIndex = len(orderedRequestResponses)
 		}
 		batches = append(batches, orderedRequestResponses[currentIndex:endIndex])
-		currentIndex = currentIndex + CHUNKED_BATCH_SIZE
+		currentIndex = currentIndex + c.clientConfig.ChunkedBatchCallSize
 		if currentIndex >= len(orderedRequestResponses) {
 			break
 		}
@@ -476,7 +495,7 @@ func (c *Client) call(ctx context.Context, rpcRequest *RPCRequest) (*RPCResponse
 	ctx, cancel := context.WithTimeout(ctx, RPCMethod_GetBlock.RequestMethod.Timeout)
 	defer cancel()
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL, bytes.NewReader(requestBody))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.clientConfig.BaseUrl, bytes.NewReader(requestBody))
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to make request %s", err)
 	}

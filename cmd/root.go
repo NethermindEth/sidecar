@@ -29,20 +29,23 @@ func init() {
 	rootCmd.PersistentFlags().String("statsd.url", "", `e.g. "localhost:8125"`)
 
 	rootCmd.PersistentFlags().String("ethereum.rpc-url", "", `e.g. "http://34.229.43.36:8545"`)
-	rootCmd.PersistentFlags().String("ethereum.ws-url", "", `e.g. "ws://34.229.43.36:8546"`)
+	rootCmd.PersistentFlags().Int(config.EthereumRpcContractCallBatchSize, 25, `The number of contract calls to batch together when fetching data from the Ethereum node`)
+	rootCmd.PersistentFlags().Bool(config.EthereumRpcUseNativeBatchCall, true, `Use the native eth_call method for batch calls`)
+	rootCmd.PersistentFlags().Int(config.EthereumRpcNativeBatchCallSize, 500, `The number of calls to batch together when using the native eth_call method`)
+	rootCmd.PersistentFlags().Int(config.EthereumRpcChunkedBatchCallSize, 10, `The number of calls to make in parallel when using the chunked batch call method`)
 
-	rootCmd.PersistentFlags().String(config.DatabaseHost, "localhost", `Defaults to 'localhost'. Set to something else if you are running PostgreSQL on your own`)
-	rootCmd.PersistentFlags().Int(config.DatabasePort, 5432, `Defaults to '5432'`)
-	rootCmd.PersistentFlags().String(config.DatabaseUser, "sidecar", `Defaults to 'sidecar'`)
-	rootCmd.PersistentFlags().String(config.DatabasePassword, "", ``)
-	rootCmd.PersistentFlags().String(config.DatabaseDbName, "sidecar", `Defaults to 'sidecar'`)
-	rootCmd.PersistentFlags().String(config.DatabaseSchemaName, "", `Defaults to "public"`)
+	rootCmd.PersistentFlags().String(config.DatabaseHost, "localhost", `PostgreSQL host`)
+	rootCmd.PersistentFlags().Int(config.DatabasePort, 5432, `PostgreSQL port`)
+	rootCmd.PersistentFlags().String(config.DatabaseUser, "sidecar", `PostgreSQL username`)
+	rootCmd.PersistentFlags().String(config.DatabasePassword, "", `PostgreSQL password`)
+	rootCmd.PersistentFlags().String(config.DatabaseDbName, "sidecar", `PostgreSQL database name`)
+	rootCmd.PersistentFlags().String(config.DatabaseSchemaName, "", `PostgreSQL schema name (default "public")`)
 
 	rootCmd.PersistentFlags().Bool(config.RewardsValidateRewardsRoot, true, `Validate rewards roots while indexing`)
 	rootCmd.PersistentFlags().Bool(config.RewardsGenerateStakerOperatorsTable, false, `Generate staker operators table while indexing`)
 
-	rootCmd.PersistentFlags().Int("rpc.grpc-port", 7100, `e.g. 7100`)
-	rootCmd.PersistentFlags().Int("rpc.http-port", 7101, `e.g. 7101`)
+	rootCmd.PersistentFlags().Int("rpc.grpc-port", 7100, `gRPC port`)
+	rootCmd.PersistentFlags().Int("rpc.http-port", 7101, `http rpc port`)
 
 	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		key := config.KebabToSnakeCase(f.Name)
