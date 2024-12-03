@@ -41,9 +41,14 @@ var runDatabaseCmd = &cobra.Command{
 			zap.String("commit", version.GetCommit()),
 		)
 
-		sdc, err := metrics.InitStatsdClient(cfg.StatsdUrl)
+		metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 		if err != nil {
-			l.Sugar().Fatal("Failed to setup statsd client", zap.Error(err))
+			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
+		}
+
+		sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
+		if err != nil {
+			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 		}
 
 		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
@@ -96,7 +101,7 @@ var runDatabaseCmd = &cobra.Command{
 			l.Sugar().Fatalw("Failed to create rewards calculator", zap.Error(err))
 		}
 
-		_ = pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
+		_ = pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, cfg, sdc, l)
 
 		l.Sugar().Infow("Done")
 	},

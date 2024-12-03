@@ -101,11 +101,18 @@ func (rc *RewardsCalculator) calculateRewardsForSnapshotDate(snapshotDate string
 			return nil
 		}
 		if status.Status == storage.RewardSnapshotStatusProcessing.String() {
-			rc.logger.Sugar().Infow("Rewards calculation already in progress for snapshot date", zap.String("snapshotDate", snapshotDate))
-			return errors.New("rewards calculation already in progress for snapshot date")
+			msg := "Rewards calculation already in progress for snapshot date"
+			rc.logger.Sugar().Errorw(msg, zap.String("snapshotDate", snapshotDate))
+			return errors.New(msg)
 		}
-		rc.logger.Sugar().Infow("Rewards calculation failed for snapshot date", zap.String("snapshotDate", snapshotDate))
-		return errors.New("rewards calculation failed for snapshot date")
+		if status.Status == storage.RewardSnapshotStatusFailed.String() {
+			msg := "Snapshot was already calculated and previously failed"
+			rc.logger.Sugar().Errorw(msg, zap.String("snapshotDate", snapshotDate))
+			return errors.New(msg)
+		}
+		msg := "Rewards calculation failed for snapshot date - unknown status"
+		rc.logger.Sugar().Errorw(msg, zap.String("snapshotDate", snapshotDate), zap.Any("status", status))
+		return errors.New(msg)
 	}
 
 	latestBlock, err := rc.blockStore.GetLatestBlock()

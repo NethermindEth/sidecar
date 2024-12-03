@@ -2,7 +2,7 @@ package contractManager
 
 import (
 	"fmt"
-	"github.com/DataDog/datadog-go/v5/statsd"
+	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore"
 	"go.uber.org/zap"
@@ -11,20 +11,20 @@ import (
 type ContractManager struct {
 	ContractStore  contractStore.ContractStore
 	EthereumClient *ethereum.Client
-	Statsd         *statsd.Client
+	metricsSink    *metrics.MetricsSink
 	Logger         *zap.Logger
 }
 
 func NewContractManager(
 	cs contractStore.ContractStore,
 	e *ethereum.Client,
-	s *statsd.Client,
+	ms *metrics.MetricsSink,
 	l *zap.Logger,
 ) *ContractManager {
 	return &ContractManager{
 		ContractStore:  cs,
 		EthereumClient: e,
-		Statsd:         s,
+		metricsSink:    ms,
 		Logger:         l,
 	}
 }

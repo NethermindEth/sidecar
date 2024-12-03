@@ -38,25 +38,29 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	*rewards.RewardsCalculator,
 	*config.Config,
 	*zap.Logger,
+	*metrics.MetricsSink,
 	*gorm.DB,
 	string,
 ) {
 	const (
-		rpcUrl    = "https://tame-fabled-liquid.quiknode.pro/f27d4be93b4d7de3679f5c5ae881233f857407a0/"
-		statsdUrl = "localhost:8125"
+		rpcUrl = "https://tame-fabled-liquid.quiknode.pro/f27d4be93b4d7de3679f5c5ae881233f857407a0/"
 	)
 
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Mainnet
 	cfg.EthereumRpcConfig.BaseUrl = rpcUrl
-	cfg.StatsdUrl = statsdUrl
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
 
-	sdc, err := metrics.InitStatsdClient(statsdUrl)
+	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 	if err != nil {
-		l.Sugar().Fatal("Failed to setup statsd client", zap.Error(err))
+		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
+	}
+
+	sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
+	if err != nil {
+		l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 	}
 
 	ethConfig.BaseUrl = rpcUrl
@@ -90,7 +94,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 
-	return fetchr, idxr, mds, sm, rc, cfg, l, grm, dbname
+	return fetchr, idxr, mds, sm, rc, cfg, l, sdc, grm, dbname
 
 }
 
@@ -98,10 +102,10 @@ func Test_PipelineIntegration(t *testing.T) {
 
 	t.Run("Should index a block, transaction with logs using native batched ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
-		fetchr, idxr, mds, sm, rc, cfg, l, grm, dbName := setup(ethConfig)
+		fetchr, idxr, mds, sm, rc, cfg, l, sdc, grm, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
+		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, sdc, l)
 
 		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)
@@ -127,10 +131,10 @@ func Test_PipelineIntegration(t *testing.T) {
 	})
 	t.Run("Should index a block, transaction with logs using chunked ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultChunkedCallEthereumClientConfig()
-		fetchr, idxr, mds, sm, rc, cfg, l, grm, dbName := setup(ethConfig)
+		fetchr, idxr, mds, sm, rc, cfg, l, sdc, grm, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, l)
+		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, sdc, l)
 
 		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)

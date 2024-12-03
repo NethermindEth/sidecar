@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net"
 	"net/http"
 	"regexp"
@@ -202,4 +203,30 @@ func (s *Sidecar) WithRpcServer(
 	}()
 
 	return nil
+}
+
+func (s *Sidecar) WithPrometheusServer(gracefulShutdown chan bool) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+
+	httpServer := &http.Server{
+		Addr:    fmt.Sprintf(":%d", s.GlobalConfig.PrometheusConfig.Port),
+		Handler: HttpLoggerMiddleware(mux, s.Logger),
+	}
+
+	go func() {
+		for range gracefulShutdown {
+			s.Logger.Sugar().Info("Shutting down prometheus server")
+			err := httpServer.Shutdown(context.Background())
+			if err != nil {
+				s.Logger.Sugar().Errorw("Failed to shutdown prometheus server", zap.Error(err))
+			}
+		}
+	}()
+	go func() {
+		s.Logger.Sugar().Infow("Starting prometheus server", zap.Int("port", s.GlobalConfig.PrometheusConfig.Port))
+		if err := httpServer.ListenAndServe(); err != nil {
+			s.Logger.Sugar().Fatal("Failed to start prometheus server", zap.Error(err))
+		}
+	}()
 }

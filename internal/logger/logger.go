@@ -2,6 +2,7 @@ package logger
 
 import (
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type LoggerConfig struct {
@@ -16,6 +17,7 @@ func NewLogger(cfg *LoggerConfig, options ...zap.Option) (*zap.Logger, error) {
 
 	c := zap.NewProductionConfig()
 	c.EncoderConfig = zap.NewProductionEncoderConfig()
+	c.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	if cfg.Debug {
 		c.Level = zap.NewAtomicLevelAt(zap.DebugLevel)

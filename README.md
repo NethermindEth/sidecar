@@ -122,17 +122,21 @@ Global Flags:
       --database.port int                         PostgreSQL port (default 5432)
       --database.schema_name string               PostgreSQL schema name (default "public")
       --database.user string                      PostgreSQL username (default "sidecar")
+      --datadog.statsd.enabled                    e.g. "true" or "false"
+      --datadog.statsd.url string                 e.g. "localhost:8125"
       --debug                                     "true" or "false"
       --ethereum.chunked_batch_call_size int      The number of calls to make in parallel when using the chunked batch call method (default 10)
       --ethereum.contract_call_batch_size int     The number of contract calls to batch together when fetching data from the Ethereum node (default 25)
       --ethereum.native_batch_call_size int       The number of calls to batch together when using the native eth_call method (default 500)
       --ethereum.rpc-url string                   e.g. "http://34.229.43.36:8545"
       --ethereum.use_native_batch_call            Use the native eth_call method for batch calls (default true)
+      --prometheus.enabled                        e.g. "true" or "false"
+      --prometheus.port int                       The port to run the prometheus server on (default 2112)
       --rewards.generate_staker_operators_table   Generate staker operators table while indexing
       --rewards.validate_rewards_root             Validate rewards roots while indexing (default true)
       --rpc.grpc-port int                         gRPC port (default 7100)
       --rpc.http-port int                         http rpc port (default 7101)
-      --statsd.url string                         e.g. "localhost:8125"
+
 
 ```
 
