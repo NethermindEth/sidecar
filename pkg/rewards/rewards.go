@@ -58,9 +58,9 @@ func (rc *RewardsCalculator) releaseGenerationLock() {
 	rc.isGenerating.Store(false)
 }
 
-type RewardsCalculationInProgressError struct{}
+type ErrRewardsCalculationInProgress struct{}
 
-func (e *RewardsCalculationInProgressError) Error() string {
+func (e *ErrRewardsCalculationInProgress) Error() string {
 	return "rewards calculation already in progress"
 }
 
@@ -71,7 +71,7 @@ func (e *RewardsCalculationInProgressError) Error() string {
 // If there is no previous DistributionRoot, the rewards are calculated from EigenLayer Genesis.
 func (rc *RewardsCalculator) calculateRewardsForSnapshotDate(snapshotDate string) error {
 	if rc.GetIsGenerating() {
-		err := &RewardsCalculationInProgressError{}
+		err := &ErrRewardsCalculationInProgress{}
 		rc.logger.Sugar().Infow(err.Error())
 		return err
 	}
@@ -143,7 +143,7 @@ func (rc *RewardsCalculator) CalculateRewardsForSnapshotDate(snapshotDate string
 	go func() {
 		for {
 			err := rc.calculateRewardsForSnapshotDate(snapshotDate)
-			if errors.Is(err, &RewardsCalculationInProgressError{}) {
+			if errors.Is(err, &ErrRewardsCalculationInProgress{}) {
 				rc.logger.Sugar().Infow("Rewards calculation already in progress, sleeping", zap.String("snapshotDate", snapshotDate))
 				time.Sleep(1 * time.Minute)
 			} else {
@@ -237,6 +237,57 @@ func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) 
 		return "", res.Error
 	}
 	return maxSnapshotStr, nil
+}
+
+// GenerateStakerOperatorsTableForPastSnapshot generates the staker operators table for a past snapshot date, OR
+// generates the rewards and the related staker-operator table data if the snapshot is greater than the latest snapshot.
+func (rc *RewardsCalculator) GenerateStakerOperatorsTableForPastSnapshot(cutoffDate string) error {
+	// find the first snapshot that is >= to the provided cutoff date
+	var generatedSnapshot storage.GeneratedRewardsSnapshots
+	query := `select * from generated_rewards_snapshots where snapshot_date >= ? order by snapshot_date asc limit 1`
+	res := rc.grm.Raw(query, cutoffDate).Scan(&generatedSnapshot)
+	if res.Error != nil && errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		rc.logger.Sugar().Errorw("Failed to get generated snapshot", "error", res.Error)
+		return res.Error
+	}
+	if res.RowsAffected == 0 || errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		rc.logger.Sugar().Infow("No snapshot found for cutoff date, rewards need to be calculated", "cutoffDate", cutoffDate)
+		return rc.CalculateRewardsForSnapshotDate(cutoffDate)
+	}
+
+	// since rewards are already calculated and the corresponding tables are tied to the snapshot date,
+	// we need to use the snapshot date from the generated snapshot to generate the staker operators table.
+	//
+	// Since this date is larger, and the insert into the staker-operators table discards duplicates,
+	// this should be safe to do.
+	cutoffDate = generatedSnapshot.SnapshotDate
+
+	// Since this was a previous calculation, we have the date-suffixed gold tables, but not necessarily the snapshot tables.
+	// In order for our calculations to work, we need to generate the snapshot tables for the cutoff date.
+	//
+	// First check to see if there is already a rewards generation in progress. If there is, return an error and let the caller try again.
+	if rc.GetIsGenerating() {
+		err := &ErrRewardsCalculationInProgress{}
+		rc.logger.Sugar().Infow(err.Error())
+		return err
+	}
+
+	// Acquire the generation lock and proceed with generating snapshot tables and then the staker operators table.
+	rc.acquireGenerationLock()
+	defer rc.releaseGenerationLock()
+
+	rc.logger.Sugar().Infow("Acquired rewards generation lock", "cutoffDate", cutoffDate)
+
+	if err := rc.generateSnapshotData(cutoffDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate snapshot data", "error", err)
+		return err
+	}
+
+	if err := rc.sog.GenerateStakerOperatorsTable(cutoffDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate staker operators table", "error", err)
+		return err
+	}
+	return nil
 }
 
 type Reward struct {

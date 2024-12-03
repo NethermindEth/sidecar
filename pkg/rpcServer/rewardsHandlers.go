@@ -2,7 +2,9 @@ package rpcServer
 
 import (
 	"context"
+	"errors"
 	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1"
+	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -76,6 +78,23 @@ func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *sidecarV1.Ge
 		RewardsRoot:        rootString,
 		RewardsCalcEndDate: rewardsCalcEndDate,
 	}, nil
+}
+
+func (rpc *RpcServer) GenerateStakerOperators(ctx context.Context, req *sidecarV1.GenerateStakerOperatorsRequest) (*sidecarV1.GenerateStakerOperatorsResponse, error) {
+	cutoffDate := req.GetCutoffDate()
+
+	if cutoffDate == "" {
+		return nil, status.Error(codes.InvalidArgument, "snapshot date is required")
+	}
+
+	err := rpc.rewardsCalculator.GenerateStakerOperatorsTableForPastSnapshot(cutoffDate)
+	if err != nil {
+		if errors.Is(err, &rewards.ErrRewardsCalculationInProgress{}) {
+			return nil, status.Error(codes.FailedPrecondition, err.Error())
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &sidecarV1.GenerateStakerOperatorsResponse{}, nil
 }
 
 func (rpc *RpcServer) GetRewardsForSnapshot(ctx context.Context, req *sidecarV1.GetRewardsForSnapshotRequest) (*sidecarV1.GetRewardsForSnapshotResponse, error) {
