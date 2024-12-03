@@ -1,6 +1,7 @@
 package rewards
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
@@ -8,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
+	postgres2 "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -333,5 +335,61 @@ func Test_Rewards(t *testing.T) {
 		t.Cleanup(func() {
 			// teardownRewards(dbFileName, cfg, grm, l)
 		})
+	})
+}
+
+func Test_RewardsCalculatorLock(t *testing.T) {
+	if !rewardsTestsEnabled() {
+		t.Skipf("Skipping %s", t.Name())
+		return
+	}
+
+	dbFileName, cfg, grm, l, err := setupRewards()
+	fmt.Printf("Using db file: %+v\n", dbFileName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bs := postgres2.NewPostgresBlockStore(grm, l, cfg)
+
+	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
+	rc, err := NewRewardsCalculator(cfg, grm, bs, sog, l)
+
+	// Setup all tables and source data
+	_, err = hydrateAllBlocksTable(grm, l)
+	assert.Nil(t, err)
+
+	err = hydrateOperatorAvsStateChangesTable(grm, l)
+	assert.Nil(t, err)
+
+	err = hydrateOperatorAvsRestakedStrategies(grm, l)
+	assert.Nil(t, err)
+
+	err = hydrateOperatorShareDeltas(grm, l)
+	assert.Nil(t, err)
+
+	err = hydrateStakerDelegations(grm, l)
+	assert.Nil(t, err)
+
+	err = hydrateStakerShareDeltas(grm, l)
+	assert.Nil(t, err)
+
+	err = hydrateRewardSubmissionsTable(grm, l)
+	assert.Nil(t, err)
+
+	t.Log("Hydrated tables")
+
+	// --------
+
+	go func() {
+		_ = rc.CalculateRewardsForSnapshotDate("2024-08-02")
+	}()
+	time.Sleep(1 * time.Second)
+	t.Logf("Attempting to calculate second rewards for snapshot date: 2024-08-02")
+	err = rc.calculateRewardsForSnapshotDate("2024-08-02")
+	assert.True(t, errors.Is(err, &RewardsCalculationInProgressError{}))
+
+	t.Cleanup(func() {
+		postgres.TeardownTestDatabase(dbFileName, cfg, grm, l)
 	})
 }
