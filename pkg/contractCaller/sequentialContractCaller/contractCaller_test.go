@@ -21,7 +21,6 @@ func setup() (
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Mainnet
 	cfg.EthereumRpcConfig.BaseUrl = "https://tame-fabled-liquid.quiknode.pro/f27d4be93b4d7de3679f5c5ae881233f857407a0"
-	cfg.StatsdUrl = "localhost:8125"
 	cfg.Debug = true
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 

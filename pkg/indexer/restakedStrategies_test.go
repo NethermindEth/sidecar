@@ -33,7 +33,6 @@ func setup() (
 ) {
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Holesky
-	cfg.StatsdUrl = "localhost:8125"
 	cfg.Debug = false
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 

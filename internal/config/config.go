@@ -80,7 +80,6 @@ type PrometheusConfig struct {
 
 type Config struct {
 	Debug             bool
-	StatsdUrl         string
 	EthereumRpcConfig EthereumRpcConfig
 	DatabaseConfig    DatabaseConfig
 	RpcConfig         RpcConfig
@@ -123,9 +122,8 @@ var (
 
 func NewConfig() *Config {
 	return &Config{
-		Debug:     viper.GetBool(normalizeFlagName("debug")),
-		Chain:     Chain(StringWithDefault(viper.GetString(normalizeFlagName("chain")), "holesky")),
-		StatsdUrl: viper.GetString(normalizeFlagName("statsd.url")),
+		Debug: viper.GetBool(normalizeFlagName("debug")),
+		Chain: Chain(StringWithDefault(viper.GetString(normalizeFlagName("chain")), "holesky")),
 
 		EthereumRpcConfig: EthereumRpcConfig{
 			BaseUrl:               viper.GetString(normalizeFlagName(EthereumRpcBaseUrl)),

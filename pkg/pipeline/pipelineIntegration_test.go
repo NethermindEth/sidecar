@@ -43,14 +43,12 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	string,
 ) {
 	const (
-		rpcUrl    = "https://tame-fabled-liquid.quiknode.pro/f27d4be93b4d7de3679f5c5ae881233f857407a0/"
-		statsdUrl = "localhost:8125"
+		rpcUrl = "https://tame-fabled-liquid.quiknode.pro/f27d4be93b4d7de3679f5c5ae881233f857407a0/"
 	)
 
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Mainnet
 	cfg.EthereumRpcConfig.BaseUrl = rpcUrl
-	cfg.StatsdUrl = statsdUrl
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
