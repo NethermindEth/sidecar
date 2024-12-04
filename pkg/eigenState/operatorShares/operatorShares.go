@@ -286,7 +286,7 @@ func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (types.Sta
 		return "", nil
 	}
 
-	fullTree, err := osm.MerkleizeState(blockNumber, inputs)
+	fullTree, err := osm.MerkleizeEigenState(blockNumber, inputs)
 	if err != nil {
 		osm.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),

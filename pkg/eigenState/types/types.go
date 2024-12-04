@@ -50,3 +50,12 @@ type IEigenStateModel interface {
 type StateTransitions[T any] map[uint64]func(log *storage.TransactionLog) (T, error)
 
 type SlotID string
+
+type MerkleLeafPrefix []byte
+
+var (
+	MerkleLeafPrefix_Block            MerkleLeafPrefix = []byte("0x00")
+	MerkleLeafPrefix_EigenStateRoot   MerkleLeafPrefix = []byte("0x01")
+	MerkleLeafPrefix_EigenStateBlock  MerkleLeafPrefix = []byte("0x02")
+	MerkleLeafPrefix_EigenStateChange MerkleLeafPrefix = []byte("0x03")
+)

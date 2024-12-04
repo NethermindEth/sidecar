@@ -275,7 +275,7 @@ func (sdr *SubmittedDistributionRootsModel) GenerateStateRoot(blockNumber uint64
 		return "", nil
 	}
 
-	fullTree, err := sdr.MerkleizeState(blockNumber, sortedInputs)
+	fullTree, err := sdr.MerkleizeEigenState(blockNumber, sortedInputs)
 	if err != nil {
 		sdr.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),

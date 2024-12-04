@@ -585,7 +585,7 @@ func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateR
 		return "", nil
 	}
 
-	fullTree, err := ss.MerkleizeState(blockNumber, inputs)
+	fullTree, err := ss.MerkleizeEigenState(blockNumber, inputs)
 	if err != nil {
 		ss.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),

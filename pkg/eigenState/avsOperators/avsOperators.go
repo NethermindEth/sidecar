@@ -229,7 +229,7 @@ func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRo
 		return "", nil
 	}
 
-	fullTree, err := a.MerkleizeState(blockNumber, inputs)
+	fullTree, err := a.MerkleizeEigenState(blockNumber, inputs)
 	if err != nil {
 		a.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),

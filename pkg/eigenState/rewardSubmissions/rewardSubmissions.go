@@ -310,7 +310,7 @@ func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.S
 		return "", nil
 	}
 
-	fullTree, err := rs.MerkleizeState(blockNumber, inputs)
+	fullTree, err := rs.MerkleizeEigenState(blockNumber, inputs)
 	if err != nil {
 		rs.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),

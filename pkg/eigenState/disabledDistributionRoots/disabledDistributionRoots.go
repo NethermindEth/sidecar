@@ -208,7 +208,7 @@ func (ddr *DisabledDistributionRootsModel) GenerateStateRoot(blockNumber uint64)
 		return "", nil
 	}
 
-	fullTree, err := ddr.MerkleizeState(blockNumber, sortedInputs)
+	fullTree, err := ddr.MerkleizeEigenState(blockNumber, sortedInputs)
 	if err != nil {
 		ddr.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),
