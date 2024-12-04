@@ -249,6 +249,7 @@ func (rc *RewardsCalculator) BackfillAllStakerOperators() error {
 	}
 
 	// First acquire a lock. If we cant, return and let the caller retry.
+	rc.logger.Sugar().Infow("Acquiring rewards generation lock for staker operator backfill")
 	if rc.GetIsGenerating() {
 		err := &ErrRewardsCalculationInProgress{}
 		rc.logger.Sugar().Infow(err.Error())
@@ -259,6 +260,8 @@ func (rc *RewardsCalculator) BackfillAllStakerOperators() error {
 
 	// take the largest snapshot date and generate the snapshot tables, which will be all-inclusive
 	latestSnapshotDate := generatedSnapshots[len(generatedSnapshots)-1].SnapshotDate
+
+	rc.logger.Sugar().Infow("Generating snapshot data for backfill", "snapshotDate", latestSnapshotDate)
 	if err := rc.generateSnapshotData(latestSnapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate snapshot data", "error", err)
 		return err
@@ -266,6 +269,7 @@ func (rc *RewardsCalculator) BackfillAllStakerOperators() error {
 
 	// iterate over each snapshot and generate the staker operators table data for each
 	for _, snapshot := range generatedSnapshots {
+		rc.logger.Sugar().Infow("Generating staker operators table for snapshot", "snapshotDate", snapshot.SnapshotDate)
 		if err := rc.sog.GenerateStakerOperatorsTable(snapshot.SnapshotDate); err != nil {
 			rc.logger.Sugar().Errorw("Failed to generate staker operators table", "error", err)
 			return err
