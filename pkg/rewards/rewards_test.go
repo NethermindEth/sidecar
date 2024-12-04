@@ -388,7 +388,7 @@ func Test_RewardsCalculatorLock(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	t.Logf("Attempting to calculate second rewards for snapshot date: 2024-08-02")
 	err = rc.calculateRewardsForSnapshotDate("2024-08-02")
-	assert.True(t, errors.Is(err, &RewardsCalculationInProgressError{}))
+	assert.True(t, errors.Is(err, &ErrRewardsCalculationInProgress{}))
 
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbFileName, cfg, grm, l)

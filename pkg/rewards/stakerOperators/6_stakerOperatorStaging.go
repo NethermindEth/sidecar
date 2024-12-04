@@ -127,6 +127,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert6StakerOperatorStaging(cut
 			zap.String("cutoffDate", cutoffDate),
 			zap.Error(res.Error),
 		)
+		return res.Error
 	}
 
 	return nil

@@ -57,7 +57,7 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 
 		// If the latest tip is behind what we have indexed, sleep for a bit
 		if latestTip < uint64(latestIndexedBlock) {
-			s.Logger.Sugar().Infow("Latest tip is behind latest indexed block, sleeping for a bit")
+			s.Logger.Sugar().Debugw("Latest tip is behind latest indexed block, sleeping for a bit")
 			time.Sleep(BLOCK_POLL_INTERVAL)
 			continue
 		}
@@ -155,6 +155,10 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	currentTip := atomic.Uint64{}
 	currentTip.Store(blockNumber)
 
+	indexComplete := atomic.Bool{}
+	indexComplete.Store(false)
+	defer indexComplete.Store(true)
+
 	// Every 10 seconds, check to see if the current tip has changed while the backfill/sync
 	// process is still running. If it has changed, update the value which will extend the loop
 	// to include the newly discovered blocks.
@@ -163,6 +167,10 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			time.Sleep(time.Second * 30)
 			if s.shouldShutdown.Load() {
 				s.Logger.Sugar().Infow("Shutting down block listener...")
+				return
+			}
+			if indexComplete.Load() {
+				s.Logger.Sugar().Infow("Indexing complete, shutting down tip listener")
 				return
 			}
 			latestTip, err := s.EthereumClient.GetBlockNumberUint64(ctx)
