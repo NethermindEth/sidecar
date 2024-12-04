@@ -8,6 +8,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller"
+	"github.com/Layr-Labs/sidecar/pkg/types/errors"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -76,7 +77,7 @@ func getOperatorRestakedStrategiesRetryable(ctx context.Context, avs string, ope
 			return results, nil
 		}
 	}
-	return nil, nil
+	return nil, &errors.ErrRetriesExceeded{}
 }
 
 func getOperatorRestakedStrategies(ctx context.Context, avs string, operator string, blockNumber uint64, client *ethereum.Client, l *zap.Logger) ([]common.Address, error) {

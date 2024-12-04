@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm/clause"
 	"slices"
 	"sort"
+	"strings"
 )
 
 type DisabledDistributionRootsModel struct {
@@ -182,10 +183,6 @@ func (ddr *DisabledDistributionRootsModel) CommitFinalState(blockNumber uint64) 
 }
 
 func (ddr *DisabledDistributionRootsModel) sortValuesForMerkleTree(inputs []*types.DisabledDistributionRoot) []*base.MerkleTreeInput {
-	slices.SortFunc(inputs, func(i, j *types.DisabledDistributionRoot) int {
-		return int(i.RootIndex - j.RootIndex)
-	})
-
 	values := make([]*base.MerkleTreeInput, 0)
 	for _, input := range inputs {
 		values = append(values, &base.MerkleTreeInput{
@@ -193,6 +190,9 @@ func (ddr *DisabledDistributionRootsModel) sortValuesForMerkleTree(inputs []*typ
 			Value:  []byte(fmt.Sprintf("%d", input.RootIndex)),
 		})
 	}
+	slices.SortFunc(values, func(i, j *base.MerkleTreeInput) int {
+		return strings.Compare(string(i.SlotID), string(j.SlotID))
+	})
 	return values
 }
 

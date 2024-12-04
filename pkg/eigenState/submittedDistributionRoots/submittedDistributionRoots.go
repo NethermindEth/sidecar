@@ -250,10 +250,6 @@ func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64)
 }
 
 func (sdr *SubmittedDistributionRootsModel) sortValuesForMerkleTree(inputs []*types.SubmittedDistributionRoot) []*base.MerkleTreeInput {
-	slices.SortFunc(inputs, func(i, j *types.SubmittedDistributionRoot) int {
-		return int(i.RootIndex - j.RootIndex)
-	})
-
 	values := make([]*base.MerkleTreeInput, 0)
 	for _, input := range inputs {
 		values = append(values, &base.MerkleTreeInput{
@@ -261,6 +257,9 @@ func (sdr *SubmittedDistributionRootsModel) sortValuesForMerkleTree(inputs []*ty
 			Value:  []byte(input.Root),
 		})
 	}
+	slices.SortFunc(values, func(i, j *base.MerkleTreeInput) int {
+		return strings.Compare(string(i.SlotID), string(j.SlotID))
+	})
 	return values
 }
 
