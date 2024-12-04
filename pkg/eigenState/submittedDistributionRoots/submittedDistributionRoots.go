@@ -101,7 +101,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 				rootIndex = 0
 				break
 			}
-			withoutPrefix := strings.TrimPrefix(arguments[2].Value.(string), "0x")
+			withoutPrefix := strings.TrimPrefix(arguments[0].Value.(string), "0x")
 			rootIndex, err = strconv.ParseUint(withoutPrefix, 16, 32)
 			if err != nil {
 				return nil, xerrors.Errorf("Failed to decode rootIndex: %v", err)
