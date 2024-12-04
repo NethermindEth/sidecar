@@ -204,6 +204,8 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	runningAvg := float64(0)
 	totalDurationMs := int64(0)
 
+	originalStartBlock := latestBlock
+
 	//nolint:all
 	lastBlockParsed := latestBlock
 
@@ -216,7 +218,13 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		}
 		tip := currentTip.Load()
 		blocksRemaining := tip - uint64(latestBlock)
-		pctComplete := (float64(blocksProcessed) / float64(blocksRemaining)) * 100
+		totalBlocksToProcess := tip - uint64(originalStartBlock)
+
+		var pctComplete float64
+		if totalBlocksToProcess != 0 {
+			pctComplete = (float64(blocksProcessed) / float64(totalBlocksToProcess)) * 100
+		}
+
 		estTimeRemainingMs := runningAvg * float64(blocksRemaining)
 		estTimeRemainingHours := float64(estTimeRemainingMs) / 1000 / 60 / 60
 
