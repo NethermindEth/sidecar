@@ -14,6 +14,7 @@ func (s *Sidecar) GetLastIndexedBlock() (int64, error) {
 	block, err := s.Storage.GetLatestBlock()
 	if err != nil {
 		s.Logger.Sugar().Errorw("Failed to get last indexed block", zap.Error(err))
+		return 0, err
 	}
 	return int64(block.Number), nil
 }
