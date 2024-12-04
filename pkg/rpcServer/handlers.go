@@ -8,7 +8,23 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (rpc *RpcServer) GetBlockHeight(context.Context, *sidecarV1.GetBlockHeightRequest) (*sidecarV1.GetBlockHeightResponse, error) {
+func (rpc *RpcServer) GetBlockHeight(ctx context.Context, req *sidecarV1.GetBlockHeightRequest) (*sidecarV1.GetBlockHeightResponse, error) {
+	verified := req.GetVerified()
+	if verified {
+		sr, err := rpc.stateManager.GetLatestStateRoot()
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		block, err := rpc.blockStore.GetBlockByNumber(sr.EthBlockNumber)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		return &sidecarV1.GetBlockHeightResponse{
+			BlockNumber: block.Number,
+			BlockHash:   block.Hash,
+		}, nil
+	}
+
 	block, err := rpc.blockStore.GetLatestBlock()
 
 	if err != nil {
