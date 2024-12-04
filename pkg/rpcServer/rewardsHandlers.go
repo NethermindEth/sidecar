@@ -97,6 +97,17 @@ func (rpc *RpcServer) GenerateStakerOperators(ctx context.Context, req *sidecarV
 	return &sidecarV1.GenerateStakerOperatorsResponse{}, nil
 }
 
+func (rpc *RpcServer) BackfillStakerOperators(ctx context.Context, req *sidecarV1.BackfillStakerOperatorsRequest) (*sidecarV1.BackfillStakerOperatorsResponse, error) {
+	err := rpc.rewardsCalculator.BackfillAllStakerOperators()
+	if err != nil {
+		if errors.Is(err, &rewards.ErrRewardsCalculationInProgress{}) {
+			return nil, status.Error(codes.FailedPrecondition, err.Error())
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &sidecarV1.BackfillStakerOperatorsResponse{}, nil
+}
+
 func (rpc *RpcServer) GetRewardsForSnapshot(ctx context.Context, req *sidecarV1.GetRewardsForSnapshotRequest) (*sidecarV1.GetRewardsForSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetRewardsForSnapshot not implemented")
 }

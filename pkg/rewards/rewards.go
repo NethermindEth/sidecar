@@ -239,6 +239,41 @@ func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) 
 	return maxSnapshotStr, nil
 }
 
+func (rc *RewardsCalculator) BackfillAllStakerOperators() error {
+	var generatedSnapshots []storage.GeneratedRewardsSnapshots
+	query := `select * from generated_rewards_snapshots order by snapshot_date asc`
+	res := rc.grm.Raw(query).Scan(&generatedSnapshots)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to get generated snapshots", "error", res.Error)
+		return res.Error
+	}
+
+	// First acquire a lock. If we cant, return and let the caller retry.
+	if rc.GetIsGenerating() {
+		err := &ErrRewardsCalculationInProgress{}
+		rc.logger.Sugar().Infow(err.Error())
+		return err
+	}
+	rc.acquireGenerationLock()
+	defer rc.releaseGenerationLock()
+
+	// take the largest snapshot date and generate the snapshot tables, which will be all-inclusive
+	latestSnapshotDate := generatedSnapshots[len(generatedSnapshots)-1].SnapshotDate
+	if err := rc.generateSnapshotData(latestSnapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate snapshot data", "error", err)
+		return err
+	}
+
+	// iterate over each snapshot and generate the staker operators table data for each
+	for _, snapshot := range generatedSnapshots {
+		if err := rc.sog.GenerateStakerOperatorsTable(snapshot.SnapshotDate); err != nil {
+			rc.logger.Sugar().Errorw("Failed to generate staker operators table", "error", err)
+			return err
+		}
+	}
+	return nil
+}
+
 // GenerateStakerOperatorsTableForPastSnapshot generates the staker operators table for a past snapshot date, OR
 // generates the rewards and the related staker-operator table data if the snapshot is greater than the latest snapshot.
 func (rc *RewardsCalculator) GenerateStakerOperatorsTableForPastSnapshot(cutoffDate string) error {
