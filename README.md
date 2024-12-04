@@ -128,7 +128,7 @@ Global Flags:
       --ethereum.chunked_batch_call_size int      The number of calls to make in parallel when using the chunked batch call method (default 10)
       --ethereum.contract_call_batch_size int     The number of contract calls to batch together when fetching data from the Ethereum node (default 25)
       --ethereum.native_batch_call_size int       The number of calls to batch together when using the native eth_call method (default 500)
-      --ethereum.rpc-url string                   e.g. "http://34.229.43.36:8545"
+      --ethereum.rpc-url string                   e.g. "http://<hostname>:8545"
       --ethereum.use_native_batch_call            Use the native eth_call method for batch calls (default true)
       --prometheus.enabled                        e.g. "true" or "false"
       --prometheus.port int                       The port to run the prometheus server on (default 2112)
@@ -152,7 +152,7 @@ _Assumes you have PosgresSQL running locally already_
 ```bash
 make build
 ./bin/sidecar run \
-    --ethereum.rpc-url="http://34.229.43.36:8545" \
+    --ethereum.rpc-url="http://<hostname>:8545" \
     --chain="holesky" \
     --statsd.url="localhost:8125" \
     --database.host="localhost" \
@@ -163,7 +163,7 @@ make build
 
 # OR with go run
 go run main.go run \
-    --ethereum.rpc-url="http://34.229.43.36:8545" \
+    --ethereum.rpc-url="http://<hostname>:8545" \
     --chain="holesky" \
     --statsd.url="localhost:8125" \
     --database.host="localhost" \
@@ -180,7 +180,7 @@ _Assumes you have PosgresSQL running locally already_
 ```bash
 docker run -it --rm \
   -e SIDECAR_DEBUG=false \
-  -e SIDECAR_ETHEREUM_RPC_URL="http://34.229.43.36:8545" \
+  -e SIDECAR_ETHEREUM_RPC_URL="http://<hostname>:8545" \
   -e SIDECAR_CHAIN="holesky" \
   -e SIDECAR_STATSD_URL="localhost:8125" \
   -e SIDECAR_DATABASE_HOST="localhost" \
@@ -201,7 +201,7 @@ make docker-buildx-self
 
 docker run \
   -e "SIDECAR_DEBUG=false" \
-  -e "SIDECAR_ETHEREUM_RPC_URL=http://34.229.43.36:8545" \
+  -e "SIDECAR_ETHEREUM_RPC_URL=http://<hostname>:8545" \
   -e "SIDECAR_CHAIN=holesky" \
   -e "SIDECAR_STATSD_URL=localhost:8125" \
   -e SIDECAR_DATABASE_HOST="localhost" \

@@ -66,7 +66,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	baseUrl := "http://34.229.43.36:8545"
+	baseUrl := "http://185.26.8.65:8545"
 	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
 	ethConfig.BaseUrl = baseUrl
 

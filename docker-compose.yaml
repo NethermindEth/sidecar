@@ -13,7 +13,7 @@ services:
       - "7101:7101"
     environment:
       - SIDECAR_DEBUG=false
-      - SIDECAR_ETHEREUM_RPC_URL=http://34.229.43.36:8545
+      - SIDECAR_ETHEREUM_RPC_URL=http://<hostname>:8545
       - SIDECAR_CHAIN=holesky
       - SIDECAR_STATSD_URL=localhost:8125
       - SIDECAR_DATABASE_HOST=postgres

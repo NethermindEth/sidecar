@@ -23,7 +23,7 @@ dropdb $DATABASE || true
 createdb $DATABASE
 
 go run main.go database \
-    --ethereum.rpc-url="http://34.229.43.36:8545" \
+    --ethereum.rpc-url="https://ethereum-holesky-rpc.publicnode.com" \
     --chain=$NETWORK \
     --statsd.url="localhost:8125" \
     --database.host="localhost" \

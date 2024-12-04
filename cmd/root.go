@@ -27,7 +27,7 @@ func init() {
 	rootCmd.PersistentFlags().Bool("debug", false, `"true" or "false"`)
 	rootCmd.PersistentFlags().StringP("chain", "c", "mainnet", "The chain to use (mainnet, holesky, preprod")
 
-	rootCmd.PersistentFlags().String("ethereum.rpc-url", "", `e.g. "http://34.229.43.36:8545"`)
+	rootCmd.PersistentFlags().String("ethereum.rpc-url", "", `e.g. "http://<hostname>:8545"`)
 	rootCmd.PersistentFlags().Int(config.EthereumRpcContractCallBatchSize, 25, `The number of contract calls to batch together when fetching data from the Ethereum node`)
 	rootCmd.PersistentFlags().Bool(config.EthereumRpcUseNativeBatchCall, true, `Use the native eth_call method for batch calls`)
 	rootCmd.PersistentFlags().Int(config.EthereumRpcNativeBatchCallSize, 500, `The number of calls to batch together when using the native eth_call method`)
