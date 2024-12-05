@@ -3,6 +3,7 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	_202409061249_bootstrapDb "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061249_bootstrapDb"
 	_202409061250_eigenlayerStateTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061250_eigenlayerStateTables"
 	_202409061720_operatorShareChanges "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202409061720_operatorShareChanges"
@@ -40,25 +41,27 @@ import (
 )
 
 type Migration interface {
-	Up(db *sql.DB, grm *gorm.DB) error
+	Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error
 	GetName() string
 }
 
 type Migrator struct {
-	Db     *sql.DB
-	GDb    *gorm.DB
-	Logger *zap.Logger
+	Db           *sql.DB
+	GDb          *gorm.DB
+	Logger       *zap.Logger
+	globalConfig *config.Config
 }
 
-func NewMigrator(db *sql.DB, gDb *gorm.DB, l *zap.Logger) *Migrator {
+func NewMigrator(db *sql.DB, gDb *gorm.DB, l *zap.Logger, cfg *config.Config) *Migrator {
 	err := initializeMigrationTable(gDb)
 	if err != nil {
 		l.Sugar().Fatalw("Failed to auto-migrate migrations table", zap.Error(err))
 	}
 	return &Migrator{
-		Db:     db,
-		GDb:    gDb,
-		Logger: l,
+		Db:           db,
+		GDb:          gDb,
+		Logger:       l,
+		globalConfig: cfg,
 	}
 }
 
@@ -127,7 +130,7 @@ func (m *Migrator) Migrate(migration Migration) error {
 	if result.Error == nil && result.RowsAffected == 0 {
 		m.Logger.Sugar().Infof("Running migration '%s'", name)
 		// run migration
-		err := migration.Up(m.Db, m.GDb)
+		err := migration.Up(m.Db, m.GDb, m.globalConfig)
 		if err != nil {
 			m.Logger.Sugar().Errorw(fmt.Sprintf("Failed to run migration '%s'", name), zap.Error(err))
 			return err

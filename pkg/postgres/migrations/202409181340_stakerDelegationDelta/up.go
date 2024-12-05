@@ -2,13 +2,14 @@ package _202409181340_stakerDelegationDelta
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"gorm.io/gorm"
 )
 
 type Migration struct {
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	query := `
 		create table if not exists staker_delegation_changes (
 			staker varchar not null,

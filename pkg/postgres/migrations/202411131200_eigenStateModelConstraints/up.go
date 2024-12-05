@@ -2,13 +2,14 @@ package _202411131200_eigenStateModelConstraints
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"gorm.io/gorm"
 )
 
 type Migration struct {
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		`alter table disabled_distribution_roots add constraint uniq_disabled_distribution_root unique (transaction_hash, log_index, block_number)`,
 		`alter table operator_share_deltas add constraint uniq_operator_share unique (transaction_hash, log_index, block_number, operator, staker, strategy)`,

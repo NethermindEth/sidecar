@@ -3,13 +3,14 @@ package _202411041043_blockNumberFkConstraint
 import (
 	"database/sql"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"gorm.io/gorm"
 )
 
 type Migration struct {
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		`alter table delegated_stakers add constraint delegated_stakers_block_number_fkey foreign key (block_number) references blocks (number) on delete cascade`,
 		`alter table combined_rewards add constraint combined_rewards_block_number_fkey foreign key (block_number) references blocks (number) on delete cascade`,

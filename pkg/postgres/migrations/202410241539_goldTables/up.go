@@ -65,7 +65,7 @@ var exludedAddresses = map[config.Chain][]string{
 	},
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		`create table if not exists excluded_addresses (
 			address varchar not null PRIMARY KEY,

@@ -33,7 +33,7 @@ func Test_Postgres(t *testing.T) {
 	}
 
 	t.Run("Test Migration Up", func(t *testing.T) {
-		migrator := migrations.NewMigrator(pg.Db, grm, l)
+		migrator := migrations.NewMigrator(pg.Db, grm, l, cfg)
 		if err = migrator.MigrateAll(); err != nil {
 			t.Fatalf("Failed to migrate: %v", err)
 		}

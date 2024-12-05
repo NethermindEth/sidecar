@@ -2,13 +2,14 @@ package _202411041332_stakerShareDeltaBlockFk
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"gorm.io/gorm"
 )
 
 type Migration struct {
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		`alter table staker_share_deltas add constraint staker_share_deltas_block_number_fkey foreign key (block_number) references blocks (number) on delete cascade`,
 		`alter table avs_operator_state_changes add constraint avs_operator_state_changes_block_number_fkey foreign key (block_number) references blocks (number) on delete cascade`,

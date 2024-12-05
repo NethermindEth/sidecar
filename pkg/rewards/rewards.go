@@ -1,6 +1,7 @@
 package rewards
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
@@ -10,6 +11,8 @@ import (
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wealdtech/go-merkletree/v2"
 	"gorm.io/gorm/clause"
+	"slices"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -325,6 +328,162 @@ func (rc *RewardsCalculator) GenerateStakerOperatorsTableForPastSnapshot(cutoffD
 	if err := rc.sog.GenerateStakerOperatorsTable(cutoffDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker operators table", "error", err)
 		return err
+	}
+	return nil
+}
+
+func (rc *RewardsCalculator) findGeneratedRewardSnapshotByBlock(blockHeight uint64) (*storage.GeneratedRewardsSnapshots, error) {
+	distributionRootsQuery := `
+		select
+			block_number,
+			arguments #>> '{2, Value}' as rewards_calculation_end_timestamp
+		from transaction_logs
+		where
+			address = @rewardsCoordinatorAddress
+			and event_name = 'DistributionRootSubmitted'
+			and block_number >= @blockHeight
+		order by block_number asc
+	`
+	type DistributionRoot struct {
+		BlockNumber                    uint64
+		RewardsCalculationEndTimestamp int64
+	}
+
+	rewardsCoordinatorAddress := rc.globalConfig.GetContractsMapForChain().RewardsCoordinator
+	rows := make([]DistributionRoot, 0)
+	res := rc.grm.Raw(distributionRootsQuery,
+		sql.Named("rewardsCoordinatorAddress", rewardsCoordinatorAddress),
+		sql.Named("blockHeight", blockHeight),
+	).Scan(&rows)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+
+	if len(rows) == 0 {
+		return nil, nil
+	}
+
+	firstRow := rows[0]
+	snapshotDate := time.Unix(firstRow.RewardsCalculationEndTimestamp, 0).UTC().Add(time.Hour * 24).Format(time.DateOnly)
+
+	var generatedRewardSnapshots storage.GeneratedRewardsSnapshots
+	res = rc.grm.Model(&storage.GeneratedRewardsSnapshots{}).Where("snapshot_date = ?", snapshotDate).First(&generatedRewardSnapshots)
+	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		return nil, res.Error
+	}
+
+	// nothing found
+	if res.RowsAffected == 0 || errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+
+	return &generatedRewardSnapshots, nil
+}
+
+func (rc *RewardsCalculator) findRewardsTablesBySnapshotDate(snapshotDate string) ([]string, error) {
+	schemaName := rc.globalConfig.DatabaseConfig.SchemaName
+	if schemaName == "" {
+		schemaName = "public"
+	}
+	snakeCaseSnapshotDate := strings.ReplaceAll(snapshotDate, "-", "_")
+	var rewardsTables []string
+	query := `select table_name from information_schema.tables where table_schema = @tableSchema and table_name like @tableNamePattern`
+	res := rc.grm.Raw(query,
+		sql.Named("tableSchema", schemaName),
+		sql.Named("tableNamePattern", fmt.Sprintf("gold_%%%s", snakeCaseSnapshotDate)),
+	).Scan(&rewardsTables)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to get rewards tables", "error", res.Error)
+		return nil, res.Error
+	}
+	return rewardsTables, nil
+}
+
+func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight uint64) error {
+	generatedSnapshot, err := rc.findGeneratedRewardSnapshotByBlock(blockHeight)
+	if err != nil {
+		rc.logger.Sugar().Errorw("Failed to find generated snapshot", "error", err)
+		return err
+	}
+	if generatedSnapshot == nil {
+		rc.logger.Sugar().Infow("No generated snapshot found that are gte provided blockHeight", "blockHeight", blockHeight)
+		return nil
+	}
+
+	// find all generated snapshots that are, or were created after, the generated snapshot
+	var snapshotsToDelete []*storage.GeneratedRewardsSnapshots
+	res := rc.grm.Model(&storage.GeneratedRewardsSnapshots{}).Where("id >= ?", generatedSnapshot.Id).Find(&snapshotsToDelete)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to find generated snapshots", "error", res.Error)
+		return res.Error
+	}
+
+	// if the target snapshot is '2024-12-01', then we need to find the one that came before it to delete everything that came after
+	var lowerBoundSnapshot *storage.GeneratedRewardsSnapshots
+	res = rc.grm.Model(&storage.GeneratedRewardsSnapshots{}).Where("snapshot_date < ?", generatedSnapshot.SnapshotDate).Order("snapshot_date desc").First(&lowerBoundSnapshot)
+	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		rc.logger.Sugar().Errorw("Failed to find lower bound snapshot", "error", res.Error)
+		return res.Error
+	}
+	if res.RowsAffected == 0 || errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		lowerBoundSnapshot = nil
+	}
+
+	snapshotDates := make([]string, 0)
+	for _, snapshot := range snapshotsToDelete {
+		snapshotDates = append(snapshotDates, snapshot.SnapshotDate)
+		tableNames, err := rc.findRewardsTablesBySnapshotDate(snapshot.SnapshotDate)
+		if err != nil {
+			rc.logger.Sugar().Errorw("Failed to find rewards tables", "error", err)
+			return err
+		}
+		// drop tables
+		for _, tableName := range tableNames {
+			rc.logger.Sugar().Infow("Dropping rewards table", "tableName", tableName)
+			dropQuery := fmt.Sprintf(`drop table %s`, tableName)
+			res := rc.grm.Exec(dropQuery)
+			if res.Error != nil {
+				rc.logger.Sugar().Errorw("Failed to drop rewards table", "error", res.Error)
+				return res.Error
+			}
+		}
+
+		// delete from generated_rewards_snapshots
+		res = rc.grm.Delete(&storage.GeneratedRewardsSnapshots{}, snapshot.Id)
+		if res.Error != nil {
+			rc.logger.Sugar().Errorw("Failed to delete generated snapshot", "error", res.Error)
+			return res.Error
+		}
+	}
+
+	// sort all snapshot dates in ascending order to purge from gold table
+	slices.SortFunc(snapshotDates, func(i, j string) int {
+		return strings.Compare(i, j)
+	})
+
+	// purge from gold table
+	if lowerBoundSnapshot != nil {
+		rc.logger.Sugar().Infow("Purging rewards from gold table where snapshot >=", "snapshotDate", lowerBoundSnapshot.SnapshotDate)
+		res = rc.grm.Exec(`delete from gold_table where snapshot >= @snapshotDate`, sql.Named("snapshotDate", lowerBoundSnapshot.SnapshotDate))
+	} else {
+		// if the lower bound is nil, ther we're deleting everything
+		rc.logger.Sugar().Infow("Purging all rewards from gold table")
+		res = rc.grm.Exec(`delete from gold_table`)
+	}
+
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to delete rewards from gold table", "error", res.Error)
+		return res.Error
+	}
+	if lowerBoundSnapshot != nil {
+		rc.logger.Sugar().Infow("Deleted rewards from gold table",
+			zap.String("snapshotDate", lowerBoundSnapshot.SnapshotDate),
+			zap.Int64("recordsDeleted", res.RowsAffected),
+		)
+	} else {
+		rc.logger.Sugar().Infow("Deleted rewards from gold table",
+			zap.Int64("recordsDeleted", res.RowsAffected),
+		)
 	}
 	return nil
 }

@@ -21,6 +21,7 @@ cat > $migration_file <<EOF
 package _${timestamp}_${name}
 
 import (
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"database/sql"
 	"gorm.io/gorm"
 )
@@ -28,7 +29,7 @@ import (
 type Migration struct {
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	return nil
 }
 

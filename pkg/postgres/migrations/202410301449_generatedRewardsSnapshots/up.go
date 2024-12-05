@@ -2,6 +2,7 @@ package _202410301449_generatedRewardsSnapshots
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"gorm.io/gorm"
 )
 
@@ -10,7 +11,7 @@ type Migration struct {
 
 // processing, complete, failed
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		`CREATE TYPE reward_snapshot_status AS ENUM ('processing', 'complete', 'failed');`,
 		`create table if not exists generated_rewards_snapshots (

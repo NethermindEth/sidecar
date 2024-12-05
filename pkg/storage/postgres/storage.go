@@ -205,6 +205,10 @@ func (s *PostgresBlockStore) GetLatestActiveAvsOperators(blockNumber uint64, avs
 }
 
 func (s *PostgresBlockStore) DeleteCorruptedState(startBlockNumber uint64, endBlockNumber uint64) error {
+	s.Logger.Sugar().Infow("Deleting corrupted state",
+		zap.Uint64("startBlockNumber", startBlockNumber),
+		zap.Uint64("endBlockNumber", endBlockNumber),
+	)
 	if endBlockNumber != 0 && endBlockNumber < startBlockNumber {
 		s.Logger.Sugar().Errorw("Invalid block range",
 			zap.Uint64("startBlockNumber", startBlockNumber),
