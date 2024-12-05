@@ -11,7 +11,7 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/healthcheck-path: "/eigenlayer.sidecar.health.v1.Health/HealthCheck"
-    alb.ingress.kubernetes.io/healthcheck-port: {{ index .Values.sidecar.ports 0 "targetPort" }}
+    alb.ingress.kubernetes.io/healthcheck-port: '{{ index .Values.sidecar.ports 0 "targetPort" }}'
     alb.ingress.kubernetes.io/success-codes: '0'
     alb.ingress.kubernetes.io/group.name: grpc-{{ .Release.Namespace }}-{{ include "sidecar.name" . }}
     external-dns.alpha.kubernetes.io/hostname: {{ .Values.sidecar.ingress.grpc.hostname }}
