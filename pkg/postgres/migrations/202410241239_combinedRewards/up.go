@@ -2,13 +2,14 @@ package _202410241239_combinedRewards
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"gorm.io/gorm"
 )
 
 type Migration struct {
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS combined_rewards (
 			avs varchar not null,

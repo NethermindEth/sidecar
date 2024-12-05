@@ -126,10 +126,19 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 				s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
 				return err
 			}
+			if err := s.RewardsCalculator.DeleteCorruptedRewardsFromBlockHeight(uint64(latestStateRoot.EthBlockNumber + 1)); err != nil {
+				s.Logger.Sugar().Errorw("Failed to purge corrupted rewards", zap.Error(err))
+				return err
+			}
 			if err := s.Storage.DeleteCorruptedState(uint64(latestStateRoot.EthBlockNumber+1), uint64(latestBlock)); err != nil {
 				s.Logger.Sugar().Errorw("Failed to delete corrupted state", zap.Error(err))
 				return err
 			}
+			latestBlock = int64(latestStateRoot.EthBlockNumber + 1)
+			s.Logger.Sugar().Infow("Deleted corrupted state, starting from latest state root + 1",
+				zap.Uint64("latestStateRoot", latestStateRoot.EthBlockNumber),
+				zap.Int64("latestBlock", latestBlock),
+			)
 		} else {
 			// otherwise, start from the latest block + 1
 			latestBlock++

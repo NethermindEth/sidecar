@@ -2,13 +2,14 @@ package _202410241313_operatorAvsRegistrationSnapshots
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"gorm.io/gorm"
 )
 
 type Migration struct {
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS operator_avs_registration_snapshots (
 			avs varchar not null,

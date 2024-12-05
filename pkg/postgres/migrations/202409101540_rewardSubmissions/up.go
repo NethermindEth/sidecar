@@ -2,13 +2,14 @@ package _202409101540_rewardSubmissions
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"gorm.io/gorm"
 )
 
 type Migration struct {
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	query := `
 		create table if not exists reward_submissions (
 			avs varchar not null,

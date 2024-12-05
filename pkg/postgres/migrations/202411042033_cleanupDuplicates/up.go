@@ -2,6 +2,7 @@ package _202411042033_cleanupDuplicates
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
 	"gorm.io/gorm"
 )
@@ -9,7 +10,7 @@ import (
 type Migration struct {
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		`with ordered_rows as (
 			select

@@ -65,7 +65,7 @@ var runDatabaseCmd = &cobra.Command{
 			l.Fatal("Failed to create gorm instance", zap.Error(err))
 		}
 
-		migrator := migrations.NewMigrator(pg.Db, grm, l)
+		migrator := migrations.NewMigrator(pg.Db, grm, l, cfg)
 		if err = migrator.MigrateAll(); err != nil {
 			l.Fatal("Failed to migrate", zap.Error(err))
 		}

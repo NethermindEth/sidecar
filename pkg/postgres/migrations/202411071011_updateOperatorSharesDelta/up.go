@@ -2,13 +2,14 @@ package _202411071011_updateOperatorSharesDelta
 
 import (
 	"database/sql"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"gorm.io/gorm"
 )
 
 type Migration struct {
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		`alter table operator_share_deltas add column staker varchar`,
 		`drop table operator_shares`,

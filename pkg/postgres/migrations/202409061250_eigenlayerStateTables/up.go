@@ -3,6 +3,7 @@ package _202409061250_eigenlayerStateTables
 import (
 	"database/sql"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/config"
 
 	"gorm.io/gorm"
 )
@@ -10,7 +11,7 @@ import (
 type Migration struct {
 }
 
-func (m *Migration) Up(db *sql.DB, grm *gorm.DB) error {
+func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 	queries := []string{
 		`create table if not exists registered_avs_operators (
 			operator varchar not null,

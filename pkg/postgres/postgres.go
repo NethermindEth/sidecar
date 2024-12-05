@@ -29,7 +29,7 @@ type Postgres struct {
 	Db *sql.DB
 }
 
-func GetTestPostgresDatabase(cfg config.DatabaseConfig, l *zap.Logger) (
+func GetTestPostgresDatabase(cfg config.DatabaseConfig, gCfg *config.Config, l *zap.Logger) (
 	string,
 	*sql.DB,
 	*gorm.DB,
@@ -54,7 +54,7 @@ func GetTestPostgresDatabase(cfg config.DatabaseConfig, l *zap.Logger) (
 		return testDbName, nil, nil, err
 	}
 
-	migrator := migrations.NewMigrator(pg.Db, grm, l)
+	migrator := migrations.NewMigrator(pg.Db, grm, l, gCfg)
 	if err = migrator.MigrateAll(); err != nil {
 		return testDbName, nil, nil, err
 	}
