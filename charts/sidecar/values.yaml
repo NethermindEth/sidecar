@@ -39,4 +39,10 @@ sidecar:
     # SIDECAR_DATABASE_PASSWORD: ""
   service:
     enabled: true
+  ingress:
+    grpc:
+      enabled: false
+      hostname: ""
+    http:
+      enabled: false
 

@@ -36,6 +36,12 @@ func NewRpcServer(
 		Logger:            l,
 	}
 
+	v1.RegisterHealthServer(grpcServer, server)
+	if err := v1.RegisterHealthHandlerServer(ctx, mux, server); err != nil {
+		l.Sugar().Errorw("Failed to register Health server", zap.Error(err))
+		return nil, err
+	}
+
 	v1.RegisterRpcServer(grpcServer, server)
 	if err := v1.RegisterRpcHandlerServer(ctx, mux, server); err != nil {
 		l.Sugar().Errorw("Failed to register SidecarRpc server", zap.Error(err))
