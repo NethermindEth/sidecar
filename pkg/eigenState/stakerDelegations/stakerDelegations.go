@@ -8,7 +8,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -203,16 +202,16 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 
 // GenerateStateRoot generates the state root for the given block number by storing
 // the state changes in a merkle tree.
-func (s *StakerDelegationsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (s *StakerDelegationsModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	deltas, err := s.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	inputs := s.sortValuesForMerkleTree(deltas)
 
 	if len(inputs) == 0 {
-		return "", nil
+		return nil, nil
 	}
 
 	fullTree, err := s.MerkleizeEigenState(blockNumber, inputs)
@@ -222,9 +221,9 @@ func (s *StakerDelegationsModel) GenerateStateRoot(blockNumber uint64) (types.St
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", inputs),
 		)
-		return "", err
+		return nil, err
 	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
+	return fullTree.Root(), nil
 }
 
 func (s *StakerDelegationsModel) sortValuesForMerkleTree(deltas []*StakerDelegationChange) []*base.MerkleTreeInput {

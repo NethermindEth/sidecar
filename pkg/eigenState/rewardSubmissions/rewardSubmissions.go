@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/types/numbers"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"slices"
 	"sort"
 	"strings"
@@ -298,16 +297,16 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
-func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	inserts, err := rs.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	inputs := rs.sortValuesForMerkleTree(inserts)
 
 	if len(inputs) == 0 {
-		return "", nil
+		return nil, nil
 	}
 
 	fullTree, err := rs.MerkleizeEigenState(blockNumber, inputs)
@@ -317,9 +316,9 @@ func (rs *RewardSubmissionsModel) GenerateStateRoot(blockNumber uint64) (types.S
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", inputs),
 		)
-		return "", err
+		return nil, err
 	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
+	return fullTree.Root(), nil
 }
 
 func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardSubmission) []*base.MerkleTreeInput {

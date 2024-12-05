@@ -8,7 +8,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -217,16 +216,16 @@ func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64) error {
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
-func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	deltas, err := a.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	inputs := a.sortValuesForMerkleTree(deltas)
 
 	if len(inputs) == 0 {
-		return "", nil
+		return nil, nil
 	}
 
 	fullTree, err := a.MerkleizeEigenState(blockNumber, inputs)
@@ -236,9 +235,9 @@ func (a *AvsOperatorsModel) GenerateStateRoot(blockNumber uint64) (types.StateRo
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", inputs),
 		)
-		return "", err
+		return nil, err
 	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
+	return fullTree.Root(), nil
 }
 
 func (a *AvsOperatorsModel) sortValuesForMerkleTree(deltas []*AvsOperatorStateChange) []*base.MerkleTreeInput {

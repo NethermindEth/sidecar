@@ -3,7 +3,6 @@ package submittedDistributionRoots
 import (
 	"encoding/json"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"reflect"
 	"slices"
 	"sort"
@@ -263,16 +262,16 @@ func (sdr *SubmittedDistributionRootsModel) sortValuesForMerkleTree(inputs []*ty
 	return values
 }
 
-func (sdr *SubmittedDistributionRootsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (sdr *SubmittedDistributionRootsModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	diffs, err := sdr.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	sortedInputs := sdr.sortValuesForMerkleTree(diffs)
 
 	if len(sortedInputs) == 0 {
-		return "", nil
+		return nil, nil
 	}
 
 	fullTree, err := sdr.MerkleizeEigenState(blockNumber, sortedInputs)
@@ -282,9 +281,9 @@ func (sdr *SubmittedDistributionRootsModel) GenerateStateRoot(blockNumber uint64
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", sortedInputs),
 		)
-		return "", err
+		return nil, err
 	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
+	return fullTree.Root(), nil
 }
 
 func (sdr *SubmittedDistributionRootsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

@@ -7,7 +7,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -196,16 +195,16 @@ func (ddr *DisabledDistributionRootsModel) sortValuesForMerkleTree(inputs []*typ
 	return values
 }
 
-func (ddr *DisabledDistributionRootsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (ddr *DisabledDistributionRootsModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	diffs, err := ddr.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	sortedInputs := ddr.sortValuesForMerkleTree(diffs)
 
 	if len(sortedInputs) == 0 {
-		return "", nil
+		return nil, nil
 	}
 
 	fullTree, err := ddr.MerkleizeEigenState(blockNumber, sortedInputs)
@@ -215,9 +214,9 @@ func (ddr *DisabledDistributionRootsModel) GenerateStateRoot(blockNumber uint64)
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", sortedInputs),
 		)
-		return "", err
+		return nil, err
 	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
+	return fullTree.Root(), nil
 }
 
 func (ddr *DisabledDistributionRootsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

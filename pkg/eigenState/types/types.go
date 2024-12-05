@@ -35,7 +35,7 @@ type IEigenStateModel interface {
 
 	// GenerateStateRoot
 	// Generate the state root for the model
-	GenerateStateRoot(blockNumber uint64) (StateRoot, error)
+	GenerateStateRoot(blockNumber uint64) ([]byte, error)
 
 	// DeleteState used to delete state stored that may be incomplete or corrupted
 	// to allow for reprocessing of the state
