@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	pkgUtils "github.com/Layr-Labs/sidecar/pkg/utils"
-
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/base"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
@@ -274,28 +272,28 @@ func (osm *OperatorSharesModel) CommitFinalState(blockNumber uint64) error {
 	return nil
 }
 
-func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	deltas, err := osm.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	inputs := osm.sortValuesForMerkleTree(deltas)
 
 	if len(inputs) == 0 {
-		return "", nil
+		return nil, nil
 	}
 
-	fullTree, err := osm.MerkleizeState(blockNumber, inputs)
+	fullTree, err := osm.MerkleizeEigenState(blockNumber, inputs)
 	if err != nil {
 		osm.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", inputs),
 		)
-		return "", err
+		return nil, err
 	}
-	return types.StateRoot(pkgUtils.ConvertBytesToString(fullTree.Root())), nil
+	return fullTree.Root(), nil
 }
 
 func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []*OperatorShareDeltas) []*base.MerkleTreeInput {

@@ -56,8 +56,10 @@ func (b *BaseEigenState) ParseLogOutput(log *storage.TransactionLog) (map[string
 // 1. Ensures that the tree is always different for different blocks
 // 2. Allows us to have at least 1 value if there are no model changes for a block.
 func (b *BaseEigenState) InitializeMerkleTreeBaseStateWithBlock(blockNumber uint64) [][]byte {
+	blockNumberByte := []byte(fmt.Sprintf("%d", blockNumber))
 	return [][]byte{
-		[]byte(fmt.Sprintf("%d", blockNumber)),
+		types.MerkleLeafPrefix_EigenStateBlock,
+		blockNumberByte,
 	}
 }
 
@@ -104,10 +106,10 @@ type MerkleTreeInput struct {
 	Value  []byte
 }
 
-// MerkleizeState creates a merkle tree from the given inputs.
+// MerkleizeEigenState creates a merkle tree from the given inputs.
 //
 // Each input includes a SlotID and a byte representation of the state that changed
-func (b *BaseEigenState) MerkleizeState(blockNumber uint64, inputs []*MerkleTreeInput) (*merkletree.MerkleTree, error) {
+func (b *BaseEigenState) MerkleizeEigenState(blockNumber uint64, inputs []*MerkleTreeInput) (*merkletree.MerkleTree, error) {
 	om := orderedmap.New[types.SlotID, []byte]()
 
 	for _, input := range inputs {
@@ -136,7 +138,7 @@ func (b *BaseEigenState) MerkleizeState(blockNumber uint64, inputs []*MerkleTree
 }
 
 func encodeMerkleLeaf(slotID types.SlotID, value []byte) []byte {
-	return append([]byte(slotID), value...)
+	return append(types.MerkleLeafPrefix_EigenStateChange, append([]byte(slotID), value...)...)
 }
 
 func NewSlotID(txHash string, logIndex uint64) types.SlotID {

@@ -8,6 +8,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -363,7 +364,7 @@ func (c *Client) chunkedNativeBatchCall(ctx context.Context, requests []*RPCRequ
 	}
 	c.Logger.Sugar().Debugw(fmt.Sprintf("Batching '%v' requests into '%v' batches", len(requests), len(batches)))
 
-	results := []*RPCResponse{}
+	resultsChan := make(chan []*RPCResponse, len(requests))
 	wg := sync.WaitGroup{}
 	for i, batch := range batches {
 		wg.Add(1)
@@ -378,10 +379,22 @@ func (c *Client) chunkedNativeBatchCall(ctx context.Context, requests []*RPCRequ
 				return
 			}
 			c.Logger.Sugar().Debugw(fmt.Sprintf("[batch %d] Received '%d' results", i, len(res)))
-			results = append(results, res...)
+			resultsChan <- res
 		}(batch)
 	}
 	wg.Wait()
+	close(resultsChan)
+
+	results := []*RPCResponse{}
+	for res := range resultsChan {
+		results = append(results, res...)
+	}
+
+	// ensure responses are sorted by ID
+	slices.SortFunc(results, func(i, j *RPCResponse) int {
+		return int(*i.ID - *j.ID)
+	})
+
 	c.Logger.Sugar().Debugw(fmt.Sprintf("Received '%d' results", len(results)))
 	return results, nil
 }

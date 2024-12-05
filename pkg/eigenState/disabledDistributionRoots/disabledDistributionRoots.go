@@ -7,13 +7,13 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"slices"
 	"sort"
+	"strings"
 )
 
 type DisabledDistributionRootsModel struct {
@@ -182,10 +182,6 @@ func (ddr *DisabledDistributionRootsModel) CommitFinalState(blockNumber uint64) 
 }
 
 func (ddr *DisabledDistributionRootsModel) sortValuesForMerkleTree(inputs []*types.DisabledDistributionRoot) []*base.MerkleTreeInput {
-	slices.SortFunc(inputs, func(i, j *types.DisabledDistributionRoot) int {
-		return int(i.RootIndex - j.RootIndex)
-	})
-
 	values := make([]*base.MerkleTreeInput, 0)
 	for _, input := range inputs {
 		values = append(values, &base.MerkleTreeInput{
@@ -193,31 +189,34 @@ func (ddr *DisabledDistributionRootsModel) sortValuesForMerkleTree(inputs []*typ
 			Value:  []byte(fmt.Sprintf("%d", input.RootIndex)),
 		})
 	}
+	slices.SortFunc(values, func(i, j *base.MerkleTreeInput) int {
+		return strings.Compare(string(i.SlotID), string(j.SlotID))
+	})
 	return values
 }
 
-func (ddr *DisabledDistributionRootsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (ddr *DisabledDistributionRootsModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	diffs, err := ddr.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	sortedInputs := ddr.sortValuesForMerkleTree(diffs)
 
 	if len(sortedInputs) == 0 {
-		return "", nil
+		return nil, nil
 	}
 
-	fullTree, err := ddr.MerkleizeState(blockNumber, sortedInputs)
+	fullTree, err := ddr.MerkleizeEigenState(blockNumber, sortedInputs)
 	if err != nil {
 		ddr.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", sortedInputs),
 		)
-		return "", err
+		return nil, err
 	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
+	return fullTree.Root(), nil
 }
 
 func (ddr *DisabledDistributionRootsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

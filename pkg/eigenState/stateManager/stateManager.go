@@ -103,6 +103,7 @@ func (e *EigenStateManager) CleanupProcessedStateForBlock(blockNumber uint64) er
 func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64, blockHash string) (types.StateRoot, error) {
 	sortedIndexes := e.GetSortedModelIndexes()
 	roots := [][]byte{
+		types.MerkleLeafPrefix_Block,
 		[]byte(fmt.Sprintf("%d", blockNumber)),
 		[]byte(blockHash),
 	}
@@ -165,10 +166,10 @@ func (e *EigenStateManager) encodeModelLeaf(model types.IEigenStateModel, blockN
 	}
 	// If there is no root string returned, it means nothing meaningful happened to the model
 	// during this block and should not be included in the state root.
-	if root == "" {
+	if root == nil {
 		return nil, nil
 	}
-	return append([]byte(model.GetModelName()), []byte(root)...), nil
+	return append(types.MerkleLeafPrefix_EigenStateRoot, append([]byte(model.GetModelName()), root...)...), nil
 }
 
 func (e *EigenStateManager) GetSortedModelIndexes() []int {

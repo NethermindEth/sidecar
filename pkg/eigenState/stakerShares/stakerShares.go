@@ -18,7 +18,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/base"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
-	pkgUtils "github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"gorm.io/gorm"
@@ -573,28 +572,28 @@ func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
 	return nil
 }
 
-func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	deltas, err := ss.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	inputs := ss.sortValuesForMerkleTree(deltas)
 
 	if len(inputs) == 0 {
-		return "", nil
+		return nil, nil
 	}
 
-	fullTree, err := ss.MerkleizeState(blockNumber, inputs)
+	fullTree, err := ss.MerkleizeEigenState(blockNumber, inputs)
 	if err != nil {
 		ss.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", inputs),
 		)
-		return "", err
+		return nil, err
 	}
-	return types.StateRoot(pkgUtils.ConvertBytesToString(fullTree.Root())), nil
+	return fullTree.Root(), nil
 }
 
 func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerShareDeltas) []*base.MerkleTreeInput {

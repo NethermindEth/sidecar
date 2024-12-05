@@ -83,7 +83,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 			zap.String("transactionHash", ierr.TransactionHash),
 			zap.Error(ierr.Err),
 		)
-		return err
+		return ierr
 	}
 	p.Logger.Sugar().Debugw("Parsed transactions",
 		zap.Uint64("blockNumber", blockNumber),

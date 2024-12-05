@@ -14,6 +14,7 @@ func (s *Sidecar) GetLastIndexedBlock() (int64, error) {
 	block, err := s.Storage.GetLatestBlock()
 	if err != nil {
 		s.Logger.Sugar().Errorw("Failed to get last indexed block", zap.Error(err))
+		return 0, err
 	}
 	return int64(block.Number), nil
 }
@@ -145,7 +146,8 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		}
 	}
 
-	blockNumber, err := s.EthereumClient.GetBlockNumberUint64(ctx)
+	// Get the latest safe block as a starting point
+	blockNumber, err := s.EthereumClient.GetLatestSafeBlock(ctx)
 	if err != nil {
 		s.Logger.Sugar().Fatalw("Failed to get current tip", zap.Error(err))
 	}
@@ -182,7 +184,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 				s.Logger.Sugar().Infow("Indexing complete, shutting down tip listener")
 				return
 			}
-			latestTip, err := s.EthereumClient.GetBlockNumberUint64(ctx)
+			latestTip, err := s.EthereumClient.GetLatestSafeBlock(ctx)
 			if err != nil {
 				s.Logger.Sugar().Errorw("Failed to get latest tip", zap.Error(err))
 				continue
@@ -202,6 +204,8 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	runningAvg := float64(0)
 	totalDurationMs := int64(0)
 
+	originalStartBlock := latestBlock
+
 	//nolint:all
 	lastBlockParsed := latestBlock
 
@@ -214,7 +218,13 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		}
 		tip := currentTip.Load()
 		blocksRemaining := tip - uint64(latestBlock)
-		pctComplete := (float64(blocksProcessed) / float64(blocksRemaining)) * 100
+		totalBlocksToProcess := tip - uint64(originalStartBlock)
+
+		var pctComplete float64
+		if totalBlocksToProcess != 0 {
+			pctComplete = (float64(blocksProcessed) / float64(totalBlocksToProcess)) * 100
+		}
+
 		estTimeRemainingMs := runningAvg * float64(blocksRemaining)
 		estTimeRemainingHours := float64(estTimeRemainingMs) / 1000 / 60 / 60
 

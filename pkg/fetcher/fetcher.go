@@ -176,8 +176,9 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 		return nil, err
 	}
 
-	fetchedBlocks := make([]*FetchedBlock, 0)
-	foundErrors := false
+	fetchedBlockResponses := make(chan *FetchedBlock, len(blocks))
+	foundErrorsChan := make(chan bool, 1)
+
 	wg := sync.WaitGroup{}
 	for _, block := range blocks {
 		wg.Add(1)
@@ -189,19 +190,30 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 					zap.Uint64("blockNumber", b.Number.Value()),
 					zap.Error(err),
 				)
-				foundErrors = true
+				foundErrorsChan <- true
 				return
 			}
-			fetchedBlocks = append(fetchedBlocks, &FetchedBlock{
+			fetchedBlockResponses <- &FetchedBlock{
 				Block:      b,
 				TxReceipts: receipts,
-			})
+			}
 		}(block)
 	}
 	wg.Wait()
+	close(fetchedBlockResponses)
+	close(foundErrorsChan)
+
+	foundErrors := <-foundErrorsChan
+
 	if foundErrors {
 		return nil, errors.New("failed to fetch receipts for some blocks")
 	}
+
+	fetchedBlocks := make([]*FetchedBlock, 0)
+	for fb := range fetchedBlockResponses {
+		fetchedBlocks = append(fetchedBlocks, fb)
+	}
+
 	if len(fetchedBlocks) != len(blocks) {
 		f.Logger.Sugar().Errorw("failed to fetch all blocks",
 			zap.Int("fetched", len(fetchedBlocks)),
@@ -209,6 +221,11 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 		)
 		return nil, errors.New("failed to fetch all blocks")
 	}
+
+	// ensure blocks are sorted ascending
+	slices.SortFunc(fetchedBlocks, func(i, j *FetchedBlock) int {
+		return int(i.Block.Number.Value() - j.Block.Number.Value())
+	})
 
 	f.Logger.Sugar().Debugw("Fetched blocks",
 		zap.Int("count", len(fetchedBlocks)),

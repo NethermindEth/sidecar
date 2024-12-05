@@ -50,6 +50,10 @@ type IndexError struct {
 	Message         string
 }
 
+func (e *IndexError) Error() string {
+	return fmt.Sprintf("IndexError: %s", e.Err.Error())
+}
+
 func NewIndexError(t IndexErrorType, err error) *IndexError {
 	return &IndexError{
 		Type:     t,

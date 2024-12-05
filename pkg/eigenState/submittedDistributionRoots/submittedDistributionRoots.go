@@ -3,7 +3,6 @@ package submittedDistributionRoots
 import (
 	"encoding/json"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"reflect"
 	"slices"
 	"sort"
@@ -101,7 +100,7 @@ func (sdr *SubmittedDistributionRootsModel) GetStateTransitions() (types.StateTr
 				rootIndex = 0
 				break
 			}
-			withoutPrefix := strings.TrimPrefix(arguments[2].Value.(string), "0x")
+			withoutPrefix := strings.TrimPrefix(arguments[0].Value.(string), "0x")
 			rootIndex, err = strconv.ParseUint(withoutPrefix, 16, 32)
 			if err != nil {
 				return nil, xerrors.Errorf("Failed to decode rootIndex: %v", err)
@@ -250,10 +249,6 @@ func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64)
 }
 
 func (sdr *SubmittedDistributionRootsModel) sortValuesForMerkleTree(inputs []*types.SubmittedDistributionRoot) []*base.MerkleTreeInput {
-	slices.SortFunc(inputs, func(i, j *types.SubmittedDistributionRoot) int {
-		return int(i.RootIndex - j.RootIndex)
-	})
-
 	values := make([]*base.MerkleTreeInput, 0)
 	for _, input := range inputs {
 		values = append(values, &base.MerkleTreeInput{
@@ -261,31 +256,34 @@ func (sdr *SubmittedDistributionRootsModel) sortValuesForMerkleTree(inputs []*ty
 			Value:  []byte(input.Root),
 		})
 	}
+	slices.SortFunc(values, func(i, j *base.MerkleTreeInput) int {
+		return strings.Compare(string(i.SlotID), string(j.SlotID))
+	})
 	return values
 }
 
-func (sdr *SubmittedDistributionRootsModel) GenerateStateRoot(blockNumber uint64) (types.StateRoot, error) {
+func (sdr *SubmittedDistributionRootsModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {
 	diffs, err := sdr.prepareState(blockNumber)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	sortedInputs := sdr.sortValuesForMerkleTree(diffs)
 
 	if len(sortedInputs) == 0 {
-		return "", nil
+		return nil, nil
 	}
 
-	fullTree, err := sdr.MerkleizeState(blockNumber, sortedInputs)
+	fullTree, err := sdr.MerkleizeEigenState(blockNumber, sortedInputs)
 	if err != nil {
 		sdr.logger.Sugar().Errorw("Failed to create merkle tree",
 			zap.Error(err),
 			zap.Uint64("blockNumber", blockNumber),
 			zap.Any("inputs", sortedInputs),
 		)
-		return "", err
+		return nil, err
 	}
-	return types.StateRoot(utils.ConvertBytesToString(fullTree.Root())), nil
+	return fullTree.Root(), nil
 }
 
 func (sdr *SubmittedDistributionRootsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {

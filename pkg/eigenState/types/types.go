@@ -35,7 +35,7 @@ type IEigenStateModel interface {
 
 	// GenerateStateRoot
 	// Generate the state root for the model
-	GenerateStateRoot(blockNumber uint64) (StateRoot, error)
+	GenerateStateRoot(blockNumber uint64) ([]byte, error)
 
 	// DeleteState used to delete state stored that may be incomplete or corrupted
 	// to allow for reprocessing of the state
@@ -50,3 +50,12 @@ type IEigenStateModel interface {
 type StateTransitions[T any] map[uint64]func(log *storage.TransactionLog) (T, error)
 
 type SlotID string
+
+type MerkleLeafPrefix []byte
+
+var (
+	MerkleLeafPrefix_Block            MerkleLeafPrefix = []byte("0x00")
+	MerkleLeafPrefix_EigenStateRoot   MerkleLeafPrefix = []byte("0x01")
+	MerkleLeafPrefix_EigenStateBlock  MerkleLeafPrefix = []byte("0x02")
+	MerkleLeafPrefix_EigenStateChange MerkleLeafPrefix = []byte("0x03")
+)
