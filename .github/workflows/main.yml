@@ -148,7 +148,7 @@ jobs:
   release-helm-chart:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master'
-    needs: [build-container, lint, test]
+    needs: [lint, test]
     permissions: write-all
     steps:
       - name: Checkout

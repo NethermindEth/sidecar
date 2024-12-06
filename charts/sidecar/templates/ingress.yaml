@@ -13,7 +13,7 @@ metadata:
     alb.ingress.kubernetes.io/healthcheck-path: "/eigenlayer.sidecar.health.v1.Health/HealthCheck"
     alb.ingress.kubernetes.io/healthcheck-port: '{{ index .Values.sidecar.ports 0 "targetPort" }}'
     alb.ingress.kubernetes.io/success-codes: '0'
-    alb.ingress.kubernetes.io/group.name: grpc-{{ .Release.Namespace }}-{{ include "sidecar.name" . }}
+    alb.ingress.kubernetes.io/group.name: grpc-{{ include "sidecar.name" . }}-{{ .Release.Namespace }}
     external-dns.alpha.kubernetes.io/hostname: {{ .Values.sidecar.ingress.grpc.hostname }}
 spec:
   ingressClassName: alb
@@ -44,7 +44,7 @@ metadata:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/healthcheck-path: "/v1/health"
     alb.ingress.kubernetes.io/success-codes: '200'
-    alb.ingress.kubernetes.io/group.name: http-{{ .Release.Namespace }}-{{ include "sidecar.name" . }}
+    alb.ingress.kubernetes.io/group.name: http-{{ include "sidecar.name" . }}-{{ .Release.Namespace }}
     external-dns.alpha.kubernetes.io/hostname: {{ .Values.sidecar.ingress.grpc.hostname }}
     alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=200
 spec:
