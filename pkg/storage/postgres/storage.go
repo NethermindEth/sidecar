@@ -176,6 +176,22 @@ func (s *PostgresBlockStore) InsertOperatorRestakedStrategies(
 	return ors, nil
 }
 
+func (s *PostgresBlockStore) BulkInsertOperatorRestakedStrategies(
+	operatorRestakedStrategies []*storage.OperatorRestakedStrategies,
+) ([]*storage.OperatorRestakedStrategies, error) {
+	res := s.Db.Model(&storage.OperatorRestakedStrategies{}).Clauses(
+		clause.Returning{},
+		clause.OnConflict{
+			OnConstraint: "uniq_operator_restaked_strategies",
+			DoNothing:    true,
+		},
+	).Create(&operatorRestakedStrategies)
+	if res.Error != nil {
+		return nil, xerrors.Errorf("Failed to insert operator restaked strategies: %w", res.Error)
+	}
+	return operatorRestakedStrategies, nil
+}
+
 func (s *PostgresBlockStore) GetLatestActiveAvsOperators(blockNumber uint64, avsDirectoryAddress string) ([]*storage.ActiveAvsOperator, error) {
 	avsDirectoryAddress = strings.ToLower(avsDirectoryAddress)
 

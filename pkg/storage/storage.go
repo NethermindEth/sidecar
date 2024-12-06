@@ -12,6 +12,7 @@ type BlockStore interface {
 	GetLatestBlock() (*Block, error)
 	GetBlockByNumber(blockNumber uint64) (*Block, error)
 	InsertOperatorRestakedStrategies(avsDirectorAddress string, blockNumber uint64, blockTime time.Time, operator string, avs string, strategy string) (*OperatorRestakedStrategies, error)
+	BulkInsertOperatorRestakedStrategies(operatorRestakedStrategies []*OperatorRestakedStrategies) ([]*OperatorRestakedStrategies, error)
 
 	// Less generic functions
 	GetLatestActiveAvsOperators(blockNumber uint64, avsDirectoryAddress string) ([]*ActiveAvsOperator, error)

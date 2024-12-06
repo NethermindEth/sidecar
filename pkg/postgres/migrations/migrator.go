@@ -36,6 +36,7 @@ import (
 	_202411191947_cleanupUnusedTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202411191947_cleanupUnusedTables"
 	_202412021311_stakerOperatorTables "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412021311_stakerOperatorTables"
 	_202412061553_addBlockNumberIndexes "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412061553_addBlockNumberIndexes"
+	_202412061626_operatorRestakedStrategiesConstraint "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202412061626_operatorRestakedStrategiesConstraint"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"time"
@@ -111,6 +112,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202411191947_cleanupUnusedTables.Migration{},
 		&_202412021311_stakerOperatorTables.Migration{},
 		&_202412061553_addBlockNumberIndexes.Migration{},
+		&_202412061626_operatorRestakedStrategiesConstraint.Migration{},
 	}
 
 	for _, migration := range migrations {

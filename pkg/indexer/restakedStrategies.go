@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller"
-	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
+	"strings"
 )
 
 func (idx *Indexer) ProcessRestakedStrategiesForBlock(ctx context.Context, blockNumber uint64) error {
@@ -92,29 +92,31 @@ func (idx *Indexer) getAndInsertRestakedStrategies(
 	for _, result := range results {
 		avs := result.Avs
 		operator := result.Operator
-		for _, restakedStrategy := range result.Results {
-			_, err := idx.MetadataStore.InsertOperatorRestakedStrategies(avsDirectoryAddress, blockNumber, block.BlockTime, operator, avs, restakedStrategy.String())
 
-			if err != nil && !postgres.IsDuplicateKeyError(err) {
-				idx.Logger.Sugar().Errorw("Failed to save restaked strategy",
-					zap.Error(err),
-					zap.String("restakedStrategy", restakedStrategy.String()),
-					zap.String("operator", operator),
-					zap.String("avs", avs),
-					zap.String("avsDirectoryAddress", avsDirectoryAddress),
-					zap.Uint64("blockNumber", blockNumber),
-				)
-				return err
-			} else if err == nil {
-				idx.Logger.Sugar().Debugw("Inserted restaked strategy",
-					zap.String("restakedStrategy", restakedStrategy.String()),
-					zap.String("operator", operator),
-					zap.String("avs", avs),
-					zap.String("avsDirectoryAddress", avsDirectoryAddress),
-					zap.Uint64("blockNumber", blockNumber),
-				)
-			}
+		strategiesToInsert := make([]*storage.OperatorRestakedStrategies, 0)
+		for _, restakedStrategy := range result.Results {
+			strategiesToInsert = append(strategiesToInsert, &storage.OperatorRestakedStrategies{
+				AvsDirectoryAddress: strings.ToLower(avsDirectoryAddress),
+				BlockNumber:         blockNumber,
+				BlockTime:           block.BlockTime,
+				Operator:            strings.ToLower(operator),
+				Avs:                 strings.ToLower(avs),
+				Strategy:            restakedStrategy.String(),
+			})
 		}
+		inserted, err := idx.MetadataStore.BulkInsertOperatorRestakedStrategies(strategiesToInsert)
+		if err != nil {
+			idx.Logger.Sugar().Errorw("Failed to save restaked strategies",
+				zap.Error(err),
+				zap.String("avsDirectoryAddress", avsDirectoryAddress),
+				zap.Uint64("blockNumber", blockNumber),
+			)
+			return err
+		}
+		idx.Logger.Sugar().Infow("Inserted restaked strategies",
+			zap.Int("insertedCount", len(inserted)),
+			zap.Int("inputCount", len(strategiesToInsert)),
+		)
 	}
 	return nil
 }
