@@ -5,6 +5,7 @@ import (
 	"errors"
 	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -18,19 +19,33 @@ func (rpc *RpcServer) GetRewardsRoot(ctx context.Context, req *sidecarV1.GetRewa
 func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *sidecarV1.GenerateRewardsRequest) (*sidecarV1.GenerateRewardsResponse, error) {
 	cutoffDate := req.GetCutoffDate()
 
-	if cutoffDate != "" {
-		if err := rpc.rewardsCalculator.CalculateRewardsForSnapshotDate(cutoffDate); err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+	var err error
+	queued := false
+	msg := rewardsCalculatorQueue.RewardsCalculationData{
+		CalculationType: rewardsCalculatorQueue.RewardsCalculationType_CalculateRewards,
+		CutoffDate:      cutoffDate,
+	}
+	if req.GetWaitForComplete() {
+		data, qErr := rpc.rewardsQueue.EnqueueAndWait(ctx, msg)
+		cutoffDate = data.CutoffDate
+		err = qErr
 	} else {
-		sd, err := rpc.rewardsCalculator.CalculateRewardsForLatestSnapshot()
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
+		rpc.rewardsQueue.Enqueue(&rewardsCalculatorQueue.RewardsCalculationMessage{
+			Data:         msg,
+			ResponseChan: make(chan *rewardsCalculatorQueue.RewardsCalculatorResponse),
+		})
+		queued = true
+	}
+
+	if err != nil {
+		if errors.Is(err, &rewards.ErrRewardsCalculationInProgress{}) {
+			return nil, status.Error(codes.FailedPrecondition, err.Error())
 		}
-		cutoffDate = sd
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &sidecarV1.GenerateRewardsResponse{
 		CutoffDate: cutoffDate,
+		Queued:     queued,
 	}, nil
 }
 
@@ -40,7 +55,10 @@ func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *sidecarV1.Ge
 		return nil, status.Error(codes.InvalidArgument, "snapshot date is required")
 	}
 
-	err := rpc.rewardsCalculator.CalculateRewardsForSnapshotDate(cutoffDate)
+	_, err := rpc.rewardsQueue.EnqueueAndWait(context.Background(), rewardsCalculatorQueue.RewardsCalculationData{
+		CalculationType: rewardsCalculatorQueue.RewardsCalculationType_CalculateRewards,
+		CutoffDate:      cutoffDate,
+	})
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -87,25 +105,59 @@ func (rpc *RpcServer) GenerateStakerOperators(ctx context.Context, req *sidecarV
 		return nil, status.Error(codes.InvalidArgument, "snapshot date is required")
 	}
 
-	err := rpc.rewardsCalculator.GenerateStakerOperatorsTableForPastSnapshot(cutoffDate)
+	var err error
+	queued := false
+	msg := rewardsCalculatorQueue.RewardsCalculationData{
+		CalculationType: rewardsCalculatorQueue.RewardsCalculationType_BackfillStakerOperatorsSnapshot,
+		CutoffDate:      cutoffDate,
+	}
+	if req.GetWaitForComplete() {
+		_, err = rpc.rewardsQueue.EnqueueAndWait(ctx, msg)
+	} else {
+		rpc.rewardsQueue.Enqueue(&rewardsCalculatorQueue.RewardsCalculationMessage{
+			Data:         msg,
+			ResponseChan: make(chan *rewardsCalculatorQueue.RewardsCalculatorResponse),
+		})
+		queued = true
+	}
+
 	if err != nil {
 		if errors.Is(err, &rewards.ErrRewardsCalculationInProgress{}) {
 			return nil, status.Error(codes.FailedPrecondition, err.Error())
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &sidecarV1.GenerateStakerOperatorsResponse{}, nil
+	return &sidecarV1.GenerateStakerOperatorsResponse{
+		Queued: queued,
+	}, nil
 }
 
 func (rpc *RpcServer) BackfillStakerOperators(ctx context.Context, req *sidecarV1.BackfillStakerOperatorsRequest) (*sidecarV1.BackfillStakerOperatorsResponse, error) {
-	err := rpc.rewardsCalculator.BackfillAllStakerOperators()
+
+	var err error
+	queued := false
+	msg := rewardsCalculatorQueue.RewardsCalculationData{
+		CalculationType: rewardsCalculatorQueue.RewardsCalculationType_BackfillStakerOperators,
+	}
+	if req.GetWaitForComplete() {
+		_, err = rpc.rewardsQueue.EnqueueAndWait(ctx, msg)
+	} else {
+		rpc.rewardsQueue.Enqueue(&rewardsCalculatorQueue.RewardsCalculationMessage{
+			Data:         msg,
+			ResponseChan: make(chan *rewardsCalculatorQueue.RewardsCalculatorResponse),
+		})
+		queued = true
+	}
+
 	if err != nil {
 		if errors.Is(err, &rewards.ErrRewardsCalculationInProgress{}) {
 			return nil, status.Error(codes.FailedPrecondition, err.Error())
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &sidecarV1.BackfillStakerOperatorsResponse{}, nil
+	return &sidecarV1.BackfillStakerOperatorsResponse{
+		Queued: queued,
+	}, nil
 }
 
 func (rpc *RpcServer) GetRewardsForSnapshot(ctx context.Context, req *sidecarV1.GetRewardsForSnapshotRequest) (*sidecarV1.GetRewardsForSnapshotResponse, error) {

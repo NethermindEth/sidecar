@@ -19,6 +19,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -101,7 +102,9 @@ var runDatabaseCmd = &cobra.Command{
 			l.Sugar().Fatalw("Failed to create rewards calculator", zap.Error(err))
 		}
 
-		_ = pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, cfg, sdc, l)
+		rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
+
+		_ = pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, l)
 
 		l.Sugar().Infow("Done")
 	},

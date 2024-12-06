@@ -59,6 +59,14 @@ github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241204194134-d3c82f365d7a h1:
 github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241204194134-d3c82f365d7a/go.mod h1:prNA2/mLO5vpMZ2q78Nsn0m97wm28uiRnwO+/yOxigk=
 github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241205194457-0df3820dae69 h1:OIdv/BZIDU8Olkpo80aOZGZ9TpgLYdKYcU8BicMD61M=
 github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241205194457-0df3820dae69/go.mod h1:prNA2/mLO5vpMZ2q78Nsn0m97wm28uiRnwO+/yOxigk=
+github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241206170231-3505e222b408 h1:yUA+KbV/uZUkwf6EjlmOvyp1FA3tYOgtwp9NqoZra7w=
+github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241206170231-3505e222b408/go.mod h1:prNA2/mLO5vpMZ2q78Nsn0m97wm28uiRnwO+/yOxigk=
+github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241206170400-42069f3d8ad6 h1:W7jhyGCXRs4OK+MkbzQhGlj0E+O6+rJi74VPyikNaDQ=
+github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241206170400-42069f3d8ad6/go.mod h1:prNA2/mLO5vpMZ2q78Nsn0m97wm28uiRnwO+/yOxigk=
+github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241206171033-dc9bce2085c6 h1:Qg6fhCB2no7QWuPAZEIX1GwnX2ayDbgCqenYAQxaA6U=
+github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241206171033-dc9bce2085c6/go.mod h1:prNA2/mLO5vpMZ2q78Nsn0m97wm28uiRnwO+/yOxigk=
+github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241206171209-6484d433345c h1:m9xRDJR9ItBQmiOBhsx64Bemi4W5/2pkXru75evpEGI=
+github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241206171209-6484d433345c/go.mod h1:prNA2/mLO5vpMZ2q78Nsn0m97wm28uiRnwO+/yOxigk=
 github.com/Microsoft/go-winio v0.5.0/go.mod h1:JPGBdM1cNvN/6ISo+n8V5iA4v8pBzdOpzfwIujj1a84=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=

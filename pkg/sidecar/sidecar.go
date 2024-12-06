@@ -7,6 +7,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/pipeline"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -33,16 +34,17 @@ type SidecarConfig struct {
 }
 
 type Sidecar struct {
-	Logger            *zap.Logger
-	Config            *SidecarConfig
-	GlobalConfig      *config.Config
-	Storage           storage.BlockStore
-	Pipeline          *pipeline.Pipeline
-	EthereumClient    *ethereum.Client
-	StateManager      *stateManager.EigenStateManager
-	RewardsCalculator *rewards.RewardsCalculator
-	ShutdownChan      chan bool
-	shouldShutdown    *atomic.Bool
+	Logger                 *zap.Logger
+	Config                 *SidecarConfig
+	GlobalConfig           *config.Config
+	Storage                storage.BlockStore
+	Pipeline               *pipeline.Pipeline
+	EthereumClient         *ethereum.Client
+	StateManager           *stateManager.EigenStateManager
+	RewardsCalculator      *rewards.RewardsCalculator
+	RewardsCalculatorQueue *rewardsCalculatorQueue.RewardsCalculatorQueue
+	ShutdownChan           chan bool
+	shouldShutdown         *atomic.Bool
 }
 
 func NewSidecar(
@@ -52,22 +54,24 @@ func NewSidecar(
 	p *pipeline.Pipeline,
 	em *stateManager.EigenStateManager,
 	rc *rewards.RewardsCalculator,
+	rcq *rewardsCalculatorQueue.RewardsCalculatorQueue,
 	l *zap.Logger,
 	ethClient *ethereum.Client,
 ) *Sidecar {
 	shouldShutdown := &atomic.Bool{}
 	shouldShutdown.Store(false)
 	return &Sidecar{
-		Logger:            l,
-		Config:            cfg,
-		GlobalConfig:      gCfg,
-		Storage:           s,
-		Pipeline:          p,
-		EthereumClient:    ethClient,
-		RewardsCalculator: rc,
-		StateManager:      em,
-		ShutdownChan:      make(chan bool),
-		shouldShutdown:    shouldShutdown,
+		Logger:                 l,
+		Config:                 cfg,
+		GlobalConfig:           gCfg,
+		Storage:                s,
+		Pipeline:               p,
+		EthereumClient:         ethClient,
+		RewardsCalculator:      rc,
+		RewardsCalculatorQueue: rcq,
+		StateManager:           em,
+		ShutdownChan:           make(chan bool),
+		shouldShutdown:         shouldShutdown,
 	}
 }
 
@@ -122,7 +126,6 @@ func (s *Sidecar) WithRpcServer(
 	ctx context.Context,
 	bs storage.BlockStore,
 	sm *stateManager.EigenStateManager,
-	rc *rewards.RewardsCalculator,
 	gracefulShutdown chan bool,
 ) error {
 	grpc_zap.ReplaceGrpcLoggerV2(s.Logger)
@@ -153,7 +156,7 @@ func (s *Sidecar) WithRpcServer(
 	reflection.Register(grpcServer)
 	mux := runtime.NewServeMux()
 
-	_, err = rpcServer.NewRpcServer(ctx, grpcServer, mux, bs, sm, rc, s.Logger)
+	_, err = rpcServer.NewRpcServer(ctx, grpcServer, mux, bs, sm, s.RewardsCalculator, s.RewardsCalculatorQueue, s.Logger)
 	if err != nil {
 		s.Logger.Sugar().Errorw("Failed to create rpc server", zap.Error(err))
 		return err
