@@ -3,6 +3,7 @@ package rpcServer
 import (
 	"context"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 
 	v1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1"
@@ -18,6 +19,7 @@ type RpcServer struct {
 	blockStore        storage.BlockStore
 	stateManager      *stateManager.EigenStateManager
 	rewardsCalculator *rewards.RewardsCalculator
+	rewardsQueue      *rewardsCalculatorQueue.RewardsCalculatorQueue
 }
 
 func NewRpcServer(
@@ -27,12 +29,14 @@ func NewRpcServer(
 	bs storage.BlockStore,
 	sm *stateManager.EigenStateManager,
 	rc *rewards.RewardsCalculator,
+	rcq *rewardsCalculatorQueue.RewardsCalculatorQueue,
 	l *zap.Logger,
 ) (*RpcServer, error) {
 	server := &RpcServer{
 		blockStore:        bs,
 		stateManager:      sm,
 		rewardsCalculator: rc,
+		rewardsQueue:      rcq,
 		Logger:            l,
 	}
 

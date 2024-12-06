@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"slices"
@@ -26,6 +27,7 @@ type Pipeline struct {
 	Logger            *zap.Logger
 	stateManager      *stateManager.EigenStateManager
 	rewardsCalculator *rewards.RewardsCalculator
+	rcq               *rewardsCalculatorQueue.RewardsCalculatorQueue
 	globalConfig      *config.Config
 	metricsSink       *metrics.MetricsSink
 }
@@ -36,6 +38,7 @@ func NewPipeline(
 	bs storage.BlockStore,
 	sm *stateManager.EigenStateManager,
 	rc *rewards.RewardsCalculator,
+	rcq *rewardsCalculatorQueue.RewardsCalculatorQueue,
 	gc *config.Config,
 	ms *metrics.MetricsSink,
 	l *zap.Logger,
@@ -46,6 +49,7 @@ func NewPipeline(
 		Logger:            l,
 		stateManager:      sm,
 		rewardsCalculator: rc,
+		rcq:               rcq,
 		BlockStore:        bs,
 		globalConfig:      gc,
 		metricsSink:       ms,
@@ -229,7 +233,11 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				zap.Uint64("blockNumber", blockNumber),
 			)
 
-			if err = p.rewardsCalculator.CalculateRewardsForSnapshotDate(cutoffDate); err != nil {
+			msg := rewardsCalculatorQueue.RewardsCalculationData{
+				CalculationType: rewardsCalculatorQueue.RewardsCalculationType_CalculateRewards,
+				CutoffDate:      cutoffDate,
+			}
+			if _, err = p.rcq.EnqueueAndWait(ctx, msg); err != nil {
 				p.Logger.Sugar().Errorw("Failed to calculate rewards for snapshot date",
 					zap.String("cutoffDate", cutoffDate), zap.Error(err),
 					zap.Uint64("blockNumber", blockNumber),

@@ -14,6 +14,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
 	"log"
@@ -36,6 +37,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	storage.BlockStore,
 	*stateManager.EigenStateManager,
 	*rewards.RewardsCalculator,
+	*rewardsCalculatorQueue.RewardsCalculatorQueue,
 	*config.Config,
 	*zap.Logger,
 	*metrics.MetricsSink,
@@ -88,13 +90,15 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 	rc, _ := rewards.NewRewardsCalculator(cfg, grm, mds, sog, l)
 
+	rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
+
 	fetchr := fetcher.NewFetcher(client, cfg, l)
 
 	cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, 10, l)
 
 	idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 
-	return fetchr, idxr, mds, sm, rc, cfg, l, sdc, grm, dbname
+	return fetchr, idxr, mds, sm, rc, rcq, cfg, l, sdc, grm, dbname
 
 }
 
@@ -102,10 +106,10 @@ func Test_PipelineIntegration(t *testing.T) {
 
 	t.Run("Should index a block, transaction with logs using native batched ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
-		fetchr, idxr, mds, sm, rc, cfg, l, sdc, grm, dbName := setup(ethConfig)
+		fetchr, idxr, mds, sm, rc, rcq, cfg, l, sdc, grm, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, sdc, l)
+		p := NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, l)
 
 		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)
@@ -131,10 +135,10 @@ func Test_PipelineIntegration(t *testing.T) {
 	})
 	t.Run("Should index a block, transaction with logs using chunked ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultChunkedCallEthereumClientConfig()
-		fetchr, idxr, mds, sm, rc, cfg, l, sdc, grm, dbName := setup(ethConfig)
+		fetchr, idxr, mds, sm, rc, rcq, cfg, l, sdc, grm, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, rc, cfg, sdc, l)
+		p := NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, l)
 
 		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)
