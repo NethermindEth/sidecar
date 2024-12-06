@@ -140,22 +140,7 @@ func (rc *RewardsCalculator) calculateRewardsForSnapshotDate(snapshotDate string
 }
 
 func (rc *RewardsCalculator) CalculateRewardsForSnapshotDate(snapshotDate string) error {
-	// Since we can only have a single rewards calculation running at one time,
-	// we will retry the calculation every minute until we can acquire a lock.
-	errorChan := make(chan error)
-	go func() {
-		for {
-			err := rc.calculateRewardsForSnapshotDate(snapshotDate)
-			if errors.Is(err, &ErrRewardsCalculationInProgress{}) {
-				rc.logger.Sugar().Infow("Rewards calculation already in progress, sleeping", zap.String("snapshotDate", snapshotDate))
-				time.Sleep(1 * time.Minute)
-			} else {
-				errorChan <- err
-				return
-			}
-		}
-	}()
-	err := <-errorChan
+	err := rc.calculateRewardsForSnapshotDate(snapshotDate)
 	return err
 }
 
