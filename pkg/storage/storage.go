@@ -108,7 +108,6 @@ type GeneratedRewardsSnapshots struct {
 	Id           uint64 `gorm:"type:serial"`
 	SnapshotDate string
 	Status       string
-	BlockHeight  uint64
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
