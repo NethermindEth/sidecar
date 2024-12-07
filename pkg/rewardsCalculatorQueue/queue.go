@@ -8,11 +8,14 @@ import (
 
 // NewRewardsCalculatorQueue creates a new RewardsCalculatorQueue
 func NewRewardsCalculatorQueue(rc *rewards.RewardsCalculator, logger *zap.Logger) *RewardsCalculatorQueue {
-	return &RewardsCalculatorQueue{
+	queue := &RewardsCalculatorQueue{
 		logger:            logger,
 		rewardsCalculator: rc,
 		queue:             make(chan *RewardsCalculationMessage),
 	}
+	go queue.Process()
+
+	return queue
 }
 
 // Enqueue adds a new message to the queue and returns immediately

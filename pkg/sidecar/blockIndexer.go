@@ -102,12 +102,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		return err
 	}
 
-	if latestStateRoot != nil {
-		s.Logger.Sugar().Infow("Comparing latest block and latest state root",
-			zap.Int64("latestBlock", latestBlock),
-			zap.Uint64("latestStateRootBlock", latestStateRoot.EthBlockNumber),
-		)
-	} else {
+	if latestStateRoot == nil {
 		s.Logger.Sugar().Infow("No state roots found, starting from EL genesis")
 		latestBlock = 0
 	}
@@ -116,6 +111,17 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		s.Logger.Sugar().Infow("No blocks indexed, starting from genesis block", zap.Uint64("genesisBlock", s.Config.GenesisBlockNumber))
 		latestBlock = int64(s.Config.GenesisBlockNumber)
 	} else {
+		s.Logger.Sugar().Infow("Comparing latest block and latest state root",
+			zap.Int64("latestBlock", latestBlock),
+			zap.Uint64("latestStateRootBlock", latestStateRoot.EthBlockNumber),
+		)
+		if latestStateRoot.EthBlockNumber == uint64(latestBlock) {
+			s.Logger.Sugar().Infow("Latest block and latest state root are in sync, starting from latest block + 1",
+				zap.Int64("latestBlock", latestBlock),
+				zap.Uint64("latestStateRootBlock", latestStateRoot.EthBlockNumber),
+			)
+			return nil
+		}
 		// if the latest state root is behind the latest block, delete the corrupted state and set the
 		// latest block to the latest state root + 1
 		if latestStateRoot != nil && latestStateRoot.EthBlockNumber < uint64(latestBlock) {
@@ -151,6 +157,11 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	if err != nil {
 		s.Logger.Sugar().Fatalw("Failed to get current tip", zap.Error(err))
 	}
+
+	s.Logger.Sugar().Infow("Starting indexing process",
+		zap.Int64("latestBlock", latestBlock),
+		zap.Uint64("currentTip", blockNumber),
+	)
 
 	if blockNumber < uint64(latestBlock) {
 		return errors.New("Current tip is less than latest block. Please make sure your node is synced to tip.")
