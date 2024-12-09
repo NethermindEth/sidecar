@@ -37,7 +37,7 @@ type RewardSubmission struct {
 }
 
 func NewSlotID(transactionHash string, logIndex uint64, rewardHash string, strategyIndex uint64) types.SlotID {
-	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%d", rewardHash, strategyIndex))
+	return base.NewSlotIDWithSuffix(transactionHash, logIndex, fmt.Sprintf("%s_%x", rewardHash, strategyIndex))
 }
 
 type RewardSubmissionsModel struct {
