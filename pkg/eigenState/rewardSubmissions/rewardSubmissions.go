@@ -78,13 +78,13 @@ func (rs *RewardSubmissionsModel) GetModelName() string {
 }
 
 type genericRewardPaymentData struct {
-	Token                    string
-	Amount                   json.Number
-	StartTimestamp           uint64
-	Duration                 uint64
+	Token                    string      `json:"token"`
+	Amount                   json.Number `json:"amount"`
+	StartTimestamp           uint64      `json:"startTimestamp"`
+	Duration                 uint64      `json:"duration"`
 	StrategiesAndMultipliers []struct {
-		Strategy   string
-		Multiplier json.Number
+		Strategy   string      `json:"strategy"`
+		Multiplier json.Number `json:"multiplier"`
 	} `json:"strategiesAndMultipliers"`
 }
 
