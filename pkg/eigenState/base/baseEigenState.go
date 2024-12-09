@@ -2,6 +2,7 @@ package base
 
 import (
 	"database/sql"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,10 +57,9 @@ func (b *BaseEigenState) ParseLogOutput(log *storage.TransactionLog) (map[string
 // 1. Ensures that the tree is always different for different blocks
 // 2. Allows us to have at least 1 value if there are no model changes for a block.
 func (b *BaseEigenState) InitializeMerkleTreeBaseStateWithBlock(blockNumber uint64) [][]byte {
-	blockNumberByte := []byte(fmt.Sprintf("%d", blockNumber))
 	return [][]byte{
 		types.MerkleLeafPrefix_EigenStateBlock,
-		blockNumberByte,
+		binary.BigEndian.AppendUint64([]byte{}, blockNumber),
 	}
 }
 
