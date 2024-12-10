@@ -258,7 +258,11 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		blocksProcessed += (endBlock - latestBlock)
 
 		totalDurationMs += delta
-		runningAvg = float64(totalDurationMs / blocksProcessed)
+		if blocksProcessed == 0 {
+			runningAvg = 0
+		} else {
+			runningAvg = float64(totalDurationMs / blocksProcessed)
+		}
 
 		s.Logger.Sugar().Infow("Progress",
 			zap.String("percentComplete", fmt.Sprintf("%.2f", pctComplete)),
