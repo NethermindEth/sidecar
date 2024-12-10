@@ -58,8 +58,7 @@ func (b *BaseEigenState) ParseLogOutput(log *storage.TransactionLog) (map[string
 // 2. Allows us to have at least 1 value if there are no model changes for a block.
 func (b *BaseEigenState) InitializeMerkleTreeBaseStateWithBlock(blockNumber uint64) [][]byte {
 	return [][]byte{
-		types.MerkleLeafPrefix_EigenStateBlock,
-		binary.BigEndian.AppendUint64([]byte{}, blockNumber),
+		append(types.MerkleLeafPrefix_EigenStateBlock, binary.BigEndian.AppendUint64([]byte{}, blockNumber)...),
 	}
 }
 

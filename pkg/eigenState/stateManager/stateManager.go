@@ -105,9 +105,8 @@ func (e *EigenStateManager) GenerateStateRoot(blockNumber uint64, blockHash stri
 	sortedIndexes := e.GetSortedModelIndexes()
 	common.FromHex(blockHash)
 	roots := [][]byte{
-		types.MerkleLeafPrefix_Block,
-		binary.BigEndian.AppendUint64([]byte{}, blockNumber),
-		common.FromHex(blockHash),
+		append(types.MerkleLeafPrefix_Block, binary.BigEndian.AppendUint64([]byte{}, blockNumber)...),
+		append(types.MerkleLeafPrefix_BlockHash, common.FromHex(blockHash)...),
 	}
 
 	for _, state := range sortedIndexes {
