@@ -111,10 +111,6 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 		s.Logger.Sugar().Infow("No blocks indexed, starting from genesis block", zap.Uint64("genesisBlock", s.Config.GenesisBlockNumber))
 		lastIndexedBlock = int64(s.Config.GenesisBlockNumber)
 	} else {
-		s.Logger.Sugar().Infow("Comparing latest block and latest state root",
-			zap.Int64("lastIndexedBlock", lastIndexedBlock),
-			zap.Uint64("latestStateRootBlock", latestStateRoot.EthBlockNumber),
-		)
 		// if the latest state root is behind the latest block, delete the corrupted state and set the
 		// latest block to the latest state root + 1
 		if latestStateRoot != nil && latestStateRoot.EthBlockNumber < uint64(lastIndexedBlock) {
