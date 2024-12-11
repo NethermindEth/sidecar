@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"sync/atomic"
+
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
@@ -20,7 +22,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync/atomic"
 )
 
 type RewardsCalculator struct {
@@ -222,7 +223,7 @@ func (rc *RewardsCalculator) MerkelizeRewardsForSnapshot(snapshotDate string) (
 }
 
 func (rc *RewardsCalculator) GetMaxSnapshotDateForCutoffDate(cutoffDate string) (string, error) {
-	goldStagingTableName := rewardsUtils.GetGoldTableNames(cutoffDate)[rewardsUtils.Table_7_GoldStaging]
+	goldStagingTableName := rewardsUtils.GetGoldTableNames(cutoffDate)[rewardsUtils.Table_11_GoldStaging]
 
 	var maxSnapshotStr string
 	query := fmt.Sprintf(`select to_char(max(snapshot), 'YYYY-MM-DD') as snapshot from %s`, goldStagingTableName)
@@ -499,7 +500,7 @@ func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string) ([]*Re
 		where snapshot <= date '{{.snapshotDate}}'
 		group by 1, 2
 		order by snapshot desc
-    `, map[string]string{"snapshotDate": snapshotDate})
+    `, map[string]interface{}{"snapshotDate": snapshotDate})
 
 	if err != nil {
 		return nil, err
@@ -611,6 +612,14 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	}
 	rc.logger.Sugar().Debugw("Generated staker delegation snapshots")
 
+	// ------------------------------------------------------------------------
+	// Rewards V2 snapshots
+	// ------------------------------------------------------------------------
+	if err = rc.GenerateAndInsertOperatorDirectedRewards(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator directed rewards", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated operator directed rewards")
 	if err = rc.GenerateAndInsertOperatorAvsSplitSnapshots(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator avs split snapshots", "error", err)
 		return err
@@ -661,12 +670,32 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold7StagingTable(snapshotDate); err != nil {
+	if err := rc.Generate7ActiveODRewards(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate active od rewards", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate operator od reward amounts", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate staker od reward amounts", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold10AvsODRewardAmountsTable(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate avs od reward amounts", "error", err)
+		return err
+	}
+
+	if err := rc.GenerateGold11StagingTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate gold staging", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold8FinalTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold12FinalTable(snapshotDate); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate final table", "error", err)
 		return err
 	}
