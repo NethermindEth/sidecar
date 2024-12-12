@@ -145,7 +145,7 @@ func NewSlotID(txHash string, logIndex uint64) types.SlotID {
 }
 
 func NewSlotIDWithSuffix(txHash string, logIndex uint64, suffix string) types.SlotID {
-	baseSlotId := fmt.Sprintf("%s_%x", txHash, logIndex)
+	baseSlotId := fmt.Sprintf("%s_%016x", txHash, logIndex)
 	if suffix != "" {
 		baseSlotId = fmt.Sprintf("%s_%s", baseSlotId, suffix)
 	}
