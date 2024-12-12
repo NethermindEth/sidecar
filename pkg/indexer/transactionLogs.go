@@ -163,18 +163,17 @@ func (idx *Indexer) DecodeLogWithAbi(
 		return idx.DecodeLog(a, lg)
 	} else {
 		idx.Logger.Sugar().Debugw("Log address does not match contract address", zap.String("logAddress", logAddress.String()), zap.String("contractAddress", txReceipt.GetTargetAddress().Value()))
-		// TODO - need a way to get the bytecode hash
 		// Find/create the log address and attempt to determine if it is a proxy address
-		foundOrCreatedContract, err := idx.ContractManager.GetContractWithProxy(logAddress.String(), txReceipt.BlockNumber.Value())
+		foundContract, err := idx.ContractManager.GetContractWithProxy(logAddress.String(), txReceipt.BlockNumber.Value())
 		if err != nil {
 			return idx.DecodeLog(nil, lg)
 		}
-		if foundOrCreatedContract == nil {
+		if foundContract == nil {
 			idx.Logger.Sugar().Debugw("No contract found for address", zap.String("address", logAddress.String()))
 			return idx.DecodeLog(nil, lg)
 		}
 
-		contractAbi := foundOrCreatedContract.CombineAbis()
+		contractAbi := foundContract.CombineAbis()
 		if err != nil {
 			idx.Logger.Sugar().Errorw("Failed to combine ABIs", zap.Error(err), zap.String("contractAddress", logAddress.String()))
 			return idx.DecodeLog(nil, lg)
