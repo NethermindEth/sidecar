@@ -90,6 +90,54 @@ func (s *Sidecar) ProcessNewBlocks(ctx context.Context) error {
 	}
 }
 
+type Progress struct {
+	StartBlock         uint64
+	LastBlockProcessed uint64
+	CurrentTip         *atomic.Uint64
+	AvgPerBlockMs      float64
+	StartTime          time.Time
+	TotalDurationMs    int64
+	logger             *zap.Logger
+}
+
+func NewProgress(startBlock uint64, currentTip *atomic.Uint64, l *zap.Logger) *Progress {
+	return &Progress{
+		StartBlock:         startBlock,
+		LastBlockProcessed: startBlock,
+		CurrentTip:         currentTip,
+		AvgPerBlockMs:      0,
+		StartTime:          time.Now(),
+		logger:             l,
+	}
+}
+
+func (p *Progress) UpdateAndPrintProgress(lastBlockProcessed uint64) {
+	p.LastBlockProcessed = lastBlockProcessed
+
+	blocksProcessed := lastBlockProcessed - p.StartBlock
+	currentTip := p.CurrentTip.Load()
+	totalBlocksToProcess := currentTip - p.StartBlock
+	blocksRemaining := currentTip - lastBlockProcessed
+
+	if blocksProcessed == 0 || totalBlocksToProcess == 0 {
+		return
+	}
+
+	pctComplete := (float64(blocksProcessed) / float64(totalBlocksToProcess)) * 100
+
+	runningAvg := time.Since(p.StartTime).Milliseconds() / int64(blocksProcessed)
+
+	estTimeRemainingHours := float64(runningAvg*int64(blocksRemaining)) / 1000 / 60 / 60
+
+	p.logger.Sugar().Infow("Progress",
+		zap.String("percentComplete", fmt.Sprintf("%.2f", pctComplete)),
+		zap.Uint64("blocksRemaining", blocksRemaining),
+		zap.Float64("estimatedTimeRemaining (hrs)", estTimeRemainingHours),
+		zap.Float64("avgBlockProcessTime (ms)", float64(runningAvg)),
+		zap.Uint64("currentBlock", uint64(lastBlockProcessed)),
+	)
+}
+
 func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 	lastIndexedBlock, err := s.GetLastIndexedBlock()
 	if err != nil {
@@ -156,21 +204,19 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 
 	for retryCount < 3 {
 		// Get the latest safe block as a starting point
-		latestSafeBlockNumber, err := s.EthereumClient.GetLatestSafeBlock(ctx)
+		latestSafe, err := s.EthereumClient.GetLatestSafeBlock(ctx)
 		if err != nil {
 			s.Logger.Sugar().Fatalw("Failed to get current tip", zap.Error(err))
 		}
+		s.Logger.Sugar().Infow("Current tip", zap.Uint64("currentTip", latestSafe))
 
-		s.Logger.Sugar().Infow("Starting indexing process",
-			zap.Int64("latestBlock", lastIndexedBlock),
-			zap.Uint64("currentTip", latestSafeBlockNumber),
-		)
-
-		if latestSafeBlockNumber >= uint64(lastIndexedBlock) {
+		if latestSafe >= uint64(lastIndexedBlock) {
+			s.Logger.Sugar().Infow("Current tip is greater than latest block, starting indexing process", zap.Uint64("currentTip", latestSafe))
+			latestSafeBlockNumber = latestSafe
 			break
 		}
 
-		if latestSafeBlockNumber < uint64(lastIndexedBlock) {
+		if latestSafe < uint64(lastIndexedBlock) {
 			if retryCount == 2 {
 				s.Logger.Sugar().Fatalw("Current tip is less than latest block, but retry count is 2, exiting")
 				return errors.New("Current tip is less than latest block, but retry count is 2, exiting")
@@ -224,15 +270,11 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			}
 		}
 	}()
-	// Keep some metrics during the indexing process
-	blocksProcessed := int64(0)
-	runningAvg := float64(0)
-	totalDurationMs := int64(0)
-
-	originalStartBlock := lastIndexedBlock
 
 	//nolint:all
 	currentBlock := lastIndexedBlock
+
+	progress := NewProgress(uint64(currentBlock), &currentTip, s.Logger)
 
 	s.Logger.Sugar().Infow("Starting indexing process", zap.Int64("currentBlock", currentBlock), zap.Uint64("currentTip", currentTip.Load()))
 
@@ -242,50 +284,22 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			return nil
 		}
 		tip := currentTip.Load()
-		blocksRemaining := tip - uint64(currentBlock)
-		totalBlocksToProcess := tip - uint64(originalStartBlock)
 
-		var pctComplete float64
-		if totalBlocksToProcess != 0 {
-			pctComplete = (float64(blocksProcessed) / float64(totalBlocksToProcess)) * 100
+		batchEndBlock := int64(currentBlock + 100)
+		if batchEndBlock > int64(tip) {
+			batchEndBlock = int64(tip)
 		}
-
-		estTimeRemainingMs := runningAvg * float64(blocksRemaining)
-		estTimeRemainingHours := float64(estTimeRemainingMs) / 1000 / 60 / 60
-
-		startTime := time.Now()
-		endBlock := int64(currentBlock + 100)
-		if endBlock > int64(tip) {
-			endBlock = int64(tip)
-		}
-		if err := s.Pipeline.RunForBlockBatch(ctx, uint64(currentBlock), uint64(endBlock), true); err != nil {
+		if err := s.Pipeline.RunForBlockBatch(ctx, uint64(currentBlock), uint64(batchEndBlock), true); err != nil {
 			s.Logger.Sugar().Errorw("Failed to run pipeline for block batch",
 				zap.Error(err),
 				zap.Uint64("startBlock", uint64(currentBlock)),
-				zap.Int64("endBlock", endBlock),
+				zap.Int64("batchEndBlock", batchEndBlock),
 			)
 			return err
 		}
+		progress.UpdateAndPrintProgress(uint64(batchEndBlock))
 
-		currentBlock = int64(endBlock)
-		delta := time.Since(startTime).Milliseconds()
-		blocksProcessed += (endBlock - currentBlock)
-
-		totalDurationMs += delta
-		if blocksProcessed == 0 {
-			runningAvg = 0
-		} else {
-			runningAvg = float64(totalDurationMs / blocksProcessed)
-		}
-
-		s.Logger.Sugar().Infow("Progress",
-			zap.String("percentComplete", fmt.Sprintf("%.2f", pctComplete)),
-			zap.Uint64("blocksRemaining", blocksRemaining),
-			zap.Float64("estimatedTimeRemaining (hrs)", estTimeRemainingHours),
-			zap.Float64("avgBlockProcessTime (ms)", float64(runningAvg)),
-			zap.Uint64("currentBlock", uint64(currentBlock)),
-		)
-		currentBlock = endBlock + 1
+		currentBlock = batchEndBlock + 1
 	}
 
 	return nil
