@@ -166,6 +166,10 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			zap.Uint64("currentTip", latestSafeBlockNumber),
 		)
 
+		if latestSafeBlockNumber >= uint64(lastIndexedBlock) {
+			break
+		}
+
 		if latestSafeBlockNumber < uint64(lastIndexedBlock) {
 			if retryCount == 2 {
 				s.Logger.Sugar().Fatalw("Current tip is less than latest block, but retry count is 2, exiting")
@@ -174,6 +178,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			s.Logger.Sugar().Infow("Current tip is less than latest block sleeping for 7 minutes to allow for the node to catch up")
 			time.Sleep(7 * time.Minute)
 		}
+		retryCount++
 	}
 
 	s.Logger.Sugar().Infow("Indexing from current to tip",
