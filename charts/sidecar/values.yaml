@@ -5,6 +5,7 @@ image:
 
 sidecar:
   replicas: 1
+  restartPolicy: "Never"
   nameOverride: ''
   additionalLabels: {}
   args: ["run"]
