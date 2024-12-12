@@ -21,7 +21,6 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          restartPolicy: {{ .Values.sidecar.restartPolicy | default "Never"}}
           args: {{ .Values.sidecar.args | toJson}}
         {{- if .Values.sidecar.ports }}
           ports:
