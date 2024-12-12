@@ -166,6 +166,10 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			zap.Uint64("currentTip", latestSafeBlockNumber),
 		)
 
+		if latestSafeBlockNumber >= uint64(lastIndexedBlock) {
+			break
+		}
+
 		if latestSafeBlockNumber < uint64(lastIndexedBlock) {
 			if retryCount == 2 {
 				s.Logger.Sugar().Fatalw("Current tip is less than latest block, but retry count is 2, exiting")
