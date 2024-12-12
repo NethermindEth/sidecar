@@ -178,6 +178,7 @@ func (s *Sidecar) IndexFromCurrentToTip(ctx context.Context) error {
 			s.Logger.Sugar().Infow("Current tip is less than latest block sleeping for 7 minutes to allow for the node to catch up")
 			time.Sleep(7 * time.Minute)
 		}
+		retryCount++
 	}
 
 	s.Logger.Sugar().Infow("Indexing from current to tip",
