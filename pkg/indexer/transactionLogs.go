@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
@@ -108,71 +107,6 @@ func (idx *Indexer) ParseTransactionLogs(
 				WithBlockNumber(transaction.BlockNumber.Value()).
 				WithTransactionHash(transaction.Hash.Value()).
 				WithMetadata("contractAddress", contractAddress.Value())
-		}
-
-		// First, attempt to decode the transaction input
-		txInput := transaction.Input.Value()
-		if len(txInput) >= 10 {
-			var method *abi.Method
-			decodedSig, err := hex.DecodeString(txInput[2:10])
-			if err != nil {
-				idx.Logger.Sugar().Errorw("Failed to decode signature")
-				return nil, NewIndexError(IndexError_FailedToParseTransaction, err).
-					WithMessage("Failed to decode signature").
-					WithBlockNumber(transaction.BlockNumber.Value()).
-					WithTransactionHash(transaction.Hash.Value()).
-					WithMetadata("contractAddress", contractAddress.Value())
-			}
-
-			if len(decodedSig) > 0 {
-				method, err = a.MethodById(decodedSig)
-				if err != nil {
-					msg := fmt.Sprintf("Failed to find method by ID '%s'", common.BytesToHash(decodedSig).String())
-					idx.Logger.Sugar().Debugw(msg)
-					return nil, NewIndexError(IndexError_FailedToParseTransaction, err).
-						WithMessage(msg).
-						WithBlockNumber(transaction.BlockNumber.Value()).
-						WithTransactionHash(transaction.Hash.Value()).
-						WithMetadata("contractAddress", contractAddress.Value())
-				} else {
-					parsedTransaction.MethodName = method.RawName
-					decodedData, err := hex.DecodeString(txInput[10:])
-					if err != nil {
-						idx.Logger.Sugar().Errorw("Failed to decode transaction input data")
-						return nil, NewIndexError(IndexError_FailedToParseTransaction, err).
-							WithMessage("Failed to decode transaction input data").
-							WithBlockNumber(transaction.BlockNumber.Value()).
-							WithTransactionHash(transaction.Hash.Value()).
-							WithMetadata("contractAddress", contractAddress.Value())
-					} else {
-						callMap := map[string]interface{}{}
-						if err := method.Inputs.UnpackIntoMap(callMap, decodedData); err != nil {
-							idx.Logger.Sugar().Errorw("Failed to unpack data",
-								zap.Error(err),
-								zap.String("transactionHash", transaction.Hash.Value()),
-								zap.Uint64("blockNumber", transaction.BlockNumber.Value()),
-							)
-							return nil, NewIndexError(IndexError_FailedToParseTransaction, err).
-								WithMessage("Failed to unpack data").
-								WithBlockNumber(transaction.BlockNumber.Value()).
-								WithTransactionHash(transaction.Hash.Value()).
-								WithMetadata("contractAddress", contractAddress.Value())
-						}
-						callMapBytes, err := json.Marshal(callMap)
-						if err != nil {
-							idx.Logger.Sugar().Errorw("Failed to marshal callMap data", zap.String("hash", transaction.Hash.Value()))
-							return nil, NewIndexError(IndexError_FailedToParseTransaction, err).
-								WithMessage("Failed to marshal callMap data").
-								WithBlockNumber(transaction.BlockNumber.Value()).
-								WithTransactionHash(transaction.Hash.Value()).
-								WithMetadata("contractAddress", contractAddress.Value())
-						}
-						parsedTransaction.DecodedData = string(callMapBytes)
-					}
-				}
-			}
-		} else {
-			idx.Logger.Sugar().Debugw(fmt.Sprintf("Transaction input is empty %s", contractAddress))
 		}
 	} else {
 		idx.Logger.Sugar().Debugw("Base transaction is not interesting",
