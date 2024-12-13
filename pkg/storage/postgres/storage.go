@@ -187,7 +187,7 @@ func (s *PostgresBlockStore) BulkInsertOperatorRestakedStrategies(
 			OnConstraint: "uniq_operator_restaked_strategies",
 			DoNothing:    true,
 		},
-	).Create(&operatorRestakedStrategies)
+	).CreateInBatches(&operatorRestakedStrategies, 5000)
 	if res.Error != nil {
 		return nil, fmt.Errorf("Failed to insert operator restaked strategies: %w", res.Error)
 	}
