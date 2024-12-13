@@ -167,7 +167,7 @@ func (s *PostgresBlockStore) InsertOperatorRestakedStrategies(
 		BlockTime:           blockTime,
 	}
 
-	result := s.Db.Model(&storage.OperatorRestakedStrategies{}).Clauses(clause.Returning{}).CreateInBatches(&ors, 5000)
+	result := s.Db.Model(&storage.OperatorRestakedStrategies{}).Clauses(clause.Returning{}).Create(&ors)
 
 	if result.Error != nil {
 		return nil, fmt.Errorf("Failed to insert operator restaked strategies: %w", result.Error)
