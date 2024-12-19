@@ -81,9 +81,13 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert3RewardsForAllStrategyPayo
 		return err
 	}
 
+	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
+		rewardsUtils.Table_1_ActiveRewards: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_1_ActiveRewards],
+	}, cutoffDate)
+
 	query, err := rewardsUtils.RenderQueryTemplate(_3_rewardsForAllStrategyPayoutsQuery, map[string]string{
 		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
+		"activeRewardsTable": rewardsTables[rewardsUtils.Table_1_ActiveRewards],
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 3_rewardsForAllStrategyPayouts query", "error", err)

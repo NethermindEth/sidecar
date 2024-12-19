@@ -108,10 +108,14 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert5RfaeOperatorStrategyPayou
 		return err
 	}
 
+	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
+		rewardsUtils.Table_1_ActiveRewards: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_1_ActiveRewards],
+		rewardsUtils.Table_6_RfaeOperators: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_6_RfaeOperators],
+	}, cutoffDate)
 	query, err := rewardsUtils.RenderQueryTemplate(_5_rfaeOperatorStrategyPayoutsQuery, map[string]string{
 		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
-		"rfaeOperatorsTable": allTableNames[rewardsUtils.Table_6_RfaeOperators],
+		"activeRewardsTable": rewardsTables[rewardsUtils.Table_1_ActiveRewards],
+		"rfaeOperatorsTable": rewardsTables[rewardsUtils.Table_6_RfaeOperators],
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 5_rfaeOperatorStrategyPayouts query", "error", err)

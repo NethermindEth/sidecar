@@ -71,7 +71,7 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert7StakerOperator(cutoffDate
 		return err
 	}
 
-	res := sog.db.Debug().Exec(query)
+	res := sog.db.Exec(query)
 	if res.Error != nil {
 		sog.logger.Sugar().Errorw("Failed to generate 7_stakerOperator",
 			zap.String("cutoffDate", cutoffDate),
