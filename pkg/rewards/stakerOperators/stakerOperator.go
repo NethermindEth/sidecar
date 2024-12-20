@@ -2,6 +2,7 @@ package stakerOperators
 
 import (
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -94,4 +95,8 @@ func (sog *StakerOperatorsGenerator) GenerateStakerOperatorsTable(cutoffDate str
 		return err
 	}
 	return nil
+}
+
+func (sog *StakerOperatorsGenerator) FindRewardsTableNamesForSearchPattersn(patterns map[string]string, cutoffDate string) (map[string]string, error) {
+	return rewardsUtils.FindRewardsTableNamesForSearchPatterns(patterns, cutoffDate, sog.globalConfig.DatabaseConfig.SchemaName, sog.db)
 }

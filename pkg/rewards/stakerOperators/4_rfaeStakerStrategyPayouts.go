@@ -123,10 +123,19 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert4RfaeStakerStrategyPayout(
 		return err
 	}
 
+	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
+		rewardsUtils.Table_1_ActiveRewards: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_1_ActiveRewards],
+		rewardsUtils.Table_5_RfaeStakers:   rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_5_RfaeStakers],
+	}, cutoffDate)
+	if err != nil {
+		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
+		return err
+	}
+
 	query, err := rewardsUtils.RenderQueryTemplate(_4_rfaeStakerStrategyPayoutsQuery, map[string]string{
 		"destTableName":      destTableName,
-		"activeRewardsTable": allTableNames[rewardsUtils.Table_1_ActiveRewards],
-		"rfaeStakersTable":   allTableNames[rewardsUtils.Table_5_RfaeStakers],
+		"activeRewardsTable": rewardsTables[rewardsUtils.Table_1_ActiveRewards],
+		"rfaeStakersTable":   rewardsTables[rewardsUtils.Table_5_RfaeStakers],
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 4_rfaeStakerStrategyPayouts query", "error", err)

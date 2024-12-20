@@ -106,10 +106,24 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert2OperatorStrategyRewards(c
 		"cutoffDate", cutoffDate,
 	)
 
+	if err := rewardsUtils.DropTableIfExists(sog.db, destTableName, sog.logger); err != nil {
+		sog.logger.Sugar().Errorw("Failed to drop table", "error", err)
+		return err
+	}
+
+	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
+		rewardsUtils.Table_1_ActiveRewards:         rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_1_ActiveRewards],
+		rewardsUtils.Table_3_OperatorRewardAmounts: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_3_OperatorRewardAmounts],
+	}, cutoffDate)
+	if err != nil {
+		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
+		return err
+	}
+
 	query, err := rewardsUtils.RenderQueryTemplate(_2_operatorStrategyRewardsQuery, map[string]string{
 		"destTableName":              destTableName,
-		"activeRewardsTable":         allTableNames[rewardsUtils.Table_1_ActiveRewards],
-		"operatorRewardAmountsTable": allTableNames[rewardsUtils.Table_3_OperatorRewardAmounts],
+		"activeRewardsTable":         rewardsTables[rewardsUtils.Table_1_ActiveRewards],
+		"operatorRewardAmountsTable": rewardsTables[rewardsUtils.Table_3_OperatorRewardAmounts],
 	})
 	if err != nil {
 		sog.logger.Sugar().Errorw("Failed to render 2_operatorStrategyRewards query", "error", err)

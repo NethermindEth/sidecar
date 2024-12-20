@@ -2,6 +2,7 @@ package rewardsUtils
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/helpers"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
@@ -45,6 +46,23 @@ var goldTableBaseNames = map[string]string{
 	Sot_4_RfaeStakers:                 Sot_4_RfaeStakers,
 	Sot_5_RfaeOperators:               Sot_5_RfaeOperators,
 	Sot_6_StakerOperatorStaging:       Sot_6_StakerOperatorStaging,
+}
+
+var GoldTableNameSearchPattern = map[string]string{
+	Table_1_ActiveRewards:         "gold_%_active_rewards",
+	Table_2_StakerRewardAmounts:   "gold_%_staker_reward_amounts",
+	Table_3_OperatorRewardAmounts: "gold_%_operator_reward_amounts",
+	Table_4_RewardsForAll:         "gold_%_rewards_for_all",
+	Table_5_RfaeStakers:           "gold_%_rfae_stakers",
+	Table_6_RfaeOperators:         "gold_%_rfae_operators",
+	Table_7_GoldStaging:           "gold_%_staging",
+
+	Sot_1_StakerStrategyPayouts:       "sot_%_staker_strategy_payouts",
+	Sot_2_OperatorStrategyPayouts:     "sot_%_operator_strategy_payouts",
+	Sot_3_RewardsForAllStrategyPayout: "sot_%_rewards_for_all_strategy_payout",
+	Sot_4_RfaeStakers:                 "sot_%_rfae_stakers",
+	Sot_5_RfaeOperators:               "sot_%_rfae_operators",
+	Sot_6_StakerOperatorStaging:       "sot_%_staker_operator_staging",
 }
 
 func GetGoldTableNames(snapshotDate string) map[string]string {
@@ -112,4 +130,49 @@ func DropTableIfExists(grm *gorm.DB, tableName string, l *zap.Logger) error {
 		return res.Error
 	}
 	return nil
+}
+
+func findTableByLikeName(likeName string, grm *gorm.DB, schemaName string) (string, error) {
+	if schemaName == "" {
+		schemaName = "public"
+	}
+	query := `
+			SELECT table_name
+			FROM information_schema.tables
+			WHERE table_schema = @schemaName
+				AND table_type='BASE TABLE'
+				and table_name like @pattern
+			limit 1
+		`
+	var tname string
+	res := grm.Debug().Raw(query,
+		sql.Named("schemaName", schemaName),
+		sql.Named("pattern", likeName)).
+		Scan(&tname)
+	if res.Error != nil {
+		return "", res.Error
+	}
+	if tname == "" {
+		return "", fmt.Errorf("table not found for key %s", likeName)
+	}
+	return tname, nil
+}
+
+// FindRewardsTableNamesForSearchPatterns finds the table names for the given search patterns
+//
+// As table names evolve over time due to adding more, the numerical index might change in the constants
+// in this file. This makes finding past table names difficult. This function helps to find the table names
+// using the base table name and the cutoff date with a wildcard at the front.
+func FindRewardsTableNamesForSearchPatterns(patterns map[string]string, cutoffDate string, schemaName string, grm *gorm.DB) (map[string]string, error) {
+	results := make(map[string]string)
+	for key, pattern := range patterns {
+		snakeCaseCutoffDate := utils.SnakeCase(cutoffDate)
+		p := fmt.Sprintf("%s_%s", pattern, snakeCaseCutoffDate)
+		tname, err := findTableByLikeName(p, grm, schemaName)
+		if err != nil {
+			return nil, err
+		}
+		results[key] = tname
+	}
+	return results, nil
 }
