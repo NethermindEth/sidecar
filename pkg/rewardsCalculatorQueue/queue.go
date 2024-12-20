@@ -13,6 +13,7 @@ func NewRewardsCalculatorQueue(rc *rewards.RewardsCalculator, logger *zap.Logger
 		rewardsCalculator: rc,
 		// allow the queue to buffer up to 100 messages
 		queue: make(chan *RewardsCalculationMessage, 100),
+		done:  make(chan struct{}),
 	}
 	return queue
 }
@@ -25,7 +26,7 @@ func (rcq *RewardsCalculatorQueue) Enqueue(payload *RewardsCalculationMessage) {
 
 // EnqueueAndWait adds a new message to the queue and waits for a response or returns if the context is done
 func (rcq *RewardsCalculatorQueue) EnqueueAndWait(ctx context.Context, data RewardsCalculationData) (*RewardsCalculatorResponseData, error) {
-	responseChan := make(chan *RewardsCalculatorResponse)
+	responseChan := make(chan *RewardsCalculatorResponse, 1)
 
 	payload := &RewardsCalculationMessage{
 		Data:         data,

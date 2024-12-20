@@ -10,12 +10,23 @@ func (rcq *RewardsCalculatorQueue) Process() {
 			return
 		case msg := <-rcq.queue:
 			rcq.logger.Sugar().Infow("Processing rewards calculation message", "data", msg.Data)
-			rcq.processMessage(msg)
+			response := rcq.processMessage(msg)
+
+			if msg.ResponseChan != nil {
+				select {
+				case msg.ResponseChan <- response:
+					rcq.logger.Sugar().Infow("Sent rewards calculation response", "data", msg.Data)
+				default:
+					rcq.logger.Sugar().Infow("No receiver for response, dropping", "data", msg.Data)
+				}
+			} else {
+				rcq.logger.Sugar().Infow("No response channel, dropping response", "data", msg.Data)
+			}
 		}
 	}
 }
 
-func (rcq *RewardsCalculatorQueue) processMessage(msg *RewardsCalculationMessage) {
+func (rcq *RewardsCalculatorQueue) processMessage(msg *RewardsCalculationMessage) *RewardsCalculatorResponse {
 	response := &RewardsCalculatorResponse{}
 	cutoffDate := msg.Data.CutoffDate
 
@@ -42,9 +53,5 @@ func (rcq *RewardsCalculatorQueue) processMessage(msg *RewardsCalculationMessage
 	default:
 		response.Error = fmt.Errorf("unknown calculation type %s", msg.Data.CalculationType)
 	}
-	if msg.ResponseChan == nil {
-		rcq.logger.Sugar().Errorw("No response channel for rewards calculation message", "data", msg.Data)
-		return
-	}
-	msg.ResponseChan <- response
+	return response
 }
