@@ -84,6 +84,10 @@ func (sog *StakerOperatorsGenerator) GenerateAndInsert3RewardsForAllStrategyPayo
 	rewardsTables, err := sog.FindRewardsTableNamesForSearchPattersn(map[string]string{
 		rewardsUtils.Table_1_ActiveRewards: rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_1_ActiveRewards],
 	}, cutoffDate)
+	if err != nil {
+		sog.logger.Sugar().Errorw("Failed to find staker operator table names", "error", err)
+		return err
+	}
 
 	query, err := rewardsUtils.RenderQueryTemplate(_3_rewardsForAllStrategyPayoutsQuery, map[string]string{
 		"destTableName":      destTableName,
