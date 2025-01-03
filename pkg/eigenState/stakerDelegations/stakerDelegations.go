@@ -27,19 +27,11 @@ type StakerDelegationChange struct {
 
 type StakerDelegationsModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[StakerDelegationChange]
-	DB               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	stateAccumulator map[uint64][]*StakerDelegationChange
-}
-
-type DelegatedStakersDiff struct {
-	Staker      string
-	Operator    string
-	Delegated   bool
-	BlockNumber uint64
 }
 
 func NewStakerDelegationsModel(

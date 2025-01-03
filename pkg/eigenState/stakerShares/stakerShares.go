@@ -23,13 +23,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type AccumulatedStateChange struct {
-	Staker      string
-	Strategy    string
-	Shares      *big.Int
-	BlockNumber uint64
-}
-
 // Table staker_share_deltas
 type StakerShareDeltas struct {
 	Staker               string
@@ -50,10 +43,9 @@ func NewSlotID(transactionHash string, logIndex uint64, staker string, strategy 
 
 type StakerSharesModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	DB               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates deltas for each block
 	stateAccumulator map[uint64][]*StakerShareDeltas

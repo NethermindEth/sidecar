@@ -17,10 +17,9 @@ import (
 
 type DisabledDistributionRootsModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[types.DisabledDistributionRoot]
-	DB               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*types.DisabledDistributionRoot
