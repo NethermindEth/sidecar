@@ -8,6 +8,9 @@ import (
 
 	"sync/atomic"
 
+	"slices"
+	"strings"
+
 	"github.com/Layr-Labs/eigenlayer-rewards-proofs/pkg/distribution"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
@@ -19,9 +22,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"slices"
 	"strconv"
-	"strings"
 )
 
 type RewardsCalculator struct {
@@ -632,6 +633,12 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 	}
 	rc.logger.Sugar().Debugw("Generated operator pi snapshots")
 
+	if err = rc.GenerateAndInsertDefaultOperatorSplitSnapshots(snapshotDate); err != nil {
+		rc.logger.Sugar().Errorw("Failed to generate default operator split snapshots", "error", err)
+		return err
+	}
+	rc.logger.Sugar().Debugw("Generated default operator split snapshots")
+
 	return nil
 }
 
@@ -675,12 +682,12 @@ func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
 		return err
 	}
 
-	if err := rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold8OperatorODRewardAmountsTable(snapshotDate, forks); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate operator od reward amounts", "error", err)
 		return err
 	}
 
-	if err := rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate); err != nil {
+	if err := rc.GenerateGold9StakerODRewardAmountsTable(snapshotDate, forks); err != nil {
 		rc.logger.Sugar().Errorw("Failed to generate staker od reward amounts", "error", err)
 		return err
 	}
