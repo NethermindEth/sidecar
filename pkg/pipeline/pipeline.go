@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
+	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -30,6 +31,7 @@ type Pipeline struct {
 	rcq               *rewardsCalculatorQueue.RewardsCalculatorQueue
 	globalConfig      *config.Config
 	metricsSink       *metrics.MetricsSink
+	eventBus          eventBusTypes.IEventBus
 }
 
 func NewPipeline(
@@ -41,6 +43,7 @@ func NewPipeline(
 	rcq *rewardsCalculatorQueue.RewardsCalculatorQueue,
 	gc *config.Config,
 	ms *metrics.MetricsSink,
+	eb eventBusTypes.IEventBus,
 	l *zap.Logger,
 ) *Pipeline {
 	return &Pipeline{
@@ -53,16 +56,8 @@ func NewPipeline(
 		BlockStore:        bs,
 		globalConfig:      gc,
 		metricsSink:       ms,
+		eventBus:          eb,
 	}
-}
-
-func (p *Pipeline) HandleBlockProcessedHook(
-	block *storage.Block,
-	transactions []*storage.Transaction,
-	logs []*storage.TransactionLog,
-	stateRoot *stateManager.StateRoot,
-) error {
-	return nil
 }
 
 func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.FetchedBlock, isBackfill bool) error {
@@ -189,7 +184,8 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	}
 
 	blockFetchTime = time.Now()
-	if err := p.stateManager.CommitFinalState(blockNumber); err != nil {
+	committedState, err := p.stateManager.CommitFinalState(blockNumber)
+	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to commit final state", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err
 	}
@@ -325,7 +321,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	_ = p.metricsSink.Incr(metricsTypes.Metric_Incr_BlockProcessed, nil, 1)
 	_ = p.metricsSink.Gauge(metricsTypes.Metric_Gauge_CurrentBlockHeight, float64(blockNumber), nil)
 
-	_ = p.HandleBlockProcessedHook(indexedBlock, indexedTransactions, indexedTransactionLogs, sr)
+	p.HandleBlockProcessedHook(indexedBlock, indexedTransactions, indexedTransactionLogs, sr, committedState)
 
 	// Push cleanup to the background since it doesnt need to be blocking
 	go func() {

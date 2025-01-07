@@ -83,11 +83,15 @@ func (e *EigenStateManager) CommitFinalState(blockNumber uint64) (map[string][]i
 	committedState := make(map[string][]interface{})
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
-		records, err := state.CommitFinalState(blockNumber)
+		err := state.CommitFinalState(blockNumber)
 		if err != nil {
 			return committedState, err
 		}
-		committedState[state.GetModelName()] = records.([]interface{})
+		cs, err := state.GetCommittedState(blockNumber)
+		if err != nil {
+			return committedState, err
+		}
+		committedState[state.GetModelName()] = cs
 	}
 	return committedState, nil
 }

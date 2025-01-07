@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
+	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/pipeline"
@@ -48,6 +49,8 @@ var runCmd = &cobra.Command{
 			zap.String("commit", version.GetCommit()),
 			zap.String("chain", cfg.Chain.String()),
 		)
+
+		eb := eventBus.NewEventBus(l)
 
 		metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 		if err != nil {
@@ -113,7 +116,7 @@ var runCmd = &cobra.Command{
 
 		go rcq.Process()
 
-		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, l)
+		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, eb, l)
 
 		// Create new sidecar instance
 		sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
