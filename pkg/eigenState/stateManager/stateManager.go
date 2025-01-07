@@ -79,15 +79,17 @@ func (e *EigenStateManager) InitProcessingForBlock(blockNumber uint64) error {
 }
 
 // With all transactions/logs processed for a block, commit the final state to the table.
-func (e *EigenStateManager) CommitFinalState(blockNumber uint64) error {
+func (e *EigenStateManager) CommitFinalState(blockNumber uint64) (map[string][]interface{}, error) {
+	committedState := make(map[string][]interface{})
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
-		err := state.CommitFinalState(blockNumber)
+		records, err := state.CommitFinalState(blockNumber)
 		if err != nil {
-			return err
+			return committedState, err
 		}
+		committedState[state.GetModelName()] = records.([]interface{})
 	}
-	return nil
+	return committedState, nil
 }
 
 func (e *EigenStateManager) CleanupProcessedStateForBlock(blockNumber uint64) error {

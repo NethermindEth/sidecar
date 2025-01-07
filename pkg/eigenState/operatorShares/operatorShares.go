@@ -44,6 +44,7 @@ type OperatorSharesModel struct {
 	globalConfig *config.Config
 
 	stateAccumulator map[uint64][]*OperatorShareDeltas
+	committedState   map[uint64][]*OperatorShareDeltas
 }
 
 func NewOperatorSharesModel(
@@ -60,6 +61,7 @@ func NewOperatorSharesModel(
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64][]*OperatorShareDeltas),
+		committedState:   make(map[uint64][]*OperatorShareDeltas),
 	}
 
 	esm.RegisterState(model, 1)
@@ -168,11 +170,13 @@ func (osm *OperatorSharesModel) IsInterestingLog(log *storage.TransactionLog) bo
 
 func (osm *OperatorSharesModel) SetupStateForBlock(blockNumber uint64) error {
 	osm.stateAccumulator[blockNumber] = make([]*OperatorShareDeltas, 0)
+	osm.committedState[blockNumber] = make([]*OperatorShareDeltas, 0)
 	return nil
 }
 
 func (osm *OperatorSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(osm.stateAccumulator, blockNumber)
+	delete(osm.committedState, blockNumber)
 	return nil
 }
 
@@ -232,6 +236,7 @@ func (osm *OperatorSharesModel) writeDeltaRecords(blockNumber uint64) error {
 		osm.logger.Sugar().Errorw("Failed to create new operator_share_deltas records", zap.Error(res.Error))
 		return res.Error
 	}
+	osm.committedState[blockNumber] = deltas
 
 	return nil
 }
@@ -266,6 +271,16 @@ func (osm *OperatorSharesModel) GenerateStateRoot(blockNumber uint64) ([]byte, e
 		return nil, err
 	}
 	return fullTree.Root(), nil
+}
+
+func (osm *OperatorSharesModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := osm.committedState[blockNumber]
+	if !ok {
+		err := fmt.Errorf("No committed state found for block %d", blockNumber)
+		osm.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		return nil, err
+	}
+	return base.CastCommittedStateToInterface(records), nil
 }
 
 func (osm *OperatorSharesModel) sortValuesForMerkleTree(diffs []*OperatorShareDeltas) []*base.MerkleTreeInput {

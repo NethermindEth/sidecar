@@ -34,6 +34,7 @@ type AvsOperatorsModel struct {
 
 	// Keep track of each distinct change, rather than accumulated change, to add to the delta table
 	stateAccumulator map[uint64][]*AvsOperatorStateChange
+	committedState   map[uint64][]*AvsOperatorStateChange
 }
 
 // NewAvsOperatorsModel creates a new AvsOperatorsModel.
@@ -140,11 +141,13 @@ func (a *AvsOperatorsModel) IsInterestingLog(log *storage.TransactionLog) bool {
 
 func (a *AvsOperatorsModel) SetupStateForBlock(blockNumber uint64) error {
 	a.stateAccumulator[blockNumber] = make([]*AvsOperatorStateChange, 0)
+	a.committedState[blockNumber] = make([]*AvsOperatorStateChange, 0)
 	return nil
 }
 
 func (a *AvsOperatorsModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(a.stateAccumulator, blockNumber)
+	delete(a.committedState, blockNumber)
 	return nil
 }
 
@@ -201,6 +204,7 @@ func (a *AvsOperatorsModel) writeDeltaRecords(blockNumber uint64) error {
 			return res.Error
 		}
 	}
+	a.committedState[blockNumber] = records
 	return nil
 }
 
@@ -211,6 +215,16 @@ func (a *AvsOperatorsModel) CommitFinalState(blockNumber uint64) error {
 	}
 
 	return nil
+}
+
+func (a *AvsOperatorsModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := a.committedState[blockNumber]
+	if !ok {
+		err := fmt.Errorf("No committed state found for block %d", blockNumber)
+		a.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		return nil, err
+	}
+	return base.CastCommittedStateToInterface(records), nil
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.
