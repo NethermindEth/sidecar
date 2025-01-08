@@ -8,6 +8,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
+	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/pipeline"
@@ -15,6 +16,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
+	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
 	"github.com/Layr-Labs/sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
 	"log"
@@ -32,6 +34,8 @@ func main() {
 	cfg := config.NewConfig()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+
+	eb := eventBus.NewEventBus(l)
 
 	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 	if err != nil {
@@ -95,17 +99,22 @@ func main() {
 
 	rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
 
-	p := pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, l)
+	p := pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, eb, l)
 
 	// Create new sidecar instance
-	sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
+	// Create new sidecar instance
+	_ = sidecar.NewSidecar(&sidecar.SidecarConfig{
 		GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
 	}, cfg, mds, p, sm, rc, rcq, l, client)
 
+	rpcServer := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
+		GrpcPort: cfg.RpcConfig.GrpcPort,
+		HttpPort: cfg.RpcConfig.HttpPort,
+	}, mds, sm, rc, rcq, eb, l)
+
 	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)
-	err = sidecar.WithRpcServer(ctx, mds, sm, rpcChannel)
-	if err != nil {
+	if err := rpcServer.Start(ctx, rpcChannel); err != nil {
 		l.Sugar().Fatalw("Failed to start RPC server", zap.Error(err))
 	}
 

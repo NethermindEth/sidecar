@@ -24,14 +24,14 @@ func Test_EventBus(t *testing.T) {
 	receivedCount := atomic.Uint64{}
 	receivedCount.Store(0)
 	wg := sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		for {
 			select {
 			case event := <-consumer.Channel:
 				t.Logf("Received event: %v", event)
 				receivedCount.Add(1)
-				
+
 				if receivedCount.Load() == uint64(3) {
 					eb.Unsubscribe(consumer)
 					wg.Done()
@@ -52,5 +52,5 @@ func Test_EventBus(t *testing.T) {
 	}
 	wg.Wait()
 
-	assert.Equal(t, uint64(2), receivedCount.Load())
+	assert.Equal(t, uint64(3), receivedCount.Load())
 }

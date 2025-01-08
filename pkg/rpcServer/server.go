@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	v1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1"
+	eventsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/events"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
@@ -35,6 +37,7 @@ type RpcServer struct {
 	stateManager      *stateManager.EigenStateManager
 	rewardsCalculator *rewards.RewardsCalculator
 	rewardsQueue      *rewardsCalculatorQueue.RewardsCalculatorQueue
+	eventBus          eventBusTypes.IEventBus
 }
 
 func NewRpcServer(
@@ -43,6 +46,7 @@ func NewRpcServer(
 	sm *stateManager.EigenStateManager,
 	rc *rewards.RewardsCalculator,
 	rcq *rewardsCalculatorQueue.RewardsCalculatorQueue,
+	eb eventBusTypes.IEventBus,
 	l *zap.Logger,
 ) *RpcServer {
 	server := &RpcServer{
@@ -51,6 +55,7 @@ func NewRpcServer(
 		stateManager:      sm,
 		rewardsCalculator: rc,
 		rewardsQueue:      rcq,
+		eventBus:          eb,
 		Logger:            l,
 	}
 
@@ -75,6 +80,13 @@ func (s *RpcServer) registerHandlers(ctx context.Context, grpcServer *grpc.Serve
 		s.Logger.Sugar().Errorw("Failed to register Rewards server", zap.Error(err))
 		return err
 	}
+
+	eventsV1.RegisterEventsServer(grpcServer, s)
+	if err := eventsV1.RegisterEventsHandlerServer(ctx, mux, s); err != nil {
+		s.Logger.Sugar().Errorw("Failed to register Events server", zap.Error(err))
+		return err
+	}
+
 	return nil
 }
 

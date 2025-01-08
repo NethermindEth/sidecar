@@ -14,8 +14,8 @@ func (p *Pipeline) HandleBlockProcessedHook(
 	committedState map[string][]interface{},
 ) {
 	p.eventBus.Publish(&eventBusTypes.Event{
-		Name: "blockProcessed",
-		Data: eventBusTypes.BlockProcessedData{
+		Name: eventBusTypes.Event_BlockProcessed,
+		Data: &eventBusTypes.BlockProcessedData{
 			Block:          block,
 			Transactions:   transactions,
 			Logs:           logs,

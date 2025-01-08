@@ -18,7 +18,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
-	rpcServer2 "github.com/Layr-Labs/sidecar/pkg/rpcServer"
+	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
 	"github.com/Layr-Labs/sidecar/pkg/shutdown"
 	"github.com/Layr-Labs/sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
@@ -125,10 +125,10 @@ var runCmd = &cobra.Command{
 			GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
 		}, cfg, mds, p, sm, rc, rcq, l, client)
 
-		rpcServer := rpcServer2.NewRpcServer(&rpcServer2.RpcServerConfig{
+		rpcServer := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
 			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, sm, rc, rcq, l)
+		}, mds, sm, rc, rcq, eb, l)
 
 		// RPC channel to notify the RPC server to shutdown gracefully
 		rpcChannel := make(chan bool)

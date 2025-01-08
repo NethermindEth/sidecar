@@ -7,8 +7,18 @@ import (
 	"sync"
 )
 
+type EventName string
+
+func (en *EventName) String() string {
+	return string(*en)
+}
+
+var (
+	Event_BlockProcessed EventName = "block_processed"
+)
+
 type Event struct {
-	Name string
+	Name EventName
 	Data any
 }
 

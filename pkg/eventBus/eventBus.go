@@ -3,13 +3,11 @@ package eventBus
 import (
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
 	"go.uber.org/zap"
-	"sync"
 )
 
 type EventBus struct {
 	consumers *eventBusTypes.ConsumerList
 	logger    *zap.Logger
-	lock      sync.Mutex
 }
 
 func NewEventBus(l *zap.Logger) *EventBus {
@@ -29,19 +27,19 @@ func (eb *EventBus) Unsubscribe(consumer *eventBusTypes.Consumer) {
 }
 
 func (eb *EventBus) Publish(event *eventBusTypes.Event) {
-	eb.logger.Sugar().Debugw("Publishing event", zap.String("eventName", event.Name))
+	eb.logger.Sugar().Debugw("Publishing event", zap.String("eventName", string(event.Name)))
 	for _, consumer := range eb.consumers.GetAll() {
 		if consumer.Channel != nil {
 			select {
 			case consumer.Channel <- event:
 				eb.logger.Sugar().Debugw("Published event to consumer",
 					zap.String("consumerId", string(consumer.Id)),
-					zap.String("eventName", event.Name),
+					zap.String("eventName", event.Name.String()),
 				)
 			default:
 				eb.logger.Sugar().Debugw("No receiver available, or channel is full",
 					zap.String("consumerId", string(consumer.Id)),
-					zap.String("eventName", event.Name),
+					zap.String("eventName", event.Name.String()),
 				)
 			}
 		} else {
