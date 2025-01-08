@@ -28,10 +28,9 @@ type AvsOperatorStateChange struct {
 // EigenState model for AVS operators that implements IEigenStateModel.
 type AvsOperatorsModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[AvsOperatorStateChange]
-	DB               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Keep track of each distinct change, rather than accumulated change, to add to the delta table
 	stateAccumulator map[uint64][]*AvsOperatorStateChange

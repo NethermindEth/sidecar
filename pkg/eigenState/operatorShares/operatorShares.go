@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/shopspring/decimal"
-	"math/big"
 	"slices"
 	"sort"
 	"strings"
@@ -20,31 +19,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
-
-// OperatorShares represents the state of an operator's shares in a strategy at a given block number.
-type OperatorShares struct {
-	Operator    string
-	Strategy    string
-	Shares      string
-	BlockNumber uint64
-	CreatedAt   time.Time
-}
-
-// AccumulatedStateChange represents the accumulated state change for an operator's shares in a strategy at a given block number.
-type AccumulatedStateChange struct {
-	Operator    string
-	Strategy    string
-	Shares      *big.Int
-	BlockNumber uint64
-}
-
-type OperatorSharesDiff struct {
-	Operator    string
-	Strategy    string
-	Shares      *big.Int
-	BlockNumber uint64
-	IsNew       bool
-}
 
 type OperatorShareDeltas struct {
 	Operator        string
@@ -65,10 +39,9 @@ func NewSlotID(operator string, strategy string, staker string, transactionHash 
 // Implements IEigenStateModel.
 type OperatorSharesModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[AccumulatedStateChange]
-	DB               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	stateAccumulator map[uint64][]*OperatorShareDeltas
 }

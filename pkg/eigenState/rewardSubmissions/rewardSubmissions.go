@@ -42,12 +42,11 @@ func NewSlotID(transactionHash string, logIndex uint64, rewardHash string, strat
 
 type RewardSubmissionsModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[[]*RewardSubmission]
-	DB               *gorm.DB
-	Network          config.Network
-	Environment      config.Environment
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	Network      config.Network
+	Environment  config.Environment
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*RewardSubmission

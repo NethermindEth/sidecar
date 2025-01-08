@@ -22,10 +22,9 @@ import (
 
 type SubmittedDistributionRootsModel struct {
 	base.BaseEigenState
-	StateTransitions types.StateTransitions[types.SubmittedDistributionRoot]
-	DB               *gorm.DB
-	logger           *zap.Logger
-	globalConfig     *config.Config
+	DB           *gorm.DB
+	logger       *zap.Logger
+	globalConfig *config.Config
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*types.SubmittedDistributionRoot
