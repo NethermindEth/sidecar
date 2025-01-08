@@ -53,6 +53,7 @@ func NewAvsOperatorsModel(
 		globalConfig: globalConfig,
 
 		stateAccumulator: make(map[uint64][]*AvsOperatorStateChange),
+		committedState:   make(map[uint64][]*AvsOperatorStateChange),
 	}
 	esm.RegisterState(s, 0)
 	return s, nil

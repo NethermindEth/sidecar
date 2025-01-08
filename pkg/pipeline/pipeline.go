@@ -320,8 +320,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	)
 	_ = p.metricsSink.Incr(metricsTypes.Metric_Incr_BlockProcessed, nil, 1)
 	_ = p.metricsSink.Gauge(metricsTypes.Metric_Gauge_CurrentBlockHeight, float64(blockNumber), nil)
-
-	p.HandleBlockProcessedHook(indexedBlock, indexedTransactions, indexedTransactionLogs, sr, committedState)
+	go p.HandleBlockProcessedHook(indexedBlock, indexedTransactions, indexedTransactionLogs, sr, committedState)
 
 	// Push cleanup to the background since it doesnt need to be blocking
 	go func() {

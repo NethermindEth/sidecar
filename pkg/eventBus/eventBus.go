@@ -29,6 +29,7 @@ func (eb *EventBus) Unsubscribe(consumer *eventBusTypes.Consumer) {
 }
 
 func (eb *EventBus) Publish(event *eventBusTypes.Event) {
+	eb.logger.Sugar().Debugw("Publishing event", zap.String("eventName", event.Name))
 	for _, consumer := range eb.consumers.GetAll() {
 		if consumer.Channel != nil {
 			select {
