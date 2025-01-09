@@ -643,7 +643,7 @@ func (rc *RewardsCalculator) generateSnapshotData(snapshotDate string) error {
 }
 
 func (rc *RewardsCalculator) generateGoldTables(snapshotDate string) error {
-	forks, err := rc.globalConfig.GetForkDates()
+	forks, err := rc.globalConfig.GetRewardsSqlForkDates()
 	if err != nil {
 		return err
 	}
