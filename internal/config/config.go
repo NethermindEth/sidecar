@@ -97,6 +97,7 @@ func StringWithDefault(value, defaultValue string) string {
 }
 
 var (
+	Debug              = "debug"
 	DatabaseHost       = "database.host"
 	DatabasePort       = "database.port"
 	DatabaseUser       = "database.user"

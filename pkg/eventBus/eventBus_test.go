@@ -2,16 +2,19 @@ package eventBus
 
 import (
 	"context"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
 )
 
 func Test_EventBus(t *testing.T) {
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+	debug := os.Getenv(config.Debug) == "true"
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: debug})
 
 	eb := NewEventBus(l)
 

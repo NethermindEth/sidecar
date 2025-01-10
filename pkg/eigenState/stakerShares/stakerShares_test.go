@@ -39,12 +39,6 @@ func setup() (
 	return dbname, grm, l, cfg, nil
 }
 
-func logChanges(changes *AccumulatedStateChanges) {
-	// for _, change := range changes.Changes {
-	// 	// fmt.Printf("Change: %+v\n", change)
-	// }
-}
-
 func Test_StakerSharesState(t *testing.T) {
 	dbName, grm, l, cfg, err := setup()
 
@@ -112,7 +106,6 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.NotNil(t, change)
 
 		typedChange := change.(*AccumulatedStateChanges)
-		logChanges(typedChange)
 
 		assert.Equal(t, 1, len(typedChange.Changes))
 		assert.Equal(t, "0x00105f70bf0a2dec987dbfc87a869c3090abf6a0", typedChange.Changes[0].Staker)
@@ -192,14 +185,9 @@ func Test_StakerSharesState(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
 
-		typedChange = change.(*AccumulatedStateChanges)
-		logChanges(typedChange)
-
 		change, err = model.HandleStateChange(withdrawalQueuedTx)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
-		typedChange = change.(*AccumulatedStateChanges)
-		logChanges(typedChange)
 
 		err = model.CommitFinalState(transaction.BlockNumber)
 		assert.Nil(t, err)
@@ -267,14 +255,10 @@ func Test_StakerSharesState(t *testing.T) {
 		change, err = model.HandleStateChange(withdrawalQueued)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
-		typedChange = change.(*AccumulatedStateChanges)
-		logChanges(typedChange)
 
 		change, err = model.HandleStateChange(withdrawalMigrated)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
-		typedChange = change.(*AccumulatedStateChanges)
-		logChanges(typedChange)
 
 		err = model.CommitFinalState(transaction.BlockNumber)
 		assert.Nil(t, err)
@@ -324,8 +308,6 @@ func Test_StakerSharesState(t *testing.T) {
 		change, err = model.HandleStateChange(deposit2)
 		assert.Nil(t, err)
 		assert.NotNil(t, change)
-		typedChange = change.(*AccumulatedStateChanges)
-		logChanges(typedChange)
 
 		err = model.CommitFinalState(transaction.BlockNumber)
 		assert.Nil(t, err)
