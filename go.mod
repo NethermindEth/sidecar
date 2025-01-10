@@ -6,7 +6,7 @@ require (
 	github.com/DataDog/datadog-go/v5 v5.5.0
 	github.com/Layr-Labs/eigenlayer-contracts v0.4.1-holesky-pepe.0.20240813143901-00fc4b95e9c1
 	github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13
-	github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20241206171209-6484d433345c
+	github.com/Layr-Labs/protocol-apis v1.1.0
 	github.com/ethereum/go-ethereum v1.14.9
 	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
 	github.com/google/uuid v1.6.0
@@ -26,6 +26,7 @@ require (
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.65.0
+	google.golang.org/protobuf v1.35.1
 	gorm.io/driver/postgres v1.5.9
 	gorm.io/gorm v1.25.10
 )
@@ -94,7 +95,6 @@ require (
 	golang.org/x/text v0.21.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240814211410-ddb44dafa142 // indirect
-	google.golang.org/protobuf v1.35.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect

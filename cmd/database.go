@@ -12,6 +12,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/pipeline"
@@ -41,6 +42,8 @@ var runDatabaseCmd = &cobra.Command{
 			zap.String("version", version.GetVersion()),
 			zap.String("commit", version.GetCommit()),
 		)
+
+		eb := eventBus.NewEventBus(l)
 
 		metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 		if err != nil {
@@ -104,7 +107,7 @@ var runDatabaseCmd = &cobra.Command{
 
 		rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
 
-		_ = pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, l)
+		_ = pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, eb, l)
 
 		l.Sugar().Infow("Done")
 	},

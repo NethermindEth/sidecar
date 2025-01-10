@@ -50,6 +50,7 @@ type RewardSubmissionsModel struct {
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*RewardSubmission
+	committedState   map[uint64][]*RewardSubmission
 }
 
 func NewRewardSubmissionsModel(
@@ -66,14 +67,17 @@ func NewRewardSubmissionsModel(
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*RewardSubmission),
+		committedState:   make(map[uint64][]*RewardSubmission),
 	}
 
 	esm.RegisterState(model, 5)
 	return model, nil
 }
 
+const RewardSubmissionsModelName = "RewardSubmissionsModel"
+
 func (rs *RewardSubmissionsModel) GetModelName() string {
-	return "RewardSubmissionsModel"
+	return RewardSubmissionsModelName
 }
 
 type genericRewardPaymentData struct {
@@ -231,11 +235,13 @@ func (rs *RewardSubmissionsModel) IsInterestingLog(log *storage.TransactionLog) 
 
 func (rs *RewardSubmissionsModel) SetupStateForBlock(blockNumber uint64) error {
 	rs.stateAccumulator[blockNumber] = make(map[types.SlotID]*RewardSubmission)
+	rs.committedState[blockNumber] = make([]*RewardSubmission, 0)
 	return nil
 }
 
 func (rs *RewardSubmissionsModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(rs.stateAccumulator, blockNumber)
+	delete(rs.committedState, blockNumber)
 	return nil
 }
 
@@ -292,6 +298,16 @@ func (rs *RewardSubmissionsModel) CommitFinalState(blockNumber uint64) error {
 		}
 	}
 	return nil
+}
+
+func (rs *RewardSubmissionsModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := rs.committedState[blockNumber]
+	if !ok {
+		err := fmt.Errorf("No committed state found for block %d", blockNumber)
+		rs.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		return nil, err
+	}
+	return base.CastCommittedStateToInterface(records), nil
 }
 
 // GenerateStateRoot generates the state root for the given block number using the results of the state changes.

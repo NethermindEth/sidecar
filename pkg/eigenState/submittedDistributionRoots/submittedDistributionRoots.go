@@ -28,6 +28,7 @@ type SubmittedDistributionRootsModel struct {
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*types.SubmittedDistributionRoot
+	committedState   map[uint64][]*types.SubmittedDistributionRoot
 }
 
 func NewSubmittedDistributionRootsModel(
@@ -44,16 +45,17 @@ func NewSubmittedDistributionRootsModel(
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*types.SubmittedDistributionRoot),
+		committedState:   make(map[uint64][]*types.SubmittedDistributionRoot),
 	}
 
 	esm.RegisterState(model, 4)
 	return model, nil
 }
 
-const MODEL_NAME = "SubmittedDistributionRootsModel"
+const SubmittedDistributionRootsModelName = "SubmittedDistributionRootsModel"
 
 func (sdr *SubmittedDistributionRootsModel) GetModelName() string {
-	return MODEL_NAME
+	return SubmittedDistributionRootsModelName
 }
 
 type distributionRootSubmittedOutput struct {
@@ -184,11 +186,13 @@ func (sdr *SubmittedDistributionRootsModel) IsInterestingLog(log *storage.Transa
 
 func (sdr *SubmittedDistributionRootsModel) SetupStateForBlock(blockNumber uint64) error {
 	sdr.stateAccumulator[blockNumber] = make(map[types.SlotID]*types.SubmittedDistributionRoot)
+	sdr.committedState = make(map[uint64][]*types.SubmittedDistributionRoot)
 	return nil
 }
 
 func (sdr *SubmittedDistributionRootsModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(sdr.stateAccumulator, blockNumber)
+	delete(sdr.committedState, blockNumber)
 	return nil
 }
 
@@ -243,8 +247,19 @@ func (sdr *SubmittedDistributionRootsModel) CommitFinalState(blockNumber uint64)
 			return res.Error
 		}
 	}
+	sdr.committedState[blockNumber] = records
 
 	return nil
+}
+
+func (sdr *SubmittedDistributionRootsModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := sdr.committedState[blockNumber]
+	if !ok {
+		err := fmt.Errorf("No committed state found for block %d", blockNumber)
+		sdr.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		return nil, err
+	}
+	return base.CastCommittedStateToInterface(records), nil
 }
 
 func (sdr *SubmittedDistributionRootsModel) sortValuesForMerkleTree(inputs []*types.SubmittedDistributionRoot) []*base.MerkleTreeInput {

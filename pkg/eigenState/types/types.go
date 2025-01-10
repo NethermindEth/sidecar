@@ -33,6 +33,10 @@ type IEigenStateModel interface {
 	// Once all state changes are processed, commit the final state to the database
 	CommitFinalState(blockNumber uint64) error
 
+	// GetCommittedState
+	// Get the committed state for the model at the given block height.
+	GetCommittedState(blockNumber uint64) ([]interface{}, error)
+
 	// GenerateStateRoot
 	// Generate the state root for the model
 	GenerateStateRoot(blockNumber uint64) ([]byte, error)

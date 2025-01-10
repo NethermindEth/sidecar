@@ -49,6 +49,7 @@ type StakerSharesModel struct {
 
 	// Accumulates deltas for each block
 	stateAccumulator map[uint64][]*StakerShareDeltas
+	committedState   map[uint64][]*StakerShareDeltas
 }
 
 func NewStakerSharesModel(
@@ -63,14 +64,17 @@ func NewStakerSharesModel(
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64][]*StakerShareDeltas),
+		committedState:   make(map[uint64][]*StakerShareDeltas),
 	}
 
 	esm.RegisterState(model, 3)
 	return model, nil
 }
 
+const StakerSharesModelName = "StakerSharesModel"
+
 func (ss *StakerSharesModel) GetModelName() string {
-	return "StakerShares"
+	return StakerSharesModelName
 }
 
 type depositOutputData struct {
@@ -481,11 +485,13 @@ func (ss *StakerSharesModel) IsInterestingLog(log *storage.TransactionLog) bool 
 
 func (ss *StakerSharesModel) SetupStateForBlock(blockNumber uint64) error {
 	ss.stateAccumulator[blockNumber] = make([]*StakerShareDeltas, 0)
+	ss.committedState[blockNumber] = make([]*StakerShareDeltas, 0)
 	return nil
 }
 
 func (ss *StakerSharesModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(ss.stateAccumulator, blockNumber)
+	delete(ss.committedState, blockNumber)
 	return nil
 }
 
@@ -561,6 +567,16 @@ func (ss *StakerSharesModel) CommitFinalState(blockNumber uint64) error {
 	}
 
 	return nil
+}
+
+func (ss *StakerSharesModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := ss.committedState[blockNumber]
+	if !ok {
+		err := fmt.Errorf("No committed state found for block %d", blockNumber)
+		ss.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		return nil, err
+	}
+	return base.CastCommittedStateToInterface(records), nil
 }
 
 func (ss *StakerSharesModel) GenerateStateRoot(blockNumber uint64) ([]byte, error) {

@@ -79,15 +79,21 @@ func (e *EigenStateManager) InitProcessingForBlock(blockNumber uint64) error {
 }
 
 // With all transactions/logs processed for a block, commit the final state to the table.
-func (e *EigenStateManager) CommitFinalState(blockNumber uint64) error {
+func (e *EigenStateManager) CommitFinalState(blockNumber uint64) (map[string][]interface{}, error) {
+	committedState := make(map[string][]interface{})
 	for _, index := range e.GetSortedModelIndexes() {
 		state := e.StateModels[index]
 		err := state.CommitFinalState(blockNumber)
 		if err != nil {
-			return err
+			return committedState, err
 		}
+		cs, err := state.GetCommittedState(blockNumber)
+		if err != nil {
+			return committedState, err
+		}
+		committedState[state.GetModelName()] = cs
 	}
-	return nil
+	return committedState, nil
 }
 
 func (e *EigenStateManager) CleanupProcessedStateForBlock(blockNumber uint64) error {
@@ -171,6 +177,14 @@ func (e *EigenStateManager) encodeModelLeaf(model types.IEigenStateModel, blockN
 		return nil, nil
 	}
 	return append(types.MerkleLeafPrefix_EigenStateRoot, append([]byte(model.GetModelName()), root...)...), nil
+}
+
+func (e *EigenStateManager) GetModelsMappedByName() map[string]types.IEigenStateModel {
+	models := make(map[string]types.IEigenStateModel)
+	for _, index := range e.GetSortedModelIndexes() {
+		models[e.StateModels[index].GetModelName()] = e.StateModels[index]
+	}
+	return models
 }
 
 func (e *EigenStateManager) GetSortedModelIndexes() []int {

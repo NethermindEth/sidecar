@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
+	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -30,6 +31,7 @@ type Pipeline struct {
 	rcq               *rewardsCalculatorQueue.RewardsCalculatorQueue
 	globalConfig      *config.Config
 	metricsSink       *metrics.MetricsSink
+	eventBus          eventBusTypes.IEventBus
 }
 
 func NewPipeline(
@@ -41,6 +43,7 @@ func NewPipeline(
 	rcq *rewardsCalculatorQueue.RewardsCalculatorQueue,
 	gc *config.Config,
 	ms *metrics.MetricsSink,
+	eb eventBusTypes.IEventBus,
 	l *zap.Logger,
 ) *Pipeline {
 	return &Pipeline{
@@ -53,6 +56,7 @@ func NewPipeline(
 		BlockStore:        bs,
 		globalConfig:      gc,
 		metricsSink:       ms,
+		eventBus:          eb,
 	}
 }
 
@@ -104,6 +108,8 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	p.Logger.Sugar().Debugw("Handling parsed transactions", zap.Int("count", len(parsedTransactions)), zap.Uint64("blockNumber", blockNumber))
 
 	// With only interesting transactions/logs parsed, insert them into the database
+	indexedTransactions := make([]*storage.Transaction, 0)
+	indexedTransactionLogs := make([]*storage.TransactionLog, 0)
 	blockFetchTime = time.Now()
 	for _, pt := range parsedTransactions {
 		transactionTime := time.Now()
@@ -117,6 +123,8 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 			)
 			return err
 		}
+		indexedTransactions = append(indexedTransactions, indexedTransaction)
+
 		p.Logger.Sugar().Debugw("Indexed transaction",
 			zap.Uint64("blockNumber", blockNumber),
 			zap.String("transactionHash", indexedTransaction.TransactionHash),
@@ -139,6 +147,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				)
 				return err
 			}
+			indexedTransactionLogs = append(indexedTransactionLogs, indexedLog)
 			p.Logger.Sugar().Debugw("Indexed log",
 				zap.Uint64("blockNumber", blockNumber),
 				zap.String("transactionHash", indexedTransaction.TransactionHash),
@@ -175,7 +184,8 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	}
 
 	blockFetchTime = time.Now()
-	if err := p.stateManager.CommitFinalState(blockNumber); err != nil {
+	committedState, err := p.stateManager.CommitFinalState(blockNumber)
+	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to commit final state", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err
 	}
@@ -310,6 +320,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	)
 	_ = p.metricsSink.Incr(metricsTypes.Metric_Incr_BlockProcessed, nil, 1)
 	_ = p.metricsSink.Gauge(metricsTypes.Metric_Gauge_CurrentBlockHeight, float64(blockNumber), nil)
+	go p.HandleBlockProcessedHook(indexedBlock, indexedTransactions, indexedTransactionLogs, sr, committedState)
 
 	// Push cleanup to the background since it doesnt need to be blocking
 	go func() {

@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
+	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
@@ -42,6 +43,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	*zap.Logger,
 	*metrics.MetricsSink,
 	*gorm.DB,
+	*eventBus.EventBus,
 	string,
 ) {
 	const (
@@ -98,7 +100,9 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 
-	return fetchr, idxr, mds, sm, rc, rcq, cfg, l, sdc, grm, dbname
+	eb := eventBus.NewEventBus(l)
+
+	return fetchr, idxr, mds, sm, rc, rcq, cfg, l, sdc, grm, eb, dbname
 
 }
 
@@ -106,10 +110,10 @@ func Test_PipelineIntegration(t *testing.T) {
 
 	t.Run("Should index a block, transaction with logs using native batched ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
-		fetchr, idxr, mds, sm, rc, rcq, cfg, l, sdc, grm, dbName := setup(ethConfig)
+		fetchr, idxr, mds, sm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, l)
+		p := NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, eb, l)
 
 		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)
@@ -135,10 +139,10 @@ func Test_PipelineIntegration(t *testing.T) {
 	})
 	t.Run("Should index a block, transaction with logs using chunked ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultChunkedCallEthereumClientConfig()
-		fetchr, idxr, mds, sm, rc, rcq, cfg, l, sdc, grm, dbName := setup(ethConfig)
+		fetchr, idxr, mds, sm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, l)
+		p := NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, eb, l)
 
 		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)

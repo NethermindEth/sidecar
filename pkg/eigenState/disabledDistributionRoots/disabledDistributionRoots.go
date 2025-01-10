@@ -23,6 +23,7 @@ type DisabledDistributionRootsModel struct {
 
 	// Accumulates state changes for SlotIds, grouped by block number
 	stateAccumulator map[uint64]map[types.SlotID]*types.DisabledDistributionRoot
+	committedState   map[uint64][]*types.DisabledDistributionRoot
 }
 
 func NewDisabledDistributionRootsModel(
@@ -39,16 +40,17 @@ func NewDisabledDistributionRootsModel(
 		logger:           logger,
 		globalConfig:     globalConfig,
 		stateAccumulator: make(map[uint64]map[types.SlotID]*types.DisabledDistributionRoot),
+		committedState:   make(map[uint64][]*types.DisabledDistributionRoot),
 	}
 
 	esm.RegisterState(model, 6)
 	return model, nil
 }
 
-const MODEL_NAME = "DisabledDistributionRootsModel"
+const DisabledDistributionRootsModelName = "DisabledDistributionRootsModel"
 
 func (ddr *DisabledDistributionRootsModel) GetModelName() string {
-	return MODEL_NAME
+	return DisabledDistributionRootsModelName
 }
 
 func (ddr *DisabledDistributionRootsModel) GetStateTransitions() (types.StateTransitions[*types.DisabledDistributionRoot], []uint64) {
@@ -115,11 +117,13 @@ func (ddr *DisabledDistributionRootsModel) IsInterestingLog(log *storage.Transac
 
 func (ddr *DisabledDistributionRootsModel) SetupStateForBlock(blockNumber uint64) error {
 	ddr.stateAccumulator[blockNumber] = make(map[types.SlotID]*types.DisabledDistributionRoot)
+	ddr.committedState[blockNumber] = make([]*types.DisabledDistributionRoot, 0)
 	return nil
 }
 
 func (ddr *DisabledDistributionRootsModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(ddr.stateAccumulator, blockNumber)
+	delete(ddr.committedState, blockNumber)
 	return nil
 }
 
@@ -174,9 +178,20 @@ func (ddr *DisabledDistributionRootsModel) CommitFinalState(blockNumber uint64) 
 			ddr.logger.Sugar().Errorw("Failed to create new submitted_distribution_roots records", zap.Error(res.Error))
 			return res.Error
 		}
+		ddr.committedState[blockNumber] = records
 	}
 
 	return nil
+}
+
+func (ddr *DisabledDistributionRootsModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := ddr.committedState[blockNumber]
+	if !ok {
+		err := fmt.Errorf("No committed state found for block %d", blockNumber)
+		ddr.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		return nil, err
+	}
+	return base.CastCommittedStateToInterface(records), nil
 }
 
 func (ddr *DisabledDistributionRootsModel) sortValuesForMerkleTree(inputs []*types.DisabledDistributionRoot) []*base.MerkleTreeInput {

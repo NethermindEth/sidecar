@@ -32,6 +32,7 @@ type StakerDelegationsModel struct {
 	globalConfig *config.Config
 
 	stateAccumulator map[uint64][]*StakerDelegationChange
+	committedState   map[uint64][]*StakerDelegationChange
 }
 
 func NewStakerDelegationsModel(
@@ -49,14 +50,17 @@ func NewStakerDelegationsModel(
 		globalConfig: globalConfig,
 
 		stateAccumulator: make(map[uint64][]*StakerDelegationChange),
+		committedState:   make(map[uint64][]*StakerDelegationChange),
 	}
 
 	esm.RegisterState(model, 2)
 	return model, nil
 }
 
+const StakerDelegationsModelName = "StakerDelegationsModel"
+
 func (s *StakerDelegationsModel) GetModelName() string {
-	return "StakerDelegationsModel"
+	return StakerDelegationsModelName
 }
 
 func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[*StakerDelegationChange], []uint64) {
@@ -126,12 +130,14 @@ func (s *StakerDelegationsModel) IsInterestingLog(log *storage.TransactionLog) b
 // SetupStateForBlock initialize state accumulator for the block.
 func (s *StakerDelegationsModel) SetupStateForBlock(blockNumber uint64) error {
 	s.stateAccumulator[blockNumber] = make([]*StakerDelegationChange, 0)
+	s.committedState[blockNumber] = make([]*StakerDelegationChange, 0)
 	return nil
 }
 
 // CleanupProcessedStateForBlock clears the accumulated state for the given block number to free up memory.
 func (s *StakerDelegationsModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(s.stateAccumulator, blockNumber)
+	delete(s.committedState, blockNumber)
 	return nil
 }
 
@@ -189,6 +195,16 @@ func (s *StakerDelegationsModel) CommitFinalState(blockNumber uint64) error {
 		return err
 	}
 	return nil
+}
+
+func (s *StakerDelegationsModel) GetCommittedState(blockNumber uint64) ([]interface{}, error) {
+	records, ok := s.committedState[blockNumber]
+	if !ok {
+		err := fmt.Errorf("No committed state found for block %d", blockNumber)
+		s.logger.Sugar().Errorw(err.Error(), zap.Error(err), zap.Uint64("blockNumber", blockNumber))
+		return nil, err
+	}
+	return base.CastCommittedStateToInterface(records), nil
 }
 
 // GenerateStateRoot generates the state root for the given block number by storing
