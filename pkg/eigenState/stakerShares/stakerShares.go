@@ -71,8 +71,10 @@ func NewStakerSharesModel(
 	return model, nil
 }
 
+const StakerSharesModelName = "StakerSharesModel"
+
 func (ss *StakerSharesModel) GetModelName() string {
-	return "StakerShares"
+	return StakerSharesModelName
 }
 
 type depositOutputData struct {

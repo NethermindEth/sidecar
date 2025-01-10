@@ -74,8 +74,10 @@ func NewRewardSubmissionsModel(
 	return model, nil
 }
 
+const RewardSubmissionsModelName = "RewardSubmissionsModel"
+
 func (rs *RewardSubmissionsModel) GetModelName() string {
-	return "RewardSubmissionsModel"
+	return RewardSubmissionsModelName
 }
 
 type genericRewardPaymentData struct {

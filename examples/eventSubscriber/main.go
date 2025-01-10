@@ -29,12 +29,7 @@ func NewSidecarClient(url string, insecureConn bool) (v1.EventsClient, error) {
 	return v1.NewEventsClient(grpcClient), nil
 }
 
-func main() {
-	client, err := NewSidecarClient("localhost:7100", true)
-	if err != nil {
-		panic(err)
-	}
-
+func streamIndexedBlocks(client v1.EventsClient) {
 	stream, err := client.StreamIndexedBlocks(context.Background(), &v1.StreamIndexedBlocksRequest{})
 	if err != nil {
 		panic(err)
@@ -44,7 +39,6 @@ func main() {
 		resp := &v1.StreamIndexedBlocksResponse{}
 		err := stream.RecvMsg(resp)
 		if err == io.EOF {
-			// Server has finished sending
 			fmt.Printf("Server has finished sending\n")
 			return
 		}
@@ -52,7 +46,36 @@ func main() {
 			log.Fatalf("failed to receive: %v", err)
 		}
 
-		// Process your response
 		fmt.Printf("Received: %v\n", resp)
 	}
+}
+
+func streamStateChanges(client v1.EventsClient) {
+	stream, err := client.StreamEigenStateChanges(context.Background(), &v1.StreamEigenStateChangesRequest{})
+	if err != nil {
+		panic(err)
+	}
+
+	for {
+		resp := &v1.StreamEigenStateChangesResponse{}
+		err := stream.RecvMsg(resp)
+		if err == io.EOF {
+			fmt.Printf("Server has finished sending\n")
+			return
+		}
+		if err != nil {
+			log.Fatalf("failed to receive: %v", err)
+		}
+
+		fmt.Printf("Received: %v\n", resp)
+	}
+}
+
+func main() {
+	client, err := NewSidecarClient("localhost:7100", true)
+	if err != nil {
+		panic(err)
+	}
+
+	streamStateChanges(client)
 }

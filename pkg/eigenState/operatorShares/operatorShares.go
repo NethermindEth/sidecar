@@ -68,8 +68,10 @@ func NewOperatorSharesModel(
 	return model, nil
 }
 
+const OperatorSharesModelName = "OperatorSharesModel"
+
 func (osm *OperatorSharesModel) GetModelName() string {
-	return "OperatorSharesModel"
+	return OperatorSharesModelName
 }
 
 type operatorSharesOutput struct {

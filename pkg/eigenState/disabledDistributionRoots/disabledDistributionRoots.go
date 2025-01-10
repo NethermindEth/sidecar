@@ -47,10 +47,10 @@ func NewDisabledDistributionRootsModel(
 	return model, nil
 }
 
-const MODEL_NAME = "DisabledDistributionRootsModel"
+const DisabledDistributionRootsModelName = "DisabledDistributionRootsModel"
 
 func (ddr *DisabledDistributionRootsModel) GetModelName() string {
-	return MODEL_NAME
+	return DisabledDistributionRootsModelName
 }
 
 func (ddr *DisabledDistributionRootsModel) GetStateTransitions() (types.StateTransitions[*types.DisabledDistributionRoot], []uint64) {

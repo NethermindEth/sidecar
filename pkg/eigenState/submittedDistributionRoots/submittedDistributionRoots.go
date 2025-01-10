@@ -52,10 +52,10 @@ func NewSubmittedDistributionRootsModel(
 	return model, nil
 }
 
-const MODEL_NAME = "SubmittedDistributionRootsModel"
+const SubmittedDistributionRootsModelName = "SubmittedDistributionRootsModel"
 
 func (sdr *SubmittedDistributionRootsModel) GetModelName() string {
-	return MODEL_NAME
+	return SubmittedDistributionRootsModelName
 }
 
 type distributionRootSubmittedOutput struct {

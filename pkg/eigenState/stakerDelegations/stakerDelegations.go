@@ -57,8 +57,10 @@ func NewStakerDelegationsModel(
 	return model, nil
 }
 
+const StakerDelegationsModelName = "StakerDelegationsModel"
+
 func (s *StakerDelegationsModel) GetModelName() string {
-	return "StakerDelegationsModel"
+	return StakerDelegationsModelName
 }
 
 func (s *StakerDelegationsModel) GetStateTransitions() (types.StateTransitions[*StakerDelegationChange], []uint64) {

@@ -6,7 +6,7 @@ require (
 	github.com/DataDog/datadog-go/v5 v5.5.0
 	github.com/Layr-Labs/eigenlayer-contracts v0.4.1-holesky-pepe.0.20240813143901-00fc4b95e9c1
 	github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13
-	github.com/Layr-Labs/protocol-apis v1.0.0-rc.1.0.20250109222723-376a40434d4e
+	github.com/Layr-Labs/protocol-apis v1.1.0
 	github.com/ethereum/go-ethereum v1.14.9
 	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
 	github.com/google/uuid v1.6.0

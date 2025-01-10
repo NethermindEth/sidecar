@@ -59,8 +59,10 @@ func NewAvsOperatorsModel(
 	return s, nil
 }
 
+const AvsOperatorsModelName = "AvsOperatorsModel"
+
 func (a *AvsOperatorsModel) GetModelName() string {
-	return "AvsOperatorsModel"
+	return AvsOperatorsModelName
 }
 
 // Get the state transitions for the AvsOperatorsModel state model
