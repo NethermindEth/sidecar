@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
+	"os"
 	"testing"
 	"time"
 
@@ -26,10 +27,10 @@ func setup() (
 ) {
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Mainnet
-	cfg.Debug = false
+	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {

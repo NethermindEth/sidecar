@@ -20,6 +20,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"log"
+	"os"
 	"testing"
 	"time"
 )
@@ -33,10 +34,10 @@ func setup() (
 ) {
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Holesky
-	cfg.Debug = false
+	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
@@ -161,8 +162,6 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		results := make([]storage.OperatorRestakedStrategies, 0)
 		query := `select * from operator_restaked_strategies`
 		result := grm.Raw(query).Scan(&results)
-
-		fmt.Printf("Results: %+v\n", results)
 
 		assert.Nil(t, result.Error)
 		assert.True(t, len(results) > 0)

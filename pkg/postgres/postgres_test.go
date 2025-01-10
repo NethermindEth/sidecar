@@ -5,11 +5,13 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
+	"os"
 	"testing"
 )
 
 func Test_Postgres(t *testing.T) {
 	cfg := config.NewConfig()
+	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
 	testDbName, err := tests.GenerateTestDbName()
@@ -18,7 +20,7 @@ func Test_Postgres(t *testing.T) {
 	}
 	cfg.DatabaseConfig.DbName = testDbName
 
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
 	pgConfig := PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 	pgConfig.CreateDbIfNotExists = true

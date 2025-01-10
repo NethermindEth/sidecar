@@ -19,6 +19,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
 	"log"
+	"os"
 	"testing"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -51,11 +52,12 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	)
 
 	cfg := config.NewConfig()
+	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.Chain = config.Chain_Mainnet
 	cfg.EthereumRpcConfig.BaseUrl = rpcUrl
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
 	metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
 	if err != nil {

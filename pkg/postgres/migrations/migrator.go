@@ -132,7 +132,7 @@ func (m *Migrator) Migrate(migration Migration) error {
 	result := m.GDb.Find(&migrationRecord, "name = ?", name).Limit(1)
 
 	if result.Error == nil && result.RowsAffected == 0 {
-		m.Logger.Sugar().Infof("Running migration '%s'", name)
+		m.Logger.Sugar().Debugf("Running migration '%s'", name)
 		// run migration
 		err := migration.Up(m.Db, m.GDb, m.globalConfig)
 		if err != nil {
@@ -153,7 +153,7 @@ func (m *Migrator) Migrate(migration Migration) error {
 		m.Logger.Sugar().Errorw(fmt.Sprintf("Failed to find migration '%s'", name), zap.Error(result.Error))
 		return result.Error
 	} else if result.RowsAffected > 0 {
-		m.Logger.Sugar().Infof("Migration %s already run", name)
+		m.Logger.Sugar().Debugf("Migration %s already run", name)
 		return nil
 	}
 	return nil

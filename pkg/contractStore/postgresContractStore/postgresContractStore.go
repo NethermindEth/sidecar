@@ -238,7 +238,7 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 			return fmt.Errorf("Failed to create core contract: %w", err)
 		}
 		if found {
-			s.Logger.Sugar().Infow("Contract already exists", zap.String("contractAddress", contract.ContractAddress))
+			s.Logger.Sugar().Debugw("Contract already exists", zap.String("contractAddress", contract.ContractAddress))
 			continue
 		}
 
@@ -246,7 +246,7 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 		if err != nil {
 			return fmt.Errorf("Failed to create core contract: %w", err)
 		}
-		s.Logger.Sugar().Infow("Created core contract", zap.String("contractAddress", contract.ContractAddress))
+		s.Logger.Sugar().Debugw("Created core contract", zap.String("contractAddress", contract.ContractAddress))
 	}
 	for _, proxy := range coreContracts.ProxyContracts {
 		_, found, err := s.FindOrCreateProxyContract(
@@ -258,13 +258,13 @@ func (s *PostgresContractStore) InitializeCoreContracts() error {
 			return fmt.Errorf("Failed to create core proxy contract: %w", err)
 		}
 		if found {
-			s.Logger.Sugar().Infow("Proxy contract already exists",
+			s.Logger.Sugar().Debugw("Proxy contract already exists",
 				zap.String("contractAddress", proxy.ContractAddress),
 				zap.String("proxyContractAddress", proxy.ContractAddress),
 			)
 			continue
 		}
-		s.Logger.Sugar().Infow("Created proxy contract",
+		s.Logger.Sugar().Debugw("Created proxy contract",
 			zap.String("contractAddress", proxy.ContractAddress),
 			zap.String("proxyContractAddress", proxy.ContractAddress),
 		)
