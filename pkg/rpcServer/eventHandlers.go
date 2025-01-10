@@ -79,7 +79,7 @@ func (rpc *RpcServer) StreamIndexedBlocks(request *v1.StreamIndexedBlocksRequest
 		rpc.Logger.Debug("Received block", zap.Any("data", data))
 		blockProcessedData := data.(*eventBusTypes.BlockProcessedData)
 
-		resp, err := rpc.buildBlockResponse(blockProcessedData)
+		resp, err := rpc.buildBlockResponse(blockProcessedData, request.IncludeStateChanges)
 		if err != nil {
 			return err
 		}
@@ -152,16 +152,19 @@ func convertBlockDataToEventTypes(blockData *eventBusTypes.BlockProcessedData) *
 	return block
 }
 
-func (rpc *RpcServer) buildBlockResponse(blockData *eventBusTypes.BlockProcessedData) (*v1.StreamIndexedBlocksResponse, error) {
-	changes, err := rpc.parseCommittedChanges(blockData.CommittedState)
-	if err != nil {
-		return nil, err
-	}
-	return &v1.StreamIndexedBlocksResponse{
+func (rpc *RpcServer) buildBlockResponse(blockData *eventBusTypes.BlockProcessedData, includeStateChanges bool) (*v1.StreamIndexedBlocksResponse, error) {
+	resp := &v1.StreamIndexedBlocksResponse{
 		Block:     convertBlockDataToEventTypes(blockData),
 		StateRoot: convertStateRootToEventTypeStateRoot(blockData.StateRoot),
-		Changes:   changes,
-	}, nil
+	}
+	if includeStateChanges {
+		changes, err := rpc.parseCommittedChanges(blockData.CommittedState)
+		if err != nil {
+			return nil, err
+		}
+		resp.Changes = changes
+	}
+	return resp, nil
 }
 
 func convertAvsOperatorToStateChange(change interface{}) *v1EventTypes.AvsOperatorStateChange {
