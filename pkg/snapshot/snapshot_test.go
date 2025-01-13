@@ -17,7 +17,8 @@ import (
 func TestNewSnapshotService(t *testing.T) {
 	cfg := &SnapshotConfig{}
 	l, _ := zap.NewDevelopment()
-	svc := NewSnapshotService(cfg, l)
+	svc, err := NewSnapshotService(cfg, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
 	assert.NotNil(t, svc, "SnapshotService should not be nil")
 	assert.Equal(t, cfg, svc.cfg, "SnapshotConfig should match")
 	assert.Equal(t, l, svc.l, "Logger should match")
@@ -34,9 +35,10 @@ func TestValidateCreateSnapshotConfig(t *testing.T) {
 		OutputFile: "/tmp/test_snapshot.sql",
 	}
 	l, _ := zap.NewDevelopment()
-	svc := NewSnapshotService(cfg, l)
-	valid := svc.validateCreateSnapshotConfig()
-	assert.True(t, valid, "Snapshot config should be valid")
+	svc, err := NewSnapshotService(cfg, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
+	err = svc.validateCreateSnapshotConfig()
+	assert.NoError(t, err, "Snapshot config should be valid")
 }
 
 func TestValidateCreateSnapshotConfigMissingOutputFile(t *testing.T) {
@@ -50,9 +52,10 @@ func TestValidateCreateSnapshotConfigMissingOutputFile(t *testing.T) {
 		OutputFile: "",
 	}
 	l, _ := zap.NewDevelopment()
-	svc := NewSnapshotService(cfg, l)
-	valid := svc.validateCreateSnapshotConfig()
-	assert.False(t, valid, "Snapshot config should be invalid if output file is missing")
+	svc, err := NewSnapshotService(cfg, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
+	err = svc.validateCreateSnapshotConfig()
+	assert.Error(t, err, "Snapshot config should be invalid if output file is missing")
 }
 
 func TestSetupSnapshotDump(t *testing.T) {
@@ -66,7 +69,8 @@ func TestSetupSnapshotDump(t *testing.T) {
 		OutputFile: "/tmp/test_snapshot.sql",
 	}
 	l, _ := zap.NewDevelopment()
-	svc := NewSnapshotService(cfg, l)
+	svc, err := NewSnapshotService(cfg, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
 	dump, err := svc.setupSnapshotDump()
 	assert.NoError(t, err, "Dump setup should not fail")
 	assert.NotNil(t, dump, "Dump should not be nil")
@@ -88,9 +92,10 @@ func TestValidateRestoreConfig(t *testing.T) {
 		InputFile:  snapshotFile,
 	}
 	l, _ := zap.NewDevelopment()
-	svc := NewSnapshotService(cfg, l)
-	valid := svc.validateRestoreConfig()
-	assert.True(t, valid, "Restore config should be valid")
+	svc, err := NewSnapshotService(cfg, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
+	err = svc.validateRestoreConfig()
+	assert.NoError(t, err, "Restore config should be valid")
 	os.Remove(snapshotFile)
 }
 
@@ -105,9 +110,10 @@ func TestValidateRestoreConfigMissingInputFile(t *testing.T) {
 		InputFile:  "",
 	}
 	l, _ := zap.NewDevelopment()
-	svc := NewSnapshotService(cfg, l)
-	valid := svc.validateRestoreConfig()
-	assert.False(t, valid, "Restore config should be invalid if input file is missing")
+	svc, err := NewSnapshotService(cfg, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
+	err = svc.validateRestoreConfig()
+	assert.Error(t, err, "Restore config should be invalid if input file is missing")
 }
 
 func TestSetupRestore(t *testing.T) {
@@ -121,7 +127,8 @@ func TestSetupRestore(t *testing.T) {
 		InputFile:  "/tmp/test_snapshot.sql",
 	}
 	l, _ := zap.NewDevelopment()
-	svc := NewSnapshotService(cfg, l)
+	svc, err := NewSnapshotService(cfg, l)
+	assert.NoError(t, err, "NewSnapshotService should not return an error")
 	restore, err := svc.setupRestore()
 	assert.NoError(t, err, "Restore setup should not fail")
 	assert.NotNil(t, restore, "Restore should not be nil")
@@ -166,8 +173,9 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 			SchemaName: cfg.DatabaseConfig.SchemaName,
 		}
 
-		svc := NewSnapshotService(snapshotCfg, l)
-		err := svc.CreateSnapshot()
+		svc, err := NewSnapshotService(snapshotCfg, l)
+		assert.NoError(t, err, "NewSnapshotService should not return an error")
+		err = svc.CreateSnapshot()
 		assert.NoError(t, err, "Creating snapshot should not fail")
 
 		fileInfo, err := os.Stat(dumpFile)
@@ -195,8 +203,9 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 			DbName:     dbName,
 			SchemaName: cfg.DatabaseConfig.SchemaName,
 		}
-		svc := NewSnapshotService(snapshotCfg, l)
-		err := svc.RestoreSnapshot()
+		svc, err := NewSnapshotService(snapshotCfg, l)
+		assert.NoError(t, err, "NewSnapshotService should not return an error")
+		err = svc.RestoreSnapshot()
 		assert.NoError(t, err, "Restoring snapshot should not fail")
 
 		// Validate the restore process
