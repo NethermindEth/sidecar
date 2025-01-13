@@ -18,6 +18,7 @@ func (rpc *RpcServer) GetRewardsRoot(ctx context.Context, req *sidecarV1.GetRewa
 
 func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *sidecarV1.GenerateRewardsRequest) (*sidecarV1.GenerateRewardsResponse, error) {
 	cutoffDate := req.GetCutoffDate()
+	waitForComplete := req.GetWaitForComplete()
 
 	var err error
 	queued := false
@@ -25,9 +26,18 @@ func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *sidecarV1.Genera
 		CalculationType: rewardsCalculatorQueue.RewardsCalculationType_CalculateRewards,
 		CutoffDate:      cutoffDate,
 	}
-	data, qErr := rpc.rewardsQueue.EnqueueAndWait(ctx, msg)
-	cutoffDate = data.CutoffDate
-	err = qErr
+
+	if waitForComplete {
+		data, qErr := rpc.rewardsQueue.EnqueueAndWait(ctx, msg)
+		cutoffDate = data.CutoffDate
+		err = qErr
+	} else {
+		rpc.rewardsQueue.Enqueue(&rewardsCalculatorQueue.RewardsCalculationMessage{
+			Data:         msg,
+			ResponseChan: make(chan *rewardsCalculatorQueue.RewardsCalculatorResponse),
+		})
+		queued = true
+	}
 
 	if err != nil {
 		if errors.Is(err, &rewards.ErrRewardsCalculationInProgress{}) {
