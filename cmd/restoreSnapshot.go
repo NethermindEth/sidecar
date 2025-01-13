@@ -6,7 +6,6 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/pkg/snapshot"
-	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -28,13 +27,8 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 
-		inputFile, err := utils.ExpandHomeDir(cfg.SnapshotConfig.InputFile)
-		if err != nil {
-			return err
-		}
-
-		svc := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
-			InputFile:  inputFile,
+		svc, err := snapshot.NewSnapshotService(&snapshot.SnapshotConfig{
+			InputFile:  cfg.SnapshotConfig.InputFile,
 			Host:       cfg.DatabaseConfig.Host,
 			Port:       cfg.DatabaseConfig.Port,
 			User:       cfg.DatabaseConfig.User,
@@ -42,6 +36,9 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 			DbName:     cfg.DatabaseConfig.DbName,
 			SchemaName: cfg.DatabaseConfig.SchemaName,
 		}, l)
+		if err != nil {
+			return err
+		}
 
 		if err := svc.RestoreSnapshot(); err != nil {
 			return fmt.Errorf("failed to restore snapshot: %w", err)

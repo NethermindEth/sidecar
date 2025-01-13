@@ -3,6 +3,8 @@ package snapshot
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	pgcommands "github.com/habx/pg-commands"
 	"go.uber.org/zap"
@@ -27,17 +29,49 @@ type SnapshotService struct {
 }
 
 // NewSnapshotService initializes a new SnapshotService with the given configuration and logger.
-func NewSnapshotService(cfg *SnapshotConfig, l *zap.Logger) *SnapshotService {
+func NewSnapshotService(cfg *SnapshotConfig, l *zap.Logger) (*SnapshotService, error) {
+	var err error
+
+	cfg.InputFile, err = resolveFilePath(cfg.InputFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve input file path: %w", err)
+	}
+	cfg.OutputFile, err = resolveFilePath(cfg.OutputFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve output file path: %w", err)
+	}
+
+	l.Sugar().Infow("Resolved file paths", "inputFile", cfg.InputFile, "outputFile", cfg.OutputFile)
+
 	return &SnapshotService{
 		cfg: cfg,
 		l:   l,
+	}, nil
+}
+
+// resolveFilePath expands the ~ in file paths to the user's home directory and converts relative paths to absolute paths.
+func resolveFilePath(path string) (string, error) {
+	if path == "" {
+		return "", nil
 	}
+	if strings.HasPrefix(path, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get user home directory: %w", err)
+		}
+		path = filepath.Join(homeDir, path[2:])
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path: %w", err)
+	}
+	return absPath, nil
 }
 
 // CreateSnapshot creates a snapshot of the database based on the provided configuration.
 func (s *SnapshotService) CreateSnapshot() error {
-	if !s.validateCreateSnapshotConfig() {
-		return fmt.Errorf("invalid snapshot configuration")
+	if err := s.validateCreateSnapshotConfig(); err != nil {
+		return err
 	}
 
 	dump, err := s.setupSnapshotDump()
@@ -57,8 +91,8 @@ func (s *SnapshotService) CreateSnapshot() error {
 
 // RestoreSnapshot restores a snapshot of the database based on the provided configuration.
 func (s *SnapshotService) RestoreSnapshot() error {
-	if !s.validateRestoreConfig() {
-		return fmt.Errorf("invalid restore configuration")
+	if err := s.validateRestoreConfig(); err != nil {
+		return err
 	}
 
 	restore, err := s.setupRestore()
@@ -79,18 +113,16 @@ func (s *SnapshotService) RestoreSnapshot() error {
 	return nil
 }
 
-func (s *SnapshotService) validateCreateSnapshotConfig() bool {
+func (s *SnapshotService) validateCreateSnapshotConfig() error {
 	if s.cfg.Host == "" {
-		s.l.Sugar().Error("Database host is required")
-		return false
+		return fmt.Errorf("database host is required")
 	}
 
 	if s.cfg.OutputFile == "" {
-		s.l.Sugar().Error("Output path i.e. `output-file` must be specified")
-		return false
+		return fmt.Errorf("output path i.e. `output-file` must be specified")
 	}
 
-	return true
+	return nil
 }
 
 func (s *SnapshotService) setupSnapshotDump() (*pgcommands.Dump, error) {
@@ -115,19 +147,17 @@ func (s *SnapshotService) setupSnapshotDump() (*pgcommands.Dump, error) {
 	return dump, nil
 }
 
-func (s *SnapshotService) validateRestoreConfig() bool {
+func (s *SnapshotService) validateRestoreConfig() error {
 	if s.cfg.InputFile == "" {
-		s.l.Sugar().Error("Restore snapshot file path i.e. `input-file` must be specified")
-		return false
+		return fmt.Errorf("restore snapshot file path i.e. `input-file` must be specified")
 	}
 
 	info, err := os.Stat(s.cfg.InputFile)
 	if err != nil || info.IsDir() {
-		s.l.Sugar().Errorw("Snapshot file does not exist", "path", s.cfg.InputFile)
-		return false
+		return fmt.Errorf("snapshot file does not exist: %s", s.cfg.InputFile)
 	}
 
-	return true
+	return nil
 }
 
 func (s *SnapshotService) setupRestore() (*pgcommands.Restore, error) {

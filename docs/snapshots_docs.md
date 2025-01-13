@@ -114,7 +114,7 @@ Commonly the input schema is
 psql -c "CREATE DATABASE temp_sidecar_dump_schema_conversion_db;"
 
 # Use the Sidecar CLI to restore the snapshot dump into the temporary database:
-go run main.go restore-snapshot \
+./bin/sidecar restore-snapshot \
     --database.host=localhost \
     --database.user=... \
     --database.password=... \
@@ -127,7 +127,7 @@ go run main.go restore-snapshot \
 psql -d temp_sidecar_dump_schema_conversion_db -c "ALTER SCHEMA <input schema name> RENAME TO <output schema name>;"
 
 # Use the Sidecar CLI to create a new snapshot with the updated schema:
-go run main.go create-snapshot \
+./bin/sidecar create-snapshot \
     --database.host=localhost \
     --database.user=... \
     --database.password=... \

@@ -27,7 +27,7 @@ PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -c "CREATE DATABASE $TEMP_DB_NAME;" || 
 
 # Restore the snapshot dump into the temporary database
 echo "Restoring snapshot into temporary database"
-go run main.go restore-snapshot \
+./bin/sidecar restore-snapshot \
     --database.host=localhost \
     --database.port=5432 \
     --database.user=$DB_USER \
@@ -42,7 +42,7 @@ PGPASSWORD=$DB_PASSWORD psql -U $DB_USER -d $TEMP_DB_NAME -c "ALTER SCHEMA $INPU
 
 # Create a new snapshot with the updated schema
 echo "Creating new snapshot with updated schema"
-go run main.go create-snapshot \
+./bin/sidecar create-snapshot \
     --database.host=localhost \
     --database.port=5432 \
     --database.user=$DB_USER \
