@@ -247,13 +247,17 @@ services:
 POSTGRES_DATA_PATH=<path to store postgres data> docker-compose up
 ```
 
-# Boot from a snapshot
+# Snapshots
+Snapshots are a quicker way to sync to tip and get started. 
 
-* Mainnet (not yet available)
-* Testnet ([2024-11-22](https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky-20241122.tar.gz))
+See [Snapshots Docs](docs/snapshots_docs.md) for instructions on creating and restoring snapshots
 
+### Snapshot Sources
 
-## Example boot from testnet snapshot
+* Mainnet Ethereum (not yet available)
+* Testnet Holesky ([2024-11-22](https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky-20241122.tar.gz))
+
+### Example boot from testnet snapshot (default schema)
 ```bash
 curl -LO https://eigenlayer-sidecar.s3.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky-20241122.tar.gz
 
@@ -267,95 +271,6 @@ tar -xvf sidecar-testnet-2024-11-22.tar.gz
   --database.port=5432 \
   --database.db_name=sidecar \
   --database.schema_name=public 
-```
-
-# Snapshots
-
-### `create-snapshot`
-```bash
-go run main.go create-snapshot --help
-Create a snapshot of the database.
-
-Usage:
-  sidecar create-snapshot [flags]
-
-Flags:
-  -h, --help                          help for create-snapshot
-      --output_file string            Path to save the snapshot file to (required)
-
-Global Flags:
-  -c, --chain string                              The chain to use (mainnet, holesky, preprod (default "mainnet")
-      --database.db_name string                   PostgreSQL database name (default "sidecar")
-      --database.host string                      PostgreSQL host (default "localhost")
-      --database.password string                  PostgreSQL password
-      --database.port int                         PostgreSQL port (default 5432)
-      --database.schema_name string               PostgreSQL schema name (default "public")
-      --database.user string                      PostgreSQL username (default "sidecar")
-      --datadog.statsd.enabled                    e.g. "true" or "false"
-      --datadog.statsd.url string                 e.g. "localhost:8125"
-      --debug                                     "true" or "false"
-      --ethereum.chunked_batch_call_size int      The number of calls to make in parallel when using the chunked batch call method (default 10)
-      --ethereum.contract_call_batch_size int     The number of contract calls to batch together when fetching data from the Ethereum node (default 25)
-      --ethereum.native_batch_call_size int       The number of calls to batch together when using the native eth_call method (default 500)
-      --ethereum.rpc-url string                   e.g. "http://<hostname>:8545"
-      --ethereum.use_native_batch_call            Use the native eth_call method for batch calls (default true)
-      --prometheus.enabled                        e.g. "true" or "false"
-      --prometheus.port int                       The port to run the prometheus server on (default 2112)
-      --rewards.generate_staker_operators_table   Generate staker operators table while indexing
-      --rewards.validate_rewards_root             Validate rewards roots while indexing (default true)
-      --rpc.grpc-port int                         gRPC port (default 7100)
-      --rpc.http-port int                         http rpc port (default 7101)
-```
-
-#### Example use:
-```
-go run main.go create-snapshot \     
-  --database.host=localhost \
-  --database.user=sidecar \
-  --database.password=sidecar \
-  --database.port=5432 \
-  --database.db_name=sidecar \
-  --database.schema_name=public \
-  --database.create_snapshot_output=example.dump
-```
-
-
-
-### `restore-snapshot`
-```bash
-go run main.go restore-snapshot --help
-Restore the database from a previously created snapshot file.
-The snapshot file is expected to be a pg_dump custom format file.
-
-Usage:
-  sidecar restore-snapshot [flags]
-
-Flags:
-  -h, --help                         help for restore-snapshot
-      --input_file string            Path to the snapshot file (required)
-
-Global Flags:
-  -c, --chain string                              The chain to use (mainnet, holesky, preprod (default "mainnet")
-      --database.db_name string                   PostgreSQL database name (default "sidecar")
-      --database.host string                      PostgreSQL host (default "localhost")
-      --database.password string                  PostgreSQL password
-      --database.port int                         PostgreSQL port (default 5432)
-      --database.schema_name string               PostgreSQL schema name (default "public")
-      --database.user string                      PostgreSQL username (default "sidecar")
-      --datadog.statsd.enabled                    e.g. "true" or "false"
-      --datadog.statsd.url string                 e.g. "localhost:8125"
-      --debug                                     "true" or "false"
-      --ethereum.chunked_batch_call_size int      The number of calls to make in parallel when using the chunked batch call method (default 10)
-      --ethereum.contract_call_batch_size int     The number of contract calls to batch together when fetching data from the Ethereum node (default 25)
-      --ethereum.native_batch_call_size int       The number of calls to batch together when using the native eth_call method (default 500)
-      --ethereum.rpc-url string                   e.g. "http://<hostname>:8545"
-      --ethereum.use_native_batch_call            Use the native eth_call method for batch calls (default true)
-      --prometheus.enabled                        e.g. "true" or "false"
-      --prometheus.port int                       The port to run the prometheus server on (default 2112)
-      --rewards.generate_staker_operators_table   Generate staker operators table while indexing
-      --rewards.validate_rewards_root             Validate rewards roots while indexing (default true)
-      --rpc.grpc-port int                         gRPC port (default 7100)
-      --rpc.http-port int                         http rpc port (default 7101)
 ```
 
 ## RPC Routes
