@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (rpc *RpcServer) GetRewardsRoot(ctx context.Context, req *sidecarV1.GetRewardsRootRequest) (*sidecarV1.GetRewardsRootResponse, error) {
@@ -198,4 +199,32 @@ func (rpc *RpcServer) GetSummarizedRewardsForEarner(ctx context.Context, req *si
 
 func (rpc *RpcServer) GetClaimedRewardsByBlock(ctx context.Context, req *sidecarV1.GetClaimedRewardsByBlockRequest) (*sidecarV1.GetClaimedRewardsByBlockResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetClaimedRewardsByBlock not implemented")
+}
+
+func (rpc *RpcServer) ListDistributionRoots(ctx context.Context, req *sidecarV1.ListDistributionRootsRequest) (*sidecarV1.ListDistributionRootsResponse, error) {
+	roots, err := rpc.rewardsCalculator.ListDistributionRoots()
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	responseRoots := make([]*sidecarV1.DistributionRoot, 0, len(roots))
+	for _, root := range roots {
+		responseRoots = append(responseRoots, &sidecarV1.DistributionRoot{
+			Root:                      root.Root,
+			RootIndex:                 root.RootIndex,
+			RewardsCalculationEnd:     timestamppb.New(root.RewardsCalculationEnd),
+			RewardsCalculationEndUnit: root.RewardsCalculationEndUnit,
+			ActivatedAt:               timestamppb.New(root.ActivatedAt),
+			ActivatedAtUnit:           root.ActivatedAtUnit,
+			CreatedAtBlockNumber:      root.CreatedAtBlockNumber,
+			TransactionHash:           root.TransactionHash,
+			BlockHeight:               root.BlockNumber,
+			LogIndex:                  root.LogIndex,
+			Disabled:                  root.Disabled,
+		})
+	}
+
+	return &sidecarV1.ListDistributionRootsResponse{
+		DistributionRoots: responseRoots,
+	}, nil
 }

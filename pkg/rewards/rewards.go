@@ -742,3 +742,26 @@ func (rc *RewardsCalculator) GetGeneratedRewardsForSnapshotDate(snapshotDate str
 	}
 	return generatedRewardsSnapshot, nil
 }
+
+type DistributionRoot struct {
+	types.SubmittedDistributionRoot
+	Disabled bool
+}
+
+func (rc *RewardsCalculator) ListDistributionRoots() ([]*DistributionRoot, error) {
+	query := `
+		select
+			sdr.*,
+			case when ddr.root_index is not null then true else false end as disabled
+		from submitted_distribution_roots as sdr
+		left join disabled_distribution_roots as ddr on (sdr.root_index = ddr.root_index)
+		order by root_index desc
+	`
+	var submittedDistributionRoots []*DistributionRoot
+	res := rc.grm.Raw(query).Scan(&submittedDistributionRoots)
+	if res.Error != nil {
+		rc.logger.Sugar().Errorw("Failed to list submitted distribution roots", "error", res.Error)
+		return nil, res.Error
+	}
+	return submittedDistributionRoots, nil
+}
