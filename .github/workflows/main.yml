@@ -56,17 +56,7 @@ jobs:
         env:
           REF: ${{ github.ref }}
         run: |
-          versionFile=$(cat VERSION | tr -d '[:space:]')
-          if [[ $REF == refs/tags/* ]]; then
-            # check if versionFile equals the tag.
-            if [[ $versionFile != "${REF#refs/tags/}" ]]; then
-              echo "Version in VERSION file does not match the tag"
-              exit 1
-            fi
-          else
-            # if this isnt a release, add the commit hash to the end of the version
-            v=$(git rev-parse --short HEAD) echo -n "${versionFile}+${v}" > VERSION
-          fi
+          ./scripts/version.sh $REF
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -105,14 +95,7 @@ jobs:
         env:
           REF: ${{ github.ref }}
         run: |
-          versionFile=$(cat VERSION | tr -d '[:space:]')
-          if [[ $REF == refs/tags/* ]]; then
-            # check if versionFile equals the tag.
-            if [[ $versionFile != "${REF#refs/tags/}" ]]; then
-              echo "Version in VERSION file does not match the tag"
-              exit 1
-            fi
-          else
+          ./scripts/version.sh $REF
       - name: Build binary
         run: |
           VERSION=$(cat VERSION | tr -d '[:space:]')
