@@ -74,7 +74,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	ethConfig.BaseUrl = rpcUrl
 	client := ethereum.NewClient(ethConfig, l)
 
-	dbname, _, grm, err := postgres.GetTestPostgresDatabaseWithMigrations(cfg.DatabaseConfig, cfg, l)
+	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
 		log.Fatal(err)
 	}

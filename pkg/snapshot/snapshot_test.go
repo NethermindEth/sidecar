@@ -158,7 +158,7 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 	}
 
 	t.Run("Create snapshot from a database with migrations", func(t *testing.T) {
-		dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabaseWithMigrations(cfg.DatabaseConfig, cfg, l)
+		dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 		if dbErr != nil {
 			t.Fatal(dbErr)
 		}
@@ -188,7 +188,7 @@ func TestCreateAndRestoreSnapshot(t *testing.T) {
 	})
 
 	t.Run("Restore snapshot to a new database", func(t *testing.T) {
-		dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, l)
+		dbName, _, dbGrm, dbErr := postgres.GetTestPostgresDatabaseWithoutMigrations(cfg.DatabaseConfig, l)
 		if dbErr != nil {
 			t.Fatal(dbErr)
 		}

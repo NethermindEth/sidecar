@@ -29,13 +29,13 @@ type Postgres struct {
 	Db *sql.DB
 }
 
-func GetTestPostgresDatabaseWithMigrations(cfg config.DatabaseConfig, gCfg *config.Config, l *zap.Logger) (
+func GetTestPostgresDatabase(cfg config.DatabaseConfig, gCfg *config.Config, l *zap.Logger) (
 	string,
 	*sql.DB,
 	*gorm.DB,
 	error,
 ) {
-	testDbName, pg, grm, err := GetTestPostgresDatabase(cfg, l)
+	testDbName, pg, grm, err := GetTestPostgresDatabaseWithoutMigrations(cfg, l)
 	if err != nil {
 		return testDbName, nil, nil, err
 	}
@@ -48,7 +48,7 @@ func GetTestPostgresDatabaseWithMigrations(cfg config.DatabaseConfig, gCfg *conf
 	return testDbName, pg, grm, nil
 }
 
-func GetTestPostgresDatabase(cfg config.DatabaseConfig, l *zap.Logger) (
+func GetTestPostgresDatabaseWithoutMigrations(cfg config.DatabaseConfig, l *zap.Logger) (
 	string,
 	*sql.DB,
 	*gorm.DB,
