@@ -78,3 +78,11 @@ func DeleteState(tableName string, startBlockNumber uint64, endBlockNumber uint6
 	}
 	return nil
 }
+
+func CastCommittedStateToInterface[T any](committedState []*T) []interface{} {
+	state := make([]interface{}, len(committedState))
+	for i, v := range committedState {
+		state[i] = *v
+	}
+	return state
+}

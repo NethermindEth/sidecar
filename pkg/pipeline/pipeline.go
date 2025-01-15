@@ -9,6 +9,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
+	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
@@ -27,6 +28,7 @@ type Pipeline struct {
 	BlockStore        storage.BlockStore
 	Logger            *zap.Logger
 	stateManager      *stateManager.EigenStateManager
+	metaStateManager  *metaStateManager.MetaStateManager
 	rewardsCalculator *rewards.RewardsCalculator
 	rcq               *rewardsCalculatorQueue.RewardsCalculatorQueue
 	globalConfig      *config.Config
@@ -39,6 +41,7 @@ func NewPipeline(
 	i *indexer.Indexer,
 	bs storage.BlockStore,
 	sm *stateManager.EigenStateManager,
+	msm *metaStateManager.MetaStateManager,
 	rc *rewards.RewardsCalculator,
 	rcq *rewardsCalculatorQueue.RewardsCalculatorQueue,
 	gc *config.Config,
@@ -51,6 +54,7 @@ func NewPipeline(
 		Indexer:           i,
 		Logger:            l,
 		stateManager:      sm,
+		metaStateManager:  msm,
 		rewardsCalculator: rc,
 		rcq:               rcq,
 		BlockStore:        bs,
@@ -101,6 +105,10 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 
 	if err := p.stateManager.InitProcessingForBlock(blockNumber); err != nil {
 		p.Logger.Sugar().Errorw("Failed to init processing for block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		return err
+	}
+	if err := p.metaStateManager.InitProcessingForBlock(blockNumber); err != nil {
+		p.Logger.Sugar().Errorw("MetaStateManager: Failed to init processing for block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err
 	}
 	p.Logger.Sugar().Debugw("Initialized processing for block", zap.Uint64("blockNumber", blockNumber))
@@ -163,6 +171,16 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				)
 				return err
 			}
+
+			if err := p.metaStateManager.HandleTransactionLog(indexedLog); err != nil {
+				p.Logger.Sugar().Errorw("MetaStateManager: Failed to handle log state change",
+					zap.Uint64("blockNumber", blockNumber),
+					zap.String("transactionHash", pt.Transaction.Hash.Value()),
+					zap.Uint64("logIndex", log.LogIndex),
+					zap.Error(err),
+				)
+				return err
+			}
 		}
 		p.Logger.Sugar().Debugw("Handled log state changes",
 			zap.Uint64("blockNumber", blockNumber),
@@ -187,6 +205,11 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	committedState, err := p.stateManager.CommitFinalState(blockNumber)
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to commit final state", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		return err
+	}
+	_, err = p.metaStateManager.CommitFinalState(blockNumber)
+	if err != nil {
+		p.Logger.Sugar().Errorw("MetaStateManager: Failed to commit final state", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
 		return err
 	}
 	p.Logger.Sugar().Debugw("Committed final state", zap.Uint64("blockNumber", blockNumber), zap.Duration("indexTime", time.Since(blockFetchTime)))
@@ -325,6 +348,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	// Push cleanup to the background since it doesnt need to be blocking
 	go func() {
 		_ = p.stateManager.CleanupProcessedStateForBlock(blockNumber)
+		_ = p.metaStateManager.CleanupProcessedStateForBlock(blockNumber)
 	}()
 
 	return err

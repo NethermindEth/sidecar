@@ -39,10 +39,10 @@ func NewRewardsClaimedModel(
 	return model, nil
 }
 
-const RewardsClaimedModelTableName = "rewards_claimed"
+const RewardsClaimedModelName = "rewards_claimed"
 
-func (rcm *RewardsClaimedModel) TableName() string {
-	return RewardsClaimedModelTableName
+func (rcm *RewardsClaimedModel) ModelName() string {
+	return RewardsClaimedModelName
 }
 
 func (rcm *RewardsClaimedModel) SetupStateForBlock(blockNumber uint64) error {
@@ -50,7 +50,7 @@ func (rcm *RewardsClaimedModel) SetupStateForBlock(blockNumber uint64) error {
 	return nil
 }
 
-func (rcm *RewardsClaimedModel) CleanupStateForBlock(blockNumber uint64) error {
+func (rcm *RewardsClaimedModel) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	delete(rcm.accumulatedState, blockNumber)
 	return nil
 }
@@ -110,25 +110,26 @@ func (rcm *RewardsClaimedModel) HandleTransactionLog(log *storage.TransactionLog
 	return claimed, nil
 }
 
-func (rcm *RewardsClaimedModel) CommitFinalState(blockNumber uint64) error {
+func (rcm *RewardsClaimedModel) CommitFinalState(blockNumber uint64) ([]interface{}, error) {
 	rowsToInsert, ok := rcm.accumulatedState[blockNumber]
 	if !ok {
-		return fmt.Errorf("block number not initialized in accumulatedState %d", blockNumber)
+		return nil, fmt.Errorf("block number not initialized in accumulatedState %d", blockNumber)
 	}
 
 	if len(rowsToInsert) == 0 {
 		rcm.logger.Sugar().Debugf("No rewards claimed to insert for block %d", blockNumber)
-		return nil
+		return nil, nil
 	}
 
 	res := rcm.db.Model(&types.RewardsClaimed{}).Clauses(clause.Returning{}).Create(&rowsToInsert)
 	if res.Error != nil {
 		rcm.logger.Sugar().Errorw("Failed to insert rewards claimed records", zap.Error(res.Error))
-		return res.Error
+		return nil, res.Error
 	}
-	return nil
+
+	return baseModel.CastCommittedStateToInterface(rowsToInsert), nil
 }
 
 func (rcm *RewardsClaimedModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
-	return baseModel.DeleteState(rcm.TableName(), startBlockNumber, endBlockNumber, rcm.db, rcm.logger)
+	return baseModel.DeleteState(rcm.ModelName(), startBlockNumber, endBlockNumber, rcm.db, rcm.logger)
 }

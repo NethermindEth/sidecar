@@ -94,7 +94,7 @@ func Test_RewardsClaimed(t *testing.T) {
 		assert.Equal(t, log.TransactionHash, typedState.TransactionHash)
 		assert.Equal(t, log.LogIndex, typedState.LogIndex)
 
-		err = rewardsClaimedModel.CommitFinalState(block.Number)
+		_, err = rewardsClaimedModel.CommitFinalState(block.Number)
 		assert.Nil(t, err)
 
 		// Check if the rewardsClaimed event was inserted
@@ -102,7 +102,7 @@ func Test_RewardsClaimed(t *testing.T) {
 		res = grm.Model(&types.RewardsClaimed{}).Where("block_number = ?", block.Number).First(&rewardsClaimed)
 		assert.Nil(t, res.Error)
 
-		err = rewardsClaimedModel.CleanupStateForBlock(block.Number)
+		err = rewardsClaimedModel.CleanupProcessedStateForBlock(block.Number)
 		assert.Nil(t, err)
 
 	})
@@ -151,7 +151,7 @@ func Test_RewardsClaimed(t *testing.T) {
 		assert.Equal(t, log.TransactionHash, typedState.TransactionHash)
 		assert.Equal(t, log.LogIndex, typedState.LogIndex)
 
-		err = rewardsClaimedModel.CommitFinalState(block.Number)
+		_, err = rewardsClaimedModel.CommitFinalState(block.Number)
 		assert.Nil(t, err)
 
 		// Check if the rewardsClaimed event was inserted
@@ -159,7 +159,7 @@ func Test_RewardsClaimed(t *testing.T) {
 		res = grm.Model(&types.RewardsClaimed{}).Where("block_number = ?", block.Number).First(&rewardsClaimed)
 		assert.Nil(t, res.Error)
 
-		err = rewardsClaimedModel.CleanupStateForBlock(block.Number)
+		err = rewardsClaimedModel.CleanupProcessedStateForBlock(block.Number)
 		assert.Nil(t, err)
 	})
 

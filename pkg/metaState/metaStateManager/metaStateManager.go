@@ -28,7 +28,7 @@ func (msm *MetaStateManager) RegisterMetaStateModel(model types.IMetaStateModel)
 	msm.metaStateModels = append(msm.metaStateModels, model)
 }
 
-func (msm *MetaStateManager) SetupStateForBlock(blockNumber uint64) error {
+func (msm *MetaStateManager) InitProcessingForBlock(blockNumber uint64) error {
 	for _, model := range msm.metaStateModels {
 		if err := model.SetupStateForBlock(blockNumber); err != nil {
 			msm.logger.Sugar().Errorw("Failed to setup state for block",
@@ -42,9 +42,9 @@ func (msm *MetaStateManager) SetupStateForBlock(blockNumber uint64) error {
 	return nil
 }
 
-func (msm *MetaStateManager) CleanupStateForBlock(blockNumber uint64) error {
+func (msm *MetaStateManager) CleanupProcessedStateForBlock(blockNumber uint64) error {
 	for _, model := range msm.metaStateModels {
-		if err := model.CleanupStateForBlock(blockNumber); err != nil {
+		if err := model.CleanupProcessedStateForBlock(blockNumber); err != nil {
 			msm.logger.Sugar().Errorw("Failed to cleanup state for block",
 				"blockNumber", blockNumber,
 				"model", model,
@@ -72,16 +72,19 @@ func (msm *MetaStateManager) HandleTransactionLog(log *storage.TransactionLog) e
 	return nil
 }
 
-func (msm *MetaStateManager) CommitFinalState(blockNumber uint64) error {
+func (msm *MetaStateManager) CommitFinalState(blockNumber uint64) (map[string][]interface{}, error) {
+	committedState := make(map[string][]interface{})
 	for _, model := range msm.metaStateModels {
-		if err := model.CommitFinalState(blockNumber); err != nil {
+		state, err := model.CommitFinalState(blockNumber)
+		if err != nil {
 			msm.logger.Sugar().Errorw("Failed to commit final state",
 				"blockNumber", blockNumber,
 				"model", model,
 				"error", err,
 			)
-			return err
+			return nil, err
 		}
+		committedState[model.ModelName()] = state
 	}
-	return nil
+	return committedState, nil
 }
