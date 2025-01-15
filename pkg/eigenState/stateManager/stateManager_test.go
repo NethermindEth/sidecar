@@ -1,11 +1,12 @@
 package stateManager
 
 import (
-	"github.com/Layr-Labs/sidecar/pkg/postgres"
-	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/Layr-Labs/sidecar/pkg/postgres"
+	"github.com/Layr-Labs/sidecar/pkg/storage"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"

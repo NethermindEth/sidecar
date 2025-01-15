@@ -1,14 +1,16 @@
 package postgres
 
 import (
+	"strings"
+	"testing"
+	"time"
+
+	"os"
+
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/parser"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
-	"os"
-	"strings"
-	"testing"
-	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"

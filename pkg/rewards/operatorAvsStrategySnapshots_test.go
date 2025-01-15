@@ -2,6 +2,11 @@ package rewards
 
 import (
 	"fmt"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -10,10 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"slices"
-	"strings"
-	"testing"
-	"time"
 )
 
 func setupOperatorAvsStrategyWindows() (

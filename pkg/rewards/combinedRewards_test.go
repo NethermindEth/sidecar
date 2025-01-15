@@ -1,6 +1,8 @@
 package rewards
 
 import (
+	"testing"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
@@ -9,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"testing"
 )
 
 func setupCombinedRewards() (

@@ -3,6 +3,12 @@ package indexer
 import (
 	"context"
 	"fmt"
+	"log"
+	"testing"
+	"time"
+
+	"os"
+
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
@@ -19,10 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"log"
-	"os"
-	"testing"
-	"time"
 )
 
 func setup() (
@@ -67,7 +69,7 @@ func Test_IndexerRestakedStrategies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	baseUrl := "http://185.26.8.65:8545"
+	baseUrl := "https://winter-white-crater.ethereum-holesky.quiknode.pro/1b1d75c4ada73b7ad98e1488880649d4ea637733/"
 	ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
 	ethConfig.BaseUrl = baseUrl
 
