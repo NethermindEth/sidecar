@@ -17,6 +17,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
+	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
@@ -40,6 +41,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	*indexer.Indexer,
 	storage.BlockStore,
 	*stateManager.EigenStateManager,
+	*metaStateManager.MetaStateManager,
 	*rewards.RewardsCalculator,
 	*rewardsCalculatorQueue.RewardsCalculatorQueue,
 	*config.Config,
@@ -89,6 +91,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
 	sm := stateManager.NewEigenStateManager(l, grm)
+	msm := metaStateManager.NewMetaStateManager(grm, l, cfg)
 
 	if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
@@ -106,7 +109,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 
 	eb := eventBus.NewEventBus(l)
 
-	return fetchr, idxr, mds, sm, rc, rcq, cfg, l, sdc, grm, eb, dbname
+	return fetchr, idxr, mds, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbname
 
 }
 
@@ -114,10 +117,10 @@ func Test_PipelineIntegration(t *testing.T) {
 
 	t.Run("Should index a block, transaction with logs using native batched ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultNativeCallEthereumClientConfig()
-		fetchr, idxr, mds, sm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
+		fetchr, idxr, mds, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, eb, l)
+		p := NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
 		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)
@@ -143,10 +146,10 @@ func Test_PipelineIntegration(t *testing.T) {
 	})
 	t.Run("Should index a block, transaction with logs using chunked ethereum client", func(t *testing.T) {
 		ethConfig := ethereum.DefaultChunkedCallEthereumClientConfig()
-		fetchr, idxr, mds, sm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
+		fetchr, idxr, mds, sm, msm, rc, rcq, cfg, l, sdc, grm, eb, dbName := setup(ethConfig)
 		blockNumber := uint64(20386320)
 
-		p := NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, eb, l)
+		p := NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
 		err := p.RunForBlockBatch(context.Background(), blockNumber, blockNumber+1, true)
 		assert.Nil(t, err)

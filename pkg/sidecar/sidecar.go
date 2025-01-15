@@ -5,6 +5,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
+	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
 	"github.com/Layr-Labs/sidecar/pkg/pipeline"
 	"github.com/Layr-Labs/sidecar/pkg/proofs"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -26,6 +27,7 @@ type Sidecar struct {
 	Pipeline               *pipeline.Pipeline
 	EthereumClient         *ethereum.Client
 	StateManager           *stateManager.EigenStateManager
+	MetaStateManager       *metaStateManager.MetaStateManager
 	RewardsCalculator      *rewards.RewardsCalculator
 	RewardsCalculatorQueue *rewardsCalculatorQueue.RewardsCalculatorQueue
 	RewardProofs           *proofs.RewardsProofsStore
@@ -39,6 +41,7 @@ func NewSidecar(
 	s storage.BlockStore,
 	p *pipeline.Pipeline,
 	em *stateManager.EigenStateManager,
+	msm *metaStateManager.MetaStateManager,
 	rc *rewards.RewardsCalculator,
 	rcq *rewardsCalculatorQueue.RewardsCalculatorQueue,
 	rp *proofs.RewardsProofsStore,
@@ -57,6 +60,7 @@ func NewSidecar(
 		RewardsCalculator:      rc,
 		RewardsCalculatorQueue: rcq,
 		RewardProofs:           rp,
+		MetaStateManager:       msm,
 		StateManager:           em,
 		ShutdownChan:           make(chan bool),
 		shouldShutdown:         shouldShutdown,

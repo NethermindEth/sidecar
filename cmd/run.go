@@ -13,6 +13,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/fetcher"
 	"github.com/Layr-Labs/sidecar/pkg/indexer"
+	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
 	"github.com/Layr-Labs/sidecar/pkg/pipeline"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/proofs"
@@ -97,6 +98,7 @@ var runCmd = &cobra.Command{
 		}
 
 		sm := stateManager.NewEigenStateManager(l, grm)
+		msm := metaStateManager.NewMetaStateManager(grm, l, cfg)
 
 		if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
 			l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
@@ -121,12 +123,12 @@ var runCmd = &cobra.Command{
 
 		go rcq.Process()
 
-		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, rc, rcq, cfg, sdc, eb, l)
+		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
 		// Create new sidecar instance
 		sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
 			GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
-		}, cfg, mds, p, sm, rc, rcq, rps, l, client)
+		}, cfg, mds, p, sm, msm, rc, rcq, rps, l, client)
 
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
