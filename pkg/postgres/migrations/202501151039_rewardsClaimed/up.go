@@ -30,6 +30,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 		return res.Error
 	}
 	query = `
+		insert into rewards_claimed (root, token, claimed_amount, earner, claimer, recipient, transaction_hash, block_number, log_index)
 		select
 			concat('0x', (
 			  SELECT lower(string_agg(lpad(to_hex(elem::int), 2, '0'), ''))
@@ -48,6 +49,7 @@ func (m *Migration) Up(db *sql.DB, grm *gorm.DB, cfg *config.Config) error {
 			tl.address = @rewardsCoordinatorAddress
 			and tl.event_name = 'RewardsClaimed'
 		order by tl.block_number asc
+		on conflict do nothing
 	`
 	contractAddresses := cfg.GetContractsMapForChain()
 	res = grm.Exec(query, sql.Named("rewardsCoordinatorAddress", contractAddresses.RewardsCoordinator))
