@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	v1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1"
 	eventsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/events"
+	healthV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/health"
+	protocolV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/protocol"
+	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
+	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/sidecar"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
@@ -31,7 +34,6 @@ type RpcServerConfig struct {
 }
 
 type RpcServer struct {
-	v1.UnimplementedRpcServer
 	Logger            *zap.Logger
 	rpcConfig         *RpcServerConfig
 	blockStore        storage.BlockStore
@@ -67,20 +69,26 @@ func NewRpcServer(
 }
 
 func (s *RpcServer) registerHandlers(ctx context.Context, grpcServer *grpc.Server, mux *runtime.ServeMux) error {
-	v1.RegisterHealthServer(grpcServer, s)
-	if err := v1.RegisterHealthHandlerServer(ctx, mux, s); err != nil {
+	healthV1.RegisterHealthServer(grpcServer, s)
+	if err := healthV1.RegisterHealthHandlerServer(ctx, mux, s); err != nil {
 		s.Logger.Sugar().Errorw("Failed to register Health server", zap.Error(err))
 		return err
 	}
 
-	v1.RegisterRpcServer(grpcServer, s)
-	if err := v1.RegisterRpcHandlerServer(ctx, mux, s); err != nil {
+	sidecarV1.RegisterRpcServer(grpcServer, s)
+	if err := sidecarV1.RegisterRpcHandlerServer(ctx, mux, s); err != nil {
 		s.Logger.Sugar().Errorw("Failed to register SidecarRpc server", zap.Error(err))
 		return err
 	}
 
-	v1.RegisterRewardsServer(grpcServer, s)
-	if err := v1.RegisterRewardsHandlerServer(ctx, mux, s); err != nil {
+	rewardsV1.RegisterRewardsServer(grpcServer, s)
+	if err := rewardsV1.RegisterRewardsHandlerServer(ctx, mux, s); err != nil {
+		s.Logger.Sugar().Errorw("Failed to register Rewards server", zap.Error(err))
+		return err
+	}
+
+	protocolV1.RegisterProtocolServer(grpcServer, s)
+	if err := protocolV1.RegisterProtocolHandlerServer(ctx, mux, s); err != nil {
 		s.Logger.Sugar().Errorw("Failed to register Rewards server", zap.Error(err))
 		return err
 	}

@@ -3,7 +3,7 @@ package rpcServer
 import (
 	"context"
 	"errors"
-	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1"
+	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
@@ -13,11 +13,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (rpc *RpcServer) GetRewardsRoot(ctx context.Context, req *sidecarV1.GetRewardsRootRequest) (*sidecarV1.GetRewardsRootResponse, error) {
+func (rpc *RpcServer) GetRewardsRoot(ctx context.Context, req *rewardsV1.GetRewardsRootRequest) (*rewardsV1.GetRewardsRootResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetRewardsRoot not implemented")
 }
 
-func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *sidecarV1.GenerateRewardsRequest) (*sidecarV1.GenerateRewardsResponse, error) {
+func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *rewardsV1.GenerateRewardsRequest) (*rewardsV1.GenerateRewardsResponse, error) {
 	cutoffDate := req.GetCutoffDate()
 	waitForComplete := req.GetWaitForComplete()
 
@@ -46,13 +46,13 @@ func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *sidecarV1.Genera
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &sidecarV1.GenerateRewardsResponse{
+	return &rewardsV1.GenerateRewardsResponse{
 		CutoffDate: cutoffDate,
 		Queued:     queued,
 	}, nil
 }
 
-func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *sidecarV1.GenerateRewardsRootRequest) (*sidecarV1.GenerateRewardsRootResponse, error) {
+func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *rewardsV1.GenerateRewardsRootRequest) (*rewardsV1.GenerateRewardsRootResponse, error) {
 	cutoffDate := req.GetCutoffDate()
 	if cutoffDate == "" {
 		return nil, status.Error(codes.InvalidArgument, "snapshot date is required")
@@ -101,13 +101,13 @@ func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *sidecarV1.Ge
 		zap.String("cutoffDate", cutoffDate),
 	)
 
-	return &sidecarV1.GenerateRewardsRootResponse{
+	return &rewardsV1.GenerateRewardsRootResponse{
 		RewardsRoot:        rootString,
 		RewardsCalcEndDate: rewardsCalcEndDate,
 	}, nil
 }
 
-func (rpc *RpcServer) GenerateStakerOperators(ctx context.Context, req *sidecarV1.GenerateStakerOperatorsRequest) (*sidecarV1.GenerateStakerOperatorsResponse, error) {
+func (rpc *RpcServer) GenerateStakerOperators(ctx context.Context, req *rewardsV1.GenerateStakerOperatorsRequest) (*rewardsV1.GenerateStakerOperatorsResponse, error) {
 	cutoffDate := req.GetCutoffDate()
 
 	if cutoffDate == "" {
@@ -136,12 +136,12 @@ func (rpc *RpcServer) GenerateStakerOperators(ctx context.Context, req *sidecarV
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &sidecarV1.GenerateStakerOperatorsResponse{
+	return &rewardsV1.GenerateStakerOperatorsResponse{
 		Queued: queued,
 	}, nil
 }
 
-func (rpc *RpcServer) BackfillStakerOperators(ctx context.Context, req *sidecarV1.BackfillStakerOperatorsRequest) (*sidecarV1.BackfillStakerOperatorsResponse, error) {
+func (rpc *RpcServer) BackfillStakerOperators(ctx context.Context, req *rewardsV1.BackfillStakerOperatorsRequest) (*rewardsV1.BackfillStakerOperatorsResponse, error) {
 
 	var err error
 	queued := false
@@ -164,52 +164,52 @@ func (rpc *RpcServer) BackfillStakerOperators(ctx context.Context, req *sidecarV
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &sidecarV1.BackfillStakerOperatorsResponse{
+	return &rewardsV1.BackfillStakerOperatorsResponse{
 		Queued: queued,
 	}, nil
 }
 
-func (rpc *RpcServer) GetRewardsForSnapshot(ctx context.Context, req *sidecarV1.GetRewardsForSnapshotRequest) (*sidecarV1.GetRewardsForSnapshotResponse, error) {
+func (rpc *RpcServer) GetRewardsForSnapshot(ctx context.Context, req *rewardsV1.GetRewardsForSnapshotRequest) (*rewardsV1.GetRewardsForSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetRewardsForSnapshot not implemented")
 }
 
-func (rpc *RpcServer) GetAttributableRewardsForSnapshot(ctx context.Context, req *sidecarV1.GetAttributableRewardsForSnapshotRequest) (*sidecarV1.GetAttributableRewardsForSnapshotResponse, error) {
+func (rpc *RpcServer) GetAttributableRewardsForSnapshot(ctx context.Context, req *rewardsV1.GetAttributableRewardsForSnapshotRequest) (*rewardsV1.GetAttributableRewardsForSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAttributableRewardsForSnapshot not implemented")
 }
 
-func (rpc *RpcServer) GetAttributableRewardsForDistributionRoot(ctx context.Context, req *sidecarV1.GetAttributableRewardsForDistributionRootRequest) (*sidecarV1.GetAttributableRewardsForDistributionRootResponse, error) {
+func (rpc *RpcServer) GetAttributableRewardsForDistributionRoot(ctx context.Context, req *rewardsV1.GetAttributableRewardsForDistributionRootRequest) (*rewardsV1.GetAttributableRewardsForDistributionRootResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAttributableRewardsForDistributionRoot not implemented")
 }
 
-func (rpc *RpcServer) GetAvailableRewards(ctx context.Context, req *sidecarV1.GetAvailableRewardsRequest) (*sidecarV1.GetAvailableRewardsResponse, error) {
+func (rpc *RpcServer) GetAvailableRewards(ctx context.Context, req *rewardsV1.GetAvailableRewardsRequest) (*rewardsV1.GetAvailableRewardsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAvailableRewards not implemented")
 }
 
-func (rpc *RpcServer) GetTotalClaimedRewards(ctx context.Context, req *sidecarV1.GetTotalClaimedRewardsRequest) (*sidecarV1.GetTotalClaimedRewardsResponse, error) {
+func (rpc *RpcServer) GetTotalClaimedRewards(ctx context.Context, req *rewardsV1.GetTotalClaimedRewardsRequest) (*rewardsV1.GetTotalClaimedRewardsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetTotalClaimedRewards not implemented")
 }
 
-func (rpc *RpcServer) GetAvailableRewardsTokens(ctx context.Context, req *sidecarV1.GetAvailableRewardsTokensRequest) (*sidecarV1.GetAvailableRewardsTokensResponse, error) {
+func (rpc *RpcServer) GetAvailableRewardsTokens(ctx context.Context, req *rewardsV1.GetAvailableRewardsTokensRequest) (*rewardsV1.GetAvailableRewardsTokensResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAvailableRewardsTokens not implemented")
 }
 
-func (rpc *RpcServer) GetSummarizedRewardsForEarner(ctx context.Context, req *sidecarV1.GetSummarizedRewardsForEarnerRequest) (*sidecarV1.GetSummarizedRewardsForEarnerResponse, error) {
+func (rpc *RpcServer) GetSummarizedRewardsForEarner(ctx context.Context, req *rewardsV1.GetSummarizedRewardsForEarnerRequest) (*rewardsV1.GetSummarizedRewardsForEarnerResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSummarizedRewardsForEarner not implemented")
 }
 
-func (rpc *RpcServer) GetClaimedRewardsByBlock(ctx context.Context, req *sidecarV1.GetClaimedRewardsByBlockRequest) (*sidecarV1.GetClaimedRewardsByBlockResponse, error) {
+func (rpc *RpcServer) GetClaimedRewardsByBlock(ctx context.Context, req *rewardsV1.GetClaimedRewardsByBlockRequest) (*rewardsV1.GetClaimedRewardsByBlockResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetClaimedRewardsByBlock not implemented")
 }
 
-func (rpc *RpcServer) ListDistributionRoots(ctx context.Context, req *sidecarV1.ListDistributionRootsRequest) (*sidecarV1.ListDistributionRootsResponse, error) {
+func (rpc *RpcServer) ListDistributionRoots(ctx context.Context, req *rewardsV1.ListDistributionRootsRequest) (*rewardsV1.ListDistributionRootsResponse, error) {
 	roots, err := rpc.rewardsCalculator.ListDistributionRoots()
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	responseRoots := make([]*sidecarV1.DistributionRoot, 0, len(roots))
+	responseRoots := make([]*rewardsV1.DistributionRoot, 0, len(roots))
 	for _, root := range roots {
-		responseRoots = append(responseRoots, &sidecarV1.DistributionRoot{
+		responseRoots = append(responseRoots, &rewardsV1.DistributionRoot{
 			Root:                      root.Root,
 			RootIndex:                 root.RootIndex,
 			RewardsCalculationEnd:     timestamppb.New(root.RewardsCalculationEnd),
@@ -224,7 +224,7 @@ func (rpc *RpcServer) ListDistributionRoots(ctx context.Context, req *sidecarV1.
 		})
 	}
 
-	return &sidecarV1.ListDistributionRootsResponse{
+	return &rewardsV1.ListDistributionRootsResponse{
 		DistributionRoots: responseRoots,
 	}, nil
 }

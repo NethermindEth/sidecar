@@ -3,7 +3,7 @@ package rpcServer
 import (
 	"context"
 
-	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1"
+	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/sidecar"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
