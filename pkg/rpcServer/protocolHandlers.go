@@ -2,7 +2,10 @@ package rpcServer
 
 import (
 	"context"
+	"errors"
+	"github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/common"
 	protocolV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/protocol"
+	"github.com/Layr-Labs/sidecar/pkg/service/types"
 )
 
 func (rpc *RpcServer) GetRegisteredAvsForOperator(ctx context.Context, request *protocolV1.GetRegisteredAvsForOperatorRequest) (*protocolV1.GetRegisteredAvsForOperatorResponse, error) {
@@ -21,8 +24,33 @@ func (rpc *RpcServer) GetOperatorDelegatedStakeForStrategy(ctx context.Context, 
 }
 
 func (rpc *RpcServer) GetDelegatedStakersForOperator(ctx context.Context, request *protocolV1.GetDelegatedStakersForOperatorRequest) (*protocolV1.GetDelegatedStakersForOperatorResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	operator := request.GetOperatorAddress()
+	if operator == "" {
+		return nil, errors.New("operator address is required")
+	}
+	pagination := types.NewDefaultPagination()
+
+	if p := request.GetPagination(); p != nil {
+		pagination.Load(p.GetPageNumber(), p.GetPageSize())
+	}
+
+	delegatedStakers, err := rpc.protocolDataService.ListDelegatedStakersForOperator(operator, request.GetBlockHeight(), pagination)
+	if err != nil {
+		return nil, err
+	}
+
+	var nextPage *common.Pagination
+	if uint32(len(delegatedStakers)) == pagination.PageSize {
+		nextPage = &common.Pagination{
+			PageNumber: pagination.Page + 1,
+			PageSize:   pagination.PageSize,
+		}
+	}
+
+	return &protocolV1.GetDelegatedStakersForOperatorResponse{
+		StakerAddresses: delegatedStakers,
+		NextPage:        nextPage,
+	}, nil
 }
 
 func (rpc *RpcServer) GetStakerShares(ctx context.Context, request *protocolV1.GetStakerSharesRequest) (*protocolV1.GetStakerSharesResponse, error) {

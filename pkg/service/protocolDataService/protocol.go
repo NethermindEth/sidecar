@@ -27,6 +27,18 @@ func NewProtocolDataService(
 	}
 }
 
+func (pds *ProtocolDataService) getCurrentBlockHeightIfNotPresent(blockHeight uint64) (uint64, error) {
+	if blockHeight == 0 {
+		var currentBlock *storage.Block
+		res := pds.db.Model(&storage.Block{}).Order("number desc").First(&currentBlock)
+		if res.Error != nil {
+			return 0, res.Error
+		}
+		blockHeight = currentBlock.Number
+	}
+	return blockHeight, nil
+}
+
 func (pds *ProtocolDataService) ListRegisteredAVSsForOperator(operator string, blockHeight uint64) (interface{}, error) {
 	return nil, nil
 }
@@ -39,8 +51,50 @@ func (pds *ProtocolDataService) GetOperatorDelegatedStake(operator string, strat
 	return nil, nil
 }
 
-func (pds *ProtocolDataService) ListDelegatedStakersForOperator(operator string, blockHeight uint64, pagination types.Pagination) (interface{}, error) {
-	return nil, nil
+func (pds *ProtocolDataService) ListDelegatedStakersForOperator(operator string, blockHeight uint64, pagination *types.Pagination) ([]string, error) {
+	bh, err := pds.getCurrentBlockHeightIfNotPresent(blockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		with staker_operator_delegations as (
+			SELECT DISTINCT ON (staker)
+				staker,
+				operator,
+				delegated
+			FROM sidecar_mainnet_ethereum.staker_delegation_changes
+			WHERE operator = @operator
+				AND block_number <= @blockHeight
+			ORDER BY staker, block_number desc, log_index asc
+		)
+		SELECT
+			sod.staker
+		from staker_operator_delegations as sod
+		where sod.delegated = true
+	`
+
+	queryParams := []interface{}{
+		sql.Named("operator", operator),
+		sql.Named("blockHeight", bh),
+	}
+
+	if pagination != nil {
+		query += ` LIMIT @limit`
+		queryParams = append(queryParams, sql.Named("limit", pagination.PageSize))
+
+		if pagination.Page > 0 {
+			query += ` OFFSET @offset`
+			queryParams = append(queryParams, sql.Named("offset", pagination.Page*pagination.PageSize))
+		}
+	}
+
+	var stakers []string
+	res := pds.db.Raw(query, queryParams...).Scan(&stakers)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return stakers, nil
 }
 
 type StakerShares struct {
@@ -60,13 +114,9 @@ type StakerShares struct {
 func (pds *ProtocolDataService) ListStakerShares(staker string, blockHeight uint64) ([]*StakerShares, error) {
 	shares := make([]*StakerShares, 0)
 
-	if blockHeight == 0 {
-		var currentBlock *storage.Block
-		res := pds.db.Model(&storage.Block{}).Order("number desc").First(&currentBlock)
-		if res.Error != nil {
-			return nil, res.Error
-		}
-		blockHeight = currentBlock.Number
+	bh, err := pds.getCurrentBlockHeightIfNotPresent(blockHeight)
+	if err != nil {
+		return nil, err
 	}
 
 	query := `
@@ -116,7 +166,7 @@ func (pds *ProtocolDataService) ListStakerShares(staker string, blockHeight uint
 	`
 	res := pds.db.Raw(query,
 		sql.Named("staker", staker),
-		sql.Named("blockHeight", blockHeight),
+		sql.Named("blockHeight", bh),
 	).Scan(&shares)
 	if res.Error != nil {
 		return nil, res.Error
