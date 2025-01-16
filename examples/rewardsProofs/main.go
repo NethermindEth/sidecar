@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	v1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1"
+	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-func NewSidecarClient(url string, insecureConn bool) (v1.RewardsClient, error) {
+func NewSidecarClient(url string, insecureConn bool) (rewardsV1.RewardsClient, error) {
 	var creds grpc.DialOption
 	if strings.Contains(url, "localhost:") || strings.Contains(url, "127.0.0.1:") || insecureConn {
 		creds = grpc.WithTransportCredentials(insecure.NewCredentials())
@@ -25,7 +25,7 @@ func NewSidecarClient(url string, insecureConn bool) (v1.RewardsClient, error) {
 		return nil, err
 	}
 
-	return v1.NewRewardsClient(grpcClient), nil
+	return rewardsV1.NewRewardsClient(grpcClient), nil
 }
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	res, err := client.GenerateClaimProof(context.Background(), &v1.GenerateClaimProofRequest{
+	res, err := client.GenerateClaimProof(context.Background(), &rewardsV1.GenerateClaimProofRequest{
 		EarnerAddress: earnerAddress,
 		Tokens:        tokens,
 	})

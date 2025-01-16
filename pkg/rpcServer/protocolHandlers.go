@@ -26,6 +26,22 @@ func (rpc *RpcServer) GetDelegatedStakersForOperator(ctx context.Context, reques
 }
 
 func (rpc *RpcServer) GetStakerShares(ctx context.Context, request *protocolV1.GetStakerSharesRequest) (*protocolV1.GetStakerSharesResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	shares, err := rpc.protocolDataService.ListStakerShares(request.GetStakerAddress(), request.GetBlockHeight())
+	if err != nil {
+		return nil, err
+	}
+
+	stakerShares := make([]*protocolV1.StakerShare, 0, len(shares))
+	for _, share := range shares {
+		stakerShares = append(stakerShares, &protocolV1.StakerShare{
+			Strategy:        share.Strategy,
+			Shares:          share.Shares,
+			OperatorAddress: share.Operator,
+			AvsAddresses:    share.AvsAddresses,
+		})
+	}
+
+	return &protocolV1.GetStakerSharesResponse{
+		Shares: stakerShares,
+	}, nil
 }

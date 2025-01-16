@@ -15,6 +15,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/proofs"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
+	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -34,14 +35,15 @@ type RpcServerConfig struct {
 }
 
 type RpcServer struct {
-	Logger            *zap.Logger
-	rpcConfig         *RpcServerConfig
-	blockStore        storage.BlockStore
-	stateManager      *stateManager.EigenStateManager
-	rewardsCalculator *rewards.RewardsCalculator
-	rewardsQueue      *rewardsCalculatorQueue.RewardsCalculatorQueue
-	eventBus          eventBusTypes.IEventBus
-	rewardsProofs     *proofs.RewardsProofsStore
+	Logger              *zap.Logger
+	rpcConfig           *RpcServerConfig
+	blockStore          storage.BlockStore
+	stateManager        *stateManager.EigenStateManager
+	rewardsCalculator   *rewards.RewardsCalculator
+	rewardsQueue        *rewardsCalculatorQueue.RewardsCalculatorQueue
+	eventBus            eventBusTypes.IEventBus
+	rewardsProofs       *proofs.RewardsProofsStore
+	protocolDataService *protocolDataService.ProtocolDataService
 }
 
 func NewRpcServer(
@@ -52,17 +54,19 @@ func NewRpcServer(
 	rcq *rewardsCalculatorQueue.RewardsCalculatorQueue,
 	eb eventBusTypes.IEventBus,
 	rp *proofs.RewardsProofsStore,
+	pds *protocolDataService.ProtocolDataService,
 	l *zap.Logger,
 ) *RpcServer {
 	server := &RpcServer{
-		rpcConfig:         config,
-		blockStore:        bs,
-		stateManager:      sm,
-		rewardsCalculator: rc,
-		rewardsQueue:      rcq,
-		eventBus:          eb,
-		rewardsProofs:     rp,
-		Logger:            l,
+		rpcConfig:           config,
+		blockStore:          bs,
+		stateManager:        sm,
+		rewardsCalculator:   rc,
+		rewardsQueue:        rcq,
+		eventBus:            eb,
+		rewardsProofs:       rp,
+		protocolDataService: pds,
+		Logger:              l,
 	}
 
 	return server
