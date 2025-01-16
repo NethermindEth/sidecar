@@ -137,10 +137,10 @@ func TestSetupRestore(t *testing.T) {
 func setup() (*config.Config, *zap.Logger, error) {
 	cfg := config.NewConfig()
 	cfg.Chain = config.Chain_Mainnet
-	cfg.Debug = false
+	cfg.Debug = os.Getenv(config.Debug) == "true"
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
-	l, err := logger.NewLogger(&logger.LoggerConfig{Debug: true})
+	l, err := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 	if err != nil {
 		return nil, nil, err
 	}

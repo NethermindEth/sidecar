@@ -740,7 +740,7 @@ func (rc *RewardsCalculator) FindClaimableDistributionRoot(rootIndex int64) (*ty
 		order by sdr.root_index desc
 		limit 1
 	`
-	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]string{
+	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
 		"rootIndex": strconv.Itoa(int(rootIndex)),
 	})
 	if err != nil {
@@ -775,7 +775,7 @@ func (rc *RewardsCalculator) GetGeneratedRewardsForSnapshotDate(snapshotDate str
 			and grs.snapshot_date::timestamp(6) >= '{{.snapshotDate}}'::timestamp(6)			
 		order by grs.snapshot_date asc
 		limit 1
-	`, map[string]string{"snapshotDate": snapshotDate})
+	`, map[string]interface{}{"snapshotDate": snapshotDate})
 
 	if err != nil {
 		rc.logger.Sugar().Errorw("Failed to render query template", "error", err)
