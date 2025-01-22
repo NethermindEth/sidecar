@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
+	"github.com/Layr-Labs/sidecar/pkg/metaState/types"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
@@ -240,8 +241,52 @@ func (rpc *RpcServer) GetSummarizedRewardsForEarner(ctx context.Context, req *re
 	return nil, status.Error(codes.Unimplemented, "method GetSummarizedRewardsForEarner not implemented")
 }
 
+// GetClaimedRewardsByBlock returns the claimed rewards for an earner for a specific block.
 func (rpc *RpcServer) GetClaimedRewardsByBlock(ctx context.Context, req *rewardsV1.GetClaimedRewardsByBlockRequest) (*rewardsV1.GetClaimedRewardsByBlockResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetClaimedRewardsByBlock not implemented")
+	blockHeight := req.GetBlockHeight()
+
+	claims, err := rpc.rewardsDataService.ListClaimedRewardsByBlockRange(ctx, "", blockHeight, blockHeight)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &rewardsV1.GetClaimedRewardsByBlockResponse{
+		Rewards: utils.Map(claims, func(c *types.RewardsClaimed, i uint64) *rewardsV1.ClaimedReward {
+			return &rewardsV1.ClaimedReward{
+				Earner:      c.Earner,
+				Claimer:     c.Claimer,
+				Token:       c.Token,
+				BlockNumber: c.BlockNumber,
+			}
+		}),
+	}, nil
+}
+
+// ListClaimedRewardsByBlockRange returns the claimed rewards for each block in the given range (inclusive of start and end block heights).
+func (rpc *RpcServer) ListClaimedRewardsByBlockRange(ctx context.Context, req *rewardsV1.ListClaimedRewardsByBlockRangeRequest) (*rewardsV1.ListClaimedRewardsByBlockRangeResponse, error) {
+	earner := req.GetEarnerAddress()
+	startBlockHeight := req.GetStartBlockHeight()
+	endBlockHeight := req.GetEndBlockHeight()
+
+	if earner == "" {
+		return nil, status.Error(codes.InvalidArgument, "earner address is required")
+	}
+
+	claims, err := rpc.rewardsDataService.ListClaimedRewardsByBlockRange(ctx, earner, startBlockHeight, endBlockHeight)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &rewardsV1.ListClaimedRewardsByBlockRangeResponse{
+		Rewards: utils.Map(claims, func(c *types.RewardsClaimed, i uint64) *rewardsV1.ClaimedReward {
+			return &rewardsV1.ClaimedReward{
+				Earner:      c.Earner,
+				Claimer:     c.Claimer,
+				Token:       c.Token,
+				BlockNumber: c.BlockNumber,
+			}
+		}),
+	}, nil
 }
 
 func (rpc *RpcServer) ListDistributionRoots(ctx context.Context, req *rewardsV1.ListDistributionRootsRequest) (*rewardsV1.ListDistributionRootsResponse, error) {
