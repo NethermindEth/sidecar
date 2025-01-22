@@ -6,6 +6,7 @@ import (
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
+	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -207,8 +208,28 @@ func (rpc *RpcServer) GetAvailableRewards(ctx context.Context, req *rewardsV1.Ge
 	return nil, status.Error(codes.Unimplemented, "method GetAvailableRewards not implemented")
 }
 
+// GetTotalClaimedRewards returns the total claimed rewards for an earner up to, and including, the provided block height.
 func (rpc *RpcServer) GetTotalClaimedRewards(ctx context.Context, req *rewardsV1.GetTotalClaimedRewardsRequest) (*rewardsV1.GetTotalClaimedRewardsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetTotalClaimedRewards not implemented")
+	earner := req.GetEarnerAddress()
+	blockHeight := req.GetBlockHeight()
+
+	if earner == "" {
+		return nil, status.Error(codes.InvalidArgument, "earner address is required")
+	}
+
+	totalClaimed, err := rpc.rewardsDataService.GetTotalClaimedRewards(ctx, earner, blockHeight)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &rewardsV1.GetTotalClaimedRewardsResponse{
+		Rewards: utils.Map(totalClaimed, func(r *rewardsDataService.TotalClaimedReward, i uint64) *rewardsV1.TotalClaimedReward {
+			return &rewardsV1.TotalClaimedReward{
+				Earner: r.Earner,
+				Token:  r.Token,
+				Amount: r.Amount,
+			}
+		}),
+	}, nil
 }
 
 func (rpc *RpcServer) GetAvailableRewardsTokens(ctx context.Context, req *rewardsV1.GetAvailableRewardsTokensRequest) (*rewardsV1.GetAvailableRewardsTokensResponse, error) {

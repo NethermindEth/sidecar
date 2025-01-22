@@ -37,7 +37,7 @@ func NewProtocolDataService(
 func (pds *ProtocolDataService) ListRegisteredAVSsForOperator(ctx context.Context, operator string, blockHeight uint64) ([]string, error) {
 	operator = strings.ToLower(operator)
 
-	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(blockHeight)
+	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (pds *ProtocolDataService) ListRegisteredAVSsForOperator(ctx context.Contex
 
 func (pds *ProtocolDataService) ListDelegatedStrategiesForOperator(ctx context.Context, operator string, blockHeight uint64) ([]string, error) {
 	operator = strings.ToLower(operator)
-	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(blockHeight)
+	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ type ResultCollector[T any] struct {
 }
 
 func (pds *ProtocolDataService) GetOperatorDelegatedStake(ctx context.Context, operator string, strategy string, blockHeight uint64) (*OperatorDelegatedStake, error) {
-	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(blockHeight)
+	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +286,7 @@ func (pds *ProtocolDataService) GetOperatorDelegatedStake(ctx context.Context, o
 }
 
 func (pds *ProtocolDataService) ListDelegatedStakersForOperator(ctx context.Context, operator string, blockHeight uint64, pagination *types.Pagination) ([]string, error) {
-	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(blockHeight)
+	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +348,7 @@ type StakerShares struct {
 func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker string, blockHeight uint64) ([]*StakerShares, error) {
 	shares := make([]*StakerShares, 0)
 
-	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(blockHeight)
+	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
 		return nil, err
 	}
