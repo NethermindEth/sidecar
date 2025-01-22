@@ -170,7 +170,29 @@ func (rpc *RpcServer) BackfillStakerOperators(ctx context.Context, req *rewardsV
 }
 
 func (rpc *RpcServer) GetRewardsForSnapshot(ctx context.Context, req *rewardsV1.GetRewardsForSnapshotRequest) (*rewardsV1.GetRewardsForSnapshotResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetRewardsForSnapshot not implemented")
+	snapshot := req.GetSnapshot()
+	if snapshot == "" {
+		return nil, status.Error(codes.InvalidArgument, "snapshot is required")
+	}
+
+	snapshotRewards, err := rpc.rewardsDataService.GetRewardsForSnapshot(ctx, snapshot)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	rewardsRes := make([]*rewardsV1.Reward, 0, len(snapshotRewards))
+
+	for _, reward := range snapshotRewards {
+		rewardsRes = append(rewardsRes, &rewardsV1.Reward{
+			Earner:   reward.Earner,
+			Amount:   reward.CumulativeAmount,
+			Snapshot: reward.Snapshot,
+			Token:    reward.Token,
+		})
+	}
+
+	return &rewardsV1.GetRewardsForSnapshotResponse{
+		Rewards: rewardsRes,
+	}, nil
 }
 
 func (rpc *RpcServer) GetAttributableRewardsForSnapshot(ctx context.Context, req *rewardsV1.GetAttributableRewardsForSnapshotRequest) (*rewardsV1.GetAttributableRewardsForSnapshotResponse, error) {

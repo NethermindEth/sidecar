@@ -15,7 +15,7 @@ func (rpc *RpcServer) GetRegisteredAvsForOperator(ctx context.Context, request *
 	}
 
 	blockHeight := request.GetBlockHeight()
-	registeredAvs, err := rpc.protocolDataService.ListRegisteredAVSsForOperator(operator, blockHeight)
+	registeredAvs, err := rpc.protocolDataService.ListRegisteredAVSsForOperator(ctx, operator, blockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (rpc *RpcServer) GetDelegatedStrategiesForOperator(ctx context.Context, req
 		return nil, errors.New("operator address is required")
 	}
 
-	delegatedStrategies, err := rpc.protocolDataService.ListDelegatedStrategiesForOperator(operator, blockHeight)
+	delegatedStrategies, err := rpc.protocolDataService.ListDelegatedStrategiesForOperator(ctx, operator, blockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (rpc *RpcServer) GetOperatorDelegatedStakeForStrategy(ctx context.Context, 
 		return nil, errors.New("strategy address is required")
 	}
 
-	delegatedStake, err := rpc.protocolDataService.GetOperatorDelegatedStake(operator, strategy, blockHeight)
+	delegatedStake, err := rpc.protocolDataService.GetOperatorDelegatedStake(ctx, operator, strategy, blockHeight)
 
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (rpc *RpcServer) GetDelegatedStakersForOperator(ctx context.Context, reques
 		pagination.Load(p.GetPageNumber(), p.GetPageSize())
 	}
 
-	delegatedStakers, err := rpc.protocolDataService.ListDelegatedStakersForOperator(operator, request.GetBlockHeight(), pagination)
+	delegatedStakers, err := rpc.protocolDataService.ListDelegatedStakersForOperator(ctx, operator, request.GetBlockHeight(), pagination)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (rpc *RpcServer) GetDelegatedStakersForOperator(ctx context.Context, reques
 }
 
 func (rpc *RpcServer) GetStakerShares(ctx context.Context, request *protocolV1.GetStakerSharesRequest) (*protocolV1.GetStakerSharesResponse, error) {
-	shares, err := rpc.protocolDataService.ListStakerShares(request.GetStakerAddress(), request.GetBlockHeight())
+	shares, err := rpc.protocolDataService.ListStakerShares(ctx, request.GetStakerAddress(), request.GetBlockHeight())
 	if err != nil {
 		return nil, err
 	}

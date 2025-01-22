@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/pkg/rewards/rewardsTypes"
 	"time"
 
 	"sync/atomic"
@@ -482,15 +483,8 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 	return nil
 }
 
-type Reward struct {
-	Earner           string
-	Token            string
-	Snapshot         string
-	CumulativeAmount string
-}
-
-func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string) ([]*Reward, error) {
-	var goldRows []*Reward
+func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string) ([]*rewardsTypes.Reward, error) {
+	var goldRows []*rewardsTypes.Reward
 	query, err := rewardsUtils.RenderQueryTemplate(`
 		select
 			earner,

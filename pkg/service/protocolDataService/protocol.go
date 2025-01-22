@@ -1,10 +1,11 @@
 package protocolDataService
 
 import (
+	"context"
 	"database/sql"
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/types"
-	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"strings"
@@ -12,6 +13,7 @@ import (
 )
 
 type ProtocolDataService struct {
+	baseDataService.BaseDataService
 	db           *gorm.DB
 	logger       *zap.Logger
 	globalConfig *config.Config
@@ -23,28 +25,19 @@ func NewProtocolDataService(
 	globalConfig *config.Config,
 ) *ProtocolDataService {
 	return &ProtocolDataService{
+		BaseDataService: baseDataService.BaseDataService{
+			DB: db,
+		},
 		db:           db,
 		logger:       logger,
 		globalConfig: globalConfig,
 	}
 }
 
-func (pds *ProtocolDataService) getCurrentBlockHeightIfNotPresent(blockHeight uint64) (uint64, error) {
-	if blockHeight == 0 {
-		var currentBlock *storage.Block
-		res := pds.db.Model(&storage.Block{}).Order("number desc").First(&currentBlock)
-		if res.Error != nil {
-			return 0, res.Error
-		}
-		blockHeight = currentBlock.Number
-	}
-	return blockHeight, nil
-}
-
-func (pds *ProtocolDataService) ListRegisteredAVSsForOperator(operator string, blockHeight uint64) ([]string, error) {
+func (pds *ProtocolDataService) ListRegisteredAVSsForOperator(ctx context.Context, operator string, blockHeight uint64) ([]string, error) {
 	operator = strings.ToLower(operator)
 
-	blockHeight, err := pds.getCurrentBlockHeightIfNotPresent(blockHeight)
+	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(blockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -80,9 +73,9 @@ func (pds *ProtocolDataService) ListRegisteredAVSsForOperator(operator string, b
 	return avsAddresses, nil
 }
 
-func (pds *ProtocolDataService) ListDelegatedStrategiesForOperator(operator string, blockHeight uint64) ([]string, error) {
+func (pds *ProtocolDataService) ListDelegatedStrategiesForOperator(ctx context.Context, operator string, blockHeight uint64) ([]string, error) {
 	operator = strings.ToLower(operator)
-	blockHeight, err := pds.getCurrentBlockHeightIfNotPresent(blockHeight)
+	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(blockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +134,7 @@ func (pds *ProtocolDataService) ListDelegatedStrategiesForOperator(operator stri
 }
 
 // getTotalDelegatedOperatorSharesForStrategy returns the total shares delegated to an operator for a given strategy at a given block height.
-func (pds *ProtocolDataService) getTotalDelegatedOperatorSharesForStrategy(operator string, strategy string, blockHeight uint64) (string, error) {
+func (pds *ProtocolDataService) getTotalDelegatedOperatorSharesForStrategy(ctx context.Context, operator string, strategy string, blockHeight uint64) (string, error) {
 	query := `
 		with operator_stakers as (
 			select
@@ -223,8 +216,8 @@ type ResultCollector[T any] struct {
 	Error  error
 }
 
-func (pds *ProtocolDataService) GetOperatorDelegatedStake(operator string, strategy string, blockHeight uint64) (*OperatorDelegatedStake, error) {
-	blockHeight, err := pds.getCurrentBlockHeightIfNotPresent(blockHeight)
+func (pds *ProtocolDataService) GetOperatorDelegatedStake(ctx context.Context, operator string, strategy string, blockHeight uint64) (*OperatorDelegatedStake, error) {
+	blockHeight, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(blockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +232,7 @@ func (pds *ProtocolDataService) GetOperatorDelegatedStake(operator string, strat
 		defer wg.Done()
 		result := &ResultCollector[string]{}
 
-		shares, err := pds.getTotalDelegatedOperatorSharesForStrategy(operator, strategy, blockHeight)
+		shares, err := pds.getTotalDelegatedOperatorSharesForStrategy(ctx, operator, strategy, blockHeight)
 		if err != nil {
 			result.Error = err
 		} else {
@@ -252,7 +245,7 @@ func (pds *ProtocolDataService) GetOperatorDelegatedStake(operator string, strat
 		defer wg.Done()
 		result := &ResultCollector[[]string]{}
 
-		avsAddresses, err := pds.ListRegisteredAVSsForOperator(operator, blockHeight)
+		avsAddresses, err := pds.ListRegisteredAVSsForOperator(ctx, operator, blockHeight)
 		if err != nil {
 			result.Error = err
 		} else {
@@ -292,8 +285,8 @@ func (pds *ProtocolDataService) GetOperatorDelegatedStake(operator string, strat
 	}, nil
 }
 
-func (pds *ProtocolDataService) ListDelegatedStakersForOperator(operator string, blockHeight uint64, pagination *types.Pagination) ([]string, error) {
-	bh, err := pds.getCurrentBlockHeightIfNotPresent(blockHeight)
+func (pds *ProtocolDataService) ListDelegatedStakersForOperator(ctx context.Context, operator string, blockHeight uint64, pagination *types.Pagination) ([]string, error) {
+	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(blockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -352,10 +345,10 @@ type StakerShares struct {
 // and the addresses of the AVSs the operator was registered to.
 //
 // If not blockHeight is provided, the most recently indexed block will be used.
-func (pds *ProtocolDataService) ListStakerShares(staker string, blockHeight uint64) ([]*StakerShares, error) {
+func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker string, blockHeight uint64) ([]*StakerShares, error) {
 	shares := make([]*StakerShares, 0)
 
-	bh, err := pds.getCurrentBlockHeightIfNotPresent(blockHeight)
+	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(blockHeight)
 	if err != nil {
 		return nil, err
 	}

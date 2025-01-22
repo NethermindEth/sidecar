@@ -16,6 +16,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
+	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -44,6 +45,7 @@ type RpcServer struct {
 	eventBus            eventBusTypes.IEventBus
 	rewardsProofs       *proofs.RewardsProofsStore
 	protocolDataService *protocolDataService.ProtocolDataService
+	rewardsDataService  *rewardsDataService.RewardsDataService
 }
 
 func NewRpcServer(
@@ -55,6 +57,7 @@ func NewRpcServer(
 	eb eventBusTypes.IEventBus,
 	rp *proofs.RewardsProofsStore,
 	pds *protocolDataService.ProtocolDataService,
+	rds *rewardsDataService.RewardsDataService,
 	l *zap.Logger,
 ) *RpcServer {
 	server := &RpcServer{
@@ -66,6 +69,7 @@ func NewRpcServer(
 		eventBus:            eb,
 		rewardsProofs:       rp,
 		protocolDataService: pds,
+		rewardsDataService:  rds,
 		Logger:              l,
 	}
 
