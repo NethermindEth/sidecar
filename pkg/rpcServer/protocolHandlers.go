@@ -26,8 +26,21 @@ func (rpc *RpcServer) GetRegisteredAvsForOperator(ctx context.Context, request *
 }
 
 func (rpc *RpcServer) GetDelegatedStrategiesForOperator(ctx context.Context, request *protocolV1.GetDelegatedStrategiesForOperatorRequest) (*protocolV1.GetDelegatedStrategiesForOperatorResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	operator := request.GetOperatorAddress()
+	blockHeight := request.GetBlockHeight()
+
+	if operator == "" {
+		return nil, errors.New("operator address is required")
+	}
+
+	delegatedStrategies, err := rpc.protocolDataService.ListDelegatedStrategiesForOperator(operator, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocolV1.GetDelegatedStrategiesForOperatorResponse{
+		StrategyAddresses: delegatedStrategies,
+	}, nil
 }
 
 func (rpc *RpcServer) GetOperatorDelegatedStakeForStrategy(ctx context.Context, request *protocolV1.GetOperatorDelegatedStakeForStrategyRequest) (*protocolV1.GetOperatorDelegatedStakeForStrategyResponse, error) {

@@ -80,8 +80,64 @@ func (pds *ProtocolDataService) ListRegisteredAVSsForOperator(operator string, b
 	return avsAddresses, nil
 }
 
-func (pds *ProtocolDataService) ListDelegatedStrategiesForOperator(operator string, blockHeight uint64) (interface{}, error) {
-	return nil, nil
+func (pds *ProtocolDataService) ListDelegatedStrategiesForOperator(operator string, blockHeight uint64) ([]string, error) {
+	operator = strings.ToLower(operator)
+	blockHeight, err := pds.getCurrentBlockHeightIfNotPresent(blockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		with operator_stakers as (
+			select distinct on (staker)
+				staker,
+				block_number,
+				delegated
+			from staker_delegation_changes
+			where
+				operator = @operator
+				and block_number <= @blockHeight
+			order by staker, block_number desc, log_index asc
+		),
+		delegated_stakers as (
+			select
+				staker,
+				block_number
+			from operator_stakers
+			where delegated = true
+		),
+		staker_strategies as (
+			select
+				s.strategy,
+				s.shares
+			from delegated_stakers as ds
+			left join staker_share_deltas as s
+				on s.staker = ds.staker
+				and s.block_number <= ds.block_number
+		),
+		strategy_shares as (
+			select
+				ss.strategy,
+				sum(ss.shares) as shares
+			from staker_strategies as ss
+			group by 1
+		)
+		select
+			strategy
+		from strategy_shares
+		where shares > 0;
+	`
+
+	var strategies []string
+	res := pds.db.Raw(query,
+		sql.Named("operator", operator),
+		sql.Named("blockHeight", blockHeight),
+	).Scan(&strategies)
+
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return strategies, nil
 }
 
 // getTotalDelegatedOperatorSharesForStrategy returns the total shares delegated to an operator for a given strategy at a given block height.
@@ -98,7 +154,7 @@ func (pds *ProtocolDataService) getTotalDelegatedOperatorSharesForStrategy(opera
 			from staker_delegation_changes
 			where
 				operator = @operator
-				and block_number <= @blockNumber
+				and block_number <= @blockHeight
 			order by block_number desc, log_index desc
 		),
 		distinct_delegated_stakers as (
@@ -148,7 +204,7 @@ func (pds *ProtocolDataService) getTotalDelegatedOperatorSharesForStrategy(opera
 	res := pds.db.Raw(query,
 		sql.Named("operator", strings.ToLower(operator)),
 		sql.Named("strategy", strings.ToLower(strategy)),
-		sql.Named("blockNumber", blockHeight),
+		sql.Named("blockHeight", blockHeight),
 	).Scan(&results)
 
 	if res.Error != nil {
