@@ -290,7 +290,8 @@ func (rpc *RpcServer) ListClaimedRewardsByBlockRange(ctx context.Context, req *r
 }
 
 func (rpc *RpcServer) ListDistributionRoots(ctx context.Context, req *rewardsV1.ListDistributionRootsRequest) (*rewardsV1.ListDistributionRootsResponse, error) {
-	roots, err := rpc.rewardsCalculator.ListDistributionRoots()
+	blockHeight := req.GetBlockHeight()
+	roots, err := rpc.rewardsCalculator.ListDistributionRoots(blockHeight)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
