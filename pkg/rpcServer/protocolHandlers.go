@@ -9,8 +9,20 @@ import (
 )
 
 func (rpc *RpcServer) GetRegisteredAvsForOperator(ctx context.Context, request *protocolV1.GetRegisteredAvsForOperatorRequest) (*protocolV1.GetRegisteredAvsForOperatorResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	operator := request.GetOperatorAddress()
+	if operator == "" {
+		return nil, errors.New("operator address is required")
+	}
+
+	blockHeight := request.GetBlockHeight()
+	registeredAvs, err := rpc.protocolDataService.ListRegisteredAVSsForOperator(operator, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocolV1.GetRegisteredAvsForOperatorResponse{
+		AvsAddresses: registeredAvs,
+	}, nil
 }
 
 func (rpc *RpcServer) GetDelegatedStrategiesForOperator(ctx context.Context, request *protocolV1.GetDelegatedStrategiesForOperatorRequest) (*protocolV1.GetDelegatedStrategiesForOperatorResponse, error) {
@@ -19,8 +31,28 @@ func (rpc *RpcServer) GetDelegatedStrategiesForOperator(ctx context.Context, req
 }
 
 func (rpc *RpcServer) GetOperatorDelegatedStakeForStrategy(ctx context.Context, request *protocolV1.GetOperatorDelegatedStakeForStrategyRequest) (*protocolV1.GetOperatorDelegatedStakeForStrategyResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	operator := request.GetOperatorAddress()
+	strategy := request.GetStrategyAddress()
+	blockHeight := request.GetBlockHeight()
+
+	if operator == "" {
+		return nil, errors.New("operator address is required")
+	}
+
+	if strategy == "" {
+		return nil, errors.New("strategy address is required")
+	}
+
+	delegatedStake, err := rpc.protocolDataService.GetOperatorDelegatedStake(operator, strategy, blockHeight)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocolV1.GetOperatorDelegatedStakeForStrategyResponse{
+		Shares:       delegatedStake.Shares,
+		AvsAddresses: delegatedStake.AvsAddresses,
+	}, nil
 }
 
 func (rpc *RpcServer) GetDelegatedStakersForOperator(ctx context.Context, request *protocolV1.GetDelegatedStakersForOperatorRequest) (*protocolV1.GetDelegatedStakersForOperatorResponse, error) {
