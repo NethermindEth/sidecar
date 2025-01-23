@@ -159,7 +159,7 @@ type RewardAmount struct {
 }
 
 // GetTotalRewardsForEarner returns the total earned rewards for a given earner at a given block height.
-func (rds *RewardsDataService) GetTotalRewardsForEarner(earner string, tokens []string, blockHeight uint64, claimable bool) ([]*RewardAmount, error) {
+func (rds *RewardsDataService) GetTotalRewardsForEarner(ctx context.Context, earner string, tokens []string, blockHeight uint64, claimable bool) ([]*RewardAmount, error) {
 	if earner == "" {
 		return nil, fmt.Errorf("earner is required")
 	}
@@ -202,13 +202,22 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(earner string, tokens []
 }
 
 // GetClaimableRewardsForEarner returns the rewards that are claimable for a given earner at a given block height (totalActiveRewards - claimed)
-func (rds *RewardsDataService) GetClaimableRewardsForEarner(earner string, tokens []string, blockHeight uint64) ([]*RewardAmount, error) {
+func (rds *RewardsDataService) GetClaimableRewardsForEarner(
+	ctx context.Context,
+	earner string,
+	tokens []string,
+	blockHeight uint64,
+) (
+	[]*RewardAmount,
+	*eigenStateTypes.SubmittedDistributionRoot,
+	error,
+) {
 	if earner == "" {
-		return nil, fmt.Errorf("earner is required")
+		return nil, nil, fmt.Errorf("earner is required")
 	}
 	snapshot, err := rds.findDistributionRootClosestToBlockHeight(blockHeight, true)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	query := `
 		with claimed_tokens as (
@@ -261,9 +270,9 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(earner string, token
 	claimableRewards := make([]*RewardAmount, 0)
 	res := rds.db.Raw(query, args...).Scan(&claimableRewards)
 	if res.Error != nil {
-		return nil, res.Error
+		return nil, nil, res.Error
 	}
-	return claimableRewards, nil
+	return claimableRewards, snapshot, nil
 }
 
 // findDistributionRootClosestToBlockHeight returns the distribution root that is closest to the provided block height
@@ -367,7 +376,7 @@ func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner 
 	go func() {
 		defer wg.Done()
 		res := &ChanResult[[]*RewardAmount]{}
-		earnedRewards, err := rds.GetTotalRewardsForEarner(earner, tokens, blockHeight, false)
+		earnedRewards, err := rds.GetTotalRewardsForEarner(ctx, earner, tokens, blockHeight, false)
 		if err != nil {
 			res.Error = err
 		} else {
@@ -379,7 +388,7 @@ func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner 
 	go func() {
 		defer wg.Done()
 		res := &ChanResult[[]*RewardAmount]{}
-		activeRewards, err := rds.GetTotalRewardsForEarner(earner, tokens, blockHeight, true)
+		activeRewards, err := rds.GetTotalRewardsForEarner(ctx, earner, tokens, blockHeight, true)
 		if err != nil {
 			res.Error = err
 		} else {
@@ -391,7 +400,7 @@ func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner 
 	go func() {
 		defer wg.Done()
 		res := &ChanResult[[]*RewardAmount]{}
-		claimableRewards, err := rds.GetClaimableRewardsForEarner(earner, tokens, blockHeight)
+		claimableRewards, _, err := rds.GetClaimableRewardsForEarner(ctx, earner, tokens, blockHeight)
 		if err != nil {
 			res.Error = err
 		} else {
@@ -403,7 +412,7 @@ func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner 
 	go func() {
 		defer wg.Done()
 		res := &ChanResult[[]*RewardAmount]{}
-		claimedRewards, err := rds.GetTotalClaimedRewards(context.Background(), earner, tokens, blockHeight)
+		claimedRewards, err := rds.GetTotalClaimedRewards(ctx, earner, tokens, blockHeight)
 		if err != nil {
 			res.Error = err
 		} else {

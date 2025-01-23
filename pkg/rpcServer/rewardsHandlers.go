@@ -205,8 +205,29 @@ func (rpc *RpcServer) GetAttributableRewardsForDistributionRoot(ctx context.Cont
 	return nil, status.Error(codes.Unimplemented, "method GetAttributableRewardsForDistributionRoot not implemented")
 }
 
-func (rpc *RpcServer) GetAvailableRewards(ctx context.Context, req *rewardsV1.GetAvailableRewardsRequest) (*rewardsV1.GetAvailableRewardsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetAvailableRewards not implemented")
+func (rpc *RpcServer) GetClaimableRewards(ctx context.Context, req *rewardsV1.GetClaimableRewardsRequest) (*rewardsV1.GetClaimableRewardsResponse, error) {
+	earner := req.GetEarnerAddress()
+	blockHeight := req.GetBlockHeight()
+
+	if earner == "" {
+		return nil, status.Error(codes.InvalidArgument, "earner address is required")
+	}
+
+	claimableRewards, snapshot, err := rpc.rewardsDataService.GetClaimableRewardsForEarner(ctx, earner, nil, blockHeight)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &rewardsV1.GetClaimableRewardsResponse{
+		Rewards: utils.Map(claimableRewards, func(r *rewardsDataService.RewardAmount, i uint64) *rewardsV1.Reward {
+			return &rewardsV1.Reward{
+				Earner:   earner,
+				Token:    r.Token,
+				Amount:   r.Amount,
+				Snapshot: snapshot.GetSnapshotDate(),
+			}
+		}),
+	}, nil
 }
 
 // GetTotalClaimedRewards returns the total claimed rewards for an earner up to, and including, the provided block height.
