@@ -218,7 +218,7 @@ func (rpc *RpcServer) GetTotalClaimedRewards(ctx context.Context, req *rewardsV1
 		return nil, status.Error(codes.InvalidArgument, "earner address is required")
 	}
 
-	totalClaimed, err := rpc.rewardsDataService.GetTotalClaimedRewards(ctx, earner, blockHeight)
+	totalClaimed, err := rpc.rewardsDataService.GetTotalClaimedRewards(ctx, earner, nil, blockHeight)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -238,14 +238,36 @@ func (rpc *RpcServer) GetAvailableRewardsTokens(ctx context.Context, req *reward
 }
 
 func (rpc *RpcServer) GetSummarizedRewardsForEarner(ctx context.Context, req *rewardsV1.GetSummarizedRewardsForEarnerRequest) (*rewardsV1.GetSummarizedRewardsForEarnerResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetSummarizedRewardsForEarner not implemented")
+	earner := req.GetEarnerAddress()
+	blockHeight := req.GetBlockHeight()
+
+	if earner == "" {
+		return nil, status.Error(codes.InvalidArgument, "earner address is required")
+	}
+
+	summarizedRewards, err := rpc.rewardsDataService.GetSummarizedRewards(ctx, earner, nil, blockHeight)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &rewardsV1.GetSummarizedRewardsForEarnerResponse{
+		Rewards: utils.Map(summarizedRewards, func(r *rewardsDataService.SummarizedReward, i uint64) *rewardsV1.SummarizedEarnerReward {
+			return &rewardsV1.SummarizedEarnerReward{
+				Token:     r.Token,
+				Earned:    r.Earned,
+				Active:    r.Active,
+				Claimed:   r.Claimed,
+				Claimable: r.Claimable,
+			}
+		}),
+	}, nil
 }
 
 // GetClaimedRewardsByBlock returns the claimed rewards for an earner for a specific block.
 func (rpc *RpcServer) GetClaimedRewardsByBlock(ctx context.Context, req *rewardsV1.GetClaimedRewardsByBlockRequest) (*rewardsV1.GetClaimedRewardsByBlockResponse, error) {
 	blockHeight := req.GetBlockHeight()
 
-	claims, err := rpc.rewardsDataService.ListClaimedRewardsByBlockRange(ctx, "", blockHeight, blockHeight)
+	claims, err := rpc.rewardsDataService.ListClaimedRewardsByBlockRange(ctx, "", blockHeight, blockHeight, nil)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -272,7 +294,7 @@ func (rpc *RpcServer) ListClaimedRewardsByBlockRange(ctx context.Context, req *r
 		return nil, status.Error(codes.InvalidArgument, "earner address is required")
 	}
 
-	claims, err := rpc.rewardsDataService.ListClaimedRewardsByBlockRange(ctx, earner, startBlockHeight, endBlockHeight)
+	claims, err := rpc.rewardsDataService.ListClaimedRewardsByBlockRange(ctx, earner, startBlockHeight, endBlockHeight, nil)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
