@@ -177,7 +177,7 @@ func (m *Migrator) Migrate(migration Migration) error {
 		m.Logger.Sugar().Debugf("Migration %s already run", name)
 		return nil
 	}
-	m.Logger.Sugar().Infof("Migration %s applied", name)
+	m.Logger.Sugar().Debugf("Migration %s applied", name)
 	return nil
 }
 

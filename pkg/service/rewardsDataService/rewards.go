@@ -159,7 +159,13 @@ type RewardAmount struct {
 }
 
 // GetTotalRewardsForEarner returns the total earned rewards for a given earner at a given block height.
-func (rds *RewardsDataService) GetTotalRewardsForEarner(ctx context.Context, earner string, tokens []string, blockHeight uint64, claimable bool) ([]*RewardAmount, error) {
+func (rds *RewardsDataService) GetTotalRewardsForEarner(
+	ctx context.Context,
+	earner string,
+	tokens []string,
+	blockHeight uint64,
+	claimable bool,
+) ([]*RewardAmount, error) {
 	if earner == "" {
 		return nil, fmt.Errorf("earner is required")
 	}
@@ -169,14 +175,26 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(ctx context.Context, ear
 		return nil, err
 	}
 
+	if snapshot == nil {
+		return nil, fmt.Errorf("no distribution root found for blockHeight '%d'", blockHeight)
+	}
+
 	query := `
+		with token_snapshots as (
+			select
+				token,
+				amount
+			from gold_table as gt
+			where
+				earner = @earner
+				and snapshot <= @snapshot
+			order by snapshot desc
+		)
 		select
 			token,
 			sum(amount) as amount
-		from sidecar_mainnet_ethereum.gold_table as gt
-		where
-			earner = @earner
-			and snapshot <= @snapshot
+		from token_snapshots
+		group by 1
 	`
 	args := []interface{}{
 		sql.Named("earner", earner),
@@ -189,10 +207,9 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(ctx context.Context, ear
 		})
 		args = append(args, sql.Named("tokens", formattedTokens))
 	}
-	query += ` order by snapshot desc`
 
 	rewardAmounts := make([]*RewardAmount, 0)
-	res := rds.db.Raw(query, args...).Scan(&tokens)
+	res := rds.db.Raw(query, args...).Scan(&rewardAmounts)
 
 	if res.Error != nil {
 		return nil, res.Error
@@ -218,6 +235,9 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 	snapshot, err := rds.findDistributionRootClosestToBlockHeight(blockHeight, true)
 	if err != nil {
 		return nil, nil, err
+	}
+	if snapshot == nil {
+		return nil, nil, fmt.Errorf("no distribution root found for blockHeight '%d'", blockHeight)
 	}
 	query := `
 		with claimed_tokens as (
@@ -256,7 +276,7 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 	`
 	args := []interface{}{
 		sql.Named("earner", earner),
-		sql.Named("blockHeight", blockHeight),
+		sql.Named("blockNumber", blockHeight),
 		sql.Named("snapshot", snapshot.GetSnapshotDate()),
 	}
 	if len(tokens) > 0 {
@@ -314,7 +334,7 @@ func (rds *RewardsDataService) findDistributionRootClosestToBlockHeight(blockHei
 	var root *eigenStateTypes.SubmittedDistributionRoot
 	res := rds.db.Raw(renderedQuery, sql.Named("blockHeight", blockHeight)).Scan(&root)
 	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
-		return nil, res.Error
+		return nil, errors.Join(fmt.Errorf("Failed to find distribution for block number '%d'", blockHeight), res.Error)
 	}
 	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
 		return nil, fmt.Errorf("no distribution root found for blockHeight '%d'", blockHeight)
@@ -366,11 +386,11 @@ func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner 
 	}
 
 	// channels to aggregate results together in a thread safe way
-	earnedRewardsChan := make(chan *ChanResult[[]*RewardAmount])
-	activeRewardsChan := make(chan *ChanResult[[]*RewardAmount])
-	claimableRewardsChan := make(chan *ChanResult[[]*RewardAmount])
-	claimedRewardsChan := make(chan *ChanResult[[]*RewardAmount])
-	var wg sync.WaitGroup
+	earnedRewardsChan := make(chan *ChanResult[[]*RewardAmount], 1)
+	activeRewardsChan := make(chan *ChanResult[[]*RewardAmount], 1)
+	claimableRewardsChan := make(chan *ChanResult[[]*RewardAmount], 1)
+	claimedRewardsChan := make(chan *ChanResult[[]*RewardAmount], 1)
+	wg := sync.WaitGroup{}
 	wg.Add(4)
 
 	go func() {
@@ -389,6 +409,7 @@ func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner 
 		defer wg.Done()
 		res := &ChanResult[[]*RewardAmount]{}
 		activeRewards, err := rds.GetTotalRewardsForEarner(ctx, earner, tokens, blockHeight, true)
+
 		if err != nil {
 			res.Error = err
 		} else {
@@ -475,6 +496,9 @@ func (rds *RewardsDataService) ListAvailableRewardsTokens(ctx context.Context, e
 	snapshot, err := rds.findDistributionRootClosestToBlockHeight(blockHeight, false)
 	if err != nil {
 		return nil, err
+	}
+	if snapshot == nil {
+		return nil, fmt.Errorf("no distribution root found for blockHeight '%d'", blockHeight)
 	}
 
 	query := `
