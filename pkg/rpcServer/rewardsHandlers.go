@@ -254,8 +254,22 @@ func (rpc *RpcServer) GetTotalClaimedRewards(ctx context.Context, req *rewardsV1
 	}, nil
 }
 
+// GetAvailableRewardsTokens returns the available rewards tokens for an earner at the provided block height. Just the tokens, not the
 func (rpc *RpcServer) GetAvailableRewardsTokens(ctx context.Context, req *rewardsV1.GetAvailableRewardsTokensRequest) (*rewardsV1.GetAvailableRewardsTokensResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetAvailableRewardsTokens not implemented")
+	earner := req.GetEarnerAddress()
+	blockHeight := req.GetBlockHeight()
+
+	if earner == "" {
+		return nil, status.Error(codes.InvalidArgument, "earner address is required")
+	}
+
+	tokens, err := rpc.rewardsDataService.ListAvailableRewardsTokens(ctx, earner, blockHeight)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &rewardsV1.GetAvailableRewardsTokensResponse{
+		Tokens: tokens,
+	}, nil
 }
 
 func (rpc *RpcServer) GetSummarizedRewardsForEarner(ctx context.Context, req *rewardsV1.GetSummarizedRewardsForEarnerRequest) (*rewardsV1.GetSummarizedRewardsForEarnerResponse, error) {

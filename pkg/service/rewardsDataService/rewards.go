@@ -461,3 +461,39 @@ func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner 
 	}
 	return tokenList, nil
 }
+
+func (rds *RewardsDataService) ListAvailableRewardsTokens(ctx context.Context, earner string, blockHeight uint64) ([]string, error) {
+	if earner == "" {
+		return nil, fmt.Errorf("earner is required")
+	}
+
+	blockHeight, err := rds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshot, err := rds.findDistributionRootClosestToBlockHeight(blockHeight, false)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		select
+			distinct(token) as token
+		from gold_table as gt
+		where
+			earner = @earner
+			and snapshot <= @snapshot
+	`
+
+	var tokens []string
+	res := rds.db.Raw(query,
+		sql.Named("earner", earner),
+		sql.Named("snapshot", snapshot.GetSnapshotDate()),
+	).Scan(&tokens)
+
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return tokens, nil
+}
