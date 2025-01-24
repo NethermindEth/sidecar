@@ -51,7 +51,7 @@ func (pds *ProtocolDataService) ListRegisteredAVSsForOperator(ctx context.Contex
 				row_number() over (partition by aosc.operator order by aosc.block_number desc, aosc.log_index asc) as rn
 			from avs_operator_state_changes as aosc
 			where
-				operator = @operator'
+				operator = @operator
 				and block_number <= @blockHeight
 		)
 		select
@@ -83,40 +83,37 @@ func (pds *ProtocolDataService) ListDelegatedStrategiesForOperator(ctx context.C
 	query := `
 		with operator_stakers as (
 			select distinct on (staker)
-				staker,
-				block_number,
-				delegated
+					staker,
+					block_number,
+					delegated
 			from staker_delegation_changes
 			where
-				operator = @operator
-				and block_number <= @blockHeight
+					operator = @operator
+					and block_number <= @blockHeight
 			order by staker, block_number desc, log_index asc
 		),
 		delegated_stakers as (
 			select
-				staker,
-				block_number
-			from operator_stakers
-			where delegated = true
-		),
-		staker_strategies as (
-			select
-				s.strategy,
-				s.shares
-			from delegated_stakers as ds
-			left join staker_share_deltas as s
-				on s.staker = ds.staker
-				and s.block_number <= ds.block_number
+					os.staker,
+					os.block_number,
+					ssd.shares,
+					ssd.strategy
+			from operator_stakers as os
+			left join staker_share_deltas as ssd
+					on ssd.staker = os.staker
+					and ssd.block_number <= os.block_number
+			where
+				os.delegated = true
 		),
 		strategy_shares as (
 			select
-				ss.strategy,
-				sum(ss.shares) as shares
-			from staker_strategies as ss
+					ss.strategy,
+					sum(ss.shares) as shares
+			from delegated_stakers as ss
 			group by 1
 		)
 		select
-			strategy
+				strategy
 		from strategy_shares
 		where shares > 0;
 	`
@@ -223,8 +220,8 @@ func (pds *ProtocolDataService) GetOperatorDelegatedStake(ctx context.Context, o
 	}
 
 	var wg sync.WaitGroup
-	sharesChan := make(chan *ResultCollector[string])
-	avsChan := make(chan *ResultCollector[[]string])
+	sharesChan := make(chan *ResultCollector[string], 1)
+	avsChan := make(chan *ResultCollector[[]string], 1)
 
 	wg.Add(2)
 
@@ -337,8 +334,8 @@ type StakerShares struct {
 	Shares       string
 	BlockHeight  uint64
 	Operator     *string
-	Delegated    *bool
-	AvsAddresses []string
+	Delegated    bool
+	AvsAddresses []string `gorm:"type:jsonb"`
 }
 
 // ListStakerShares returns the shares of a staker at a given block height, including the operator they were delegated to
@@ -346,7 +343,6 @@ type StakerShares struct {
 //
 // If not blockHeight is provided, the most recently indexed block will be used.
 func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker string, blockHeight uint64) ([]*StakerShares, error) {
-	shares := make([]*StakerShares, 0)
 
 	bh, err := pds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
@@ -358,14 +354,12 @@ func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker str
 			select
 				ssd.staker,
 				ssd.strategy,
-				ssd.shares,
-				ssd.block_number,
-				row_number() over (partition by ssd.staker, ssd.strategy order by ssd.block_number desc) as rn
-			from staker_shares as ssd
+				sum(ssd.shares) as shares
+			from staker_share_deltas as ssd
 			where
 				ssd.staker = @staker
 				and block_number <= @blockHeight
-			order by block_number desc
+			group by ssd.staker, ssd.strategy
 		)
 		select
 			dss.*,
@@ -382,7 +376,7 @@ func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker str
 			from staker_delegation_changes as sdc
 			where
 				sdc.staker = dss.staker
-				and sdc.block_number <= dss.block_number
+				and sdc.block_number <= @blockHeight
 			order by block_number desc
 		) as dsc on (dsc.rn = 1)
 		left join lateral (
@@ -391,13 +385,11 @@ func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker str
 			from avs_operator_state_changes aosc
 			where
 				aosc.operator = dsc.operator
-				and aosc.block_number <= dss.block_number
+				and aosc.block_number <= @blockHeight
 				and aosc.registered = true
 		) as aosc on true
-		where
-			dss.rn = 1
-		order by block_number desc;
 	`
+	shares := make([]*StakerShares, 0)
 	res := pds.db.Raw(query,
 		sql.Named("staker", staker),
 		sql.Named("blockHeight", bh),

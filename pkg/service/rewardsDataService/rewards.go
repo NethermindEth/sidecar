@@ -188,7 +188,6 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(
 			where
 				earner = @earner
 				and snapshot <= @snapshot
-			order by snapshot desc
 		)
 		select
 			token,
