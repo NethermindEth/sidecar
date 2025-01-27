@@ -2,9 +2,12 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
+const BASE_URL = '/sidecar';
+
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://layr-labs.github.io',
+	base: BASE_URL,
 	integrations: [
 		starlight({
 			title: 'EigenLayer Sidecar',
