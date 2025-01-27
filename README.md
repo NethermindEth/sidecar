@@ -157,7 +157,7 @@ Global Flags:
 
 ### Bring Your Own PostgreSQL database
 
-See [PostgreSQL Setup](docs/postgresql_setup.md) for instructions on setting up a PostgreSQL database.
+See [PostgreSQL Setup](old-docs/postgresql_setup.md) for instructions on setting up a PostgreSQL database.
 
 ### Directly using Go
 
@@ -250,7 +250,7 @@ POSTGRES_DATA_PATH=<path to store postgres data> docker-compose up
 # Snapshots
 Snapshots are a quicker way to sync to tip and get started. 
 
-See [Snapshots Docs](docs/snapshots_docs.md) for instructions on creating and restoring snapshots
+See [Snapshots Docs](old-docs/snapshots_docs.md) for instructions on creating and restoring snapshots
 
 ### Snapshot Sources
 
