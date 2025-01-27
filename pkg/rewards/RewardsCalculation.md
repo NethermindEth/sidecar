@@ -1,6 +1,5 @@
 ---
 title: EigenLayer Rewards Calculation - Foundation Incentives
-
 ---
 
 # EigenLayer Rewards Calculation - Programmatic Incentives
@@ -13,45 +12,52 @@ The previous rewards calculation link is [here](https://hackmd.io/u-NHKEvtQ7m7CV
 
 The EigenLayer rewards calculation is a set of SQL queries that calculates the distribution from rewards made by AVSs to stakers and operators via the `RewardsCoordinator`. The data is ingested on Postgres tables and transformed to calculate final rewards.
 
-The queries run in a daily job that use snapshots of core contract state to calculate rewards made from any active rewards submissions. 
+The queries run in a daily job that use snapshots of core contract state to calculate rewards made from any active rewards submissions.
 
 ## Calculation Process
+
 The calculation proceeds in 3 stages and is run daily
 
-1. Data Extraction: Extracts data from event logs. There are referred to as the bronze tables. As part of this process, we reconcile all event data, including RPC data, with an additional data provider to ensure consistency. 
-2. Data Transformation: Transforms data from the bronze tables into daily snapshots of on-chain state. 
+1. Data Extraction: Extracts data from event logs. There are referred to as the bronze tables. As part of this process, we reconcile all event data, including RPC data, with an additional data provider to ensure consistency.
+2. Data Transformation: Transforms data from the bronze tables into daily snapshots of on-chain state.
 3. Reward Calculation: Cross-references snapshots with active rewards submissions to calculate rewards to stakers and operators.
 
 The pipeline then aggregates rewards all rewards up to `lastRewardTimestamp + calculationIntervalSeconds` and submits a root that merkleizes the the cumulative sum of each earner to the `RewardsCoordinator`.
 
-
 ## Job Sequencing
+
 The Reward Calculation is an airflow pipeline that runs daily at 16:00 UTC. Queries to on-chain events and event calculations are all rounded down to 0:00 UTC. That is, **if the pipeline is run on 4-27 at 16:00 UTC, the `cutoff_date` parameter is set to 4-26 at 0:00 UTC.**
 
-We handle reorgs by running the daily pipeline several hours after the 0:00 UTC, giving our reorg handler enough time to heal state. 
+We handle reorgs by running the daily pipeline several hours after the 0:00 UTC, giving our reorg handler enough time to heal state.
+
 ## Key Considerations
 
 Each of the three sections below details key considerations to be mindful of when reading the queries and understanding the calculation. A summary of these considerations are:
 
 - Snapshots are taken of core contract state every 24 hours: `SNAPSHOT_CADENCE` in `RewardsCoordinator`
-- Snapshots from on-chain state are *rounded up* to the nearest day at 0:00 UTC. The one exception is operator<>avs deregistrations, which are rounded *down* to the nearest day at 0:00 UTC
-- Since snapshots are rounded up, we only care about the *latest state update* from a single day
-- The reward distribution to all earners must be <= the amount paid for a rewards submission 
+- Snapshots from on-chain state are _rounded up_ to the nearest day at 0:00 UTC. The one exception is operator<>avs deregistrations, which are rounded _down_ to the nearest day at 0:00 UTC
+- Since snapshots are rounded up, we only care about the _latest state update_ from a single day
+- The reward distribution to all earners must be <= the amount paid for a rewards submission
 
-##  Glossary
+## Glossary
+
 - `earner`: The entity, a staker or operator, receiving a reward
 - `calculationIntervalSeconds`: The multiple that the duration of rewards submissions must be
 - `SNAPSHOT_CADENCE`: The cadence at which snapshots of EigenLayer core contract state are taken
 - `typo rewardSnaphot -> rewardSnapshot`: The reward to earners on a snapshot
-- `cutoff-date`: The date at which transformations are run. Always set to the *previous* days at 0:00 UTC
+- `cutoff-date`: The date at which transformations are run. Always set to the _previous_ days at 0:00 UTC
 - `run`: An iteration of the daily rewards pipeline job
 - `stakeWeight`: How an AVS values its earners stake, given by multipliers for each strategy of the reward
 - `gold_table`: The table that contains the `rewardSnapshots`. Its columns are `earner`, `amount`, `token`, `snapshot`, `reward_hash`
+
 # Data Extraction
+
 ## Key Considerations
+
 Shares are transformed into Decimal(78,0), a data type that can hold up to uint256. The tokens that are whitelisted for deposit (all LSTs & Eigen) & Native ETH should not have this an issue with truncation.
 
 ## Cutoff Date
+
 We set the cutoff date at the beginning of each run with the following logic:
 
 ```python=
@@ -62,17 +68,20 @@ def get_cutoff_date():
     ts = ts.replace(hour=0, minute=0, second=0, microsecond=0)
     # subtract 1 day
     ts = ts - timedelta(days=1)
-    
+
     return ts
 ```
 
 ## Airflow Variables
-At the daily run of the pipeline, we get the variables passed in if the run is a backfill. On a backfill run, we enforce that the start & end date are valid, namely that the end date is not after the cutoff and that the start date is not after the end date. 
+
+At the daily run of the pipeline, we get the variables passed in if the run is a backfill. On a backfill run, we enforce that the start & end date are valid, namely that the end date is not after the cutoff and that the start date is not after the end date.
 
 Backfills are run in worst case scenarios if there are events that are missed in the pipeline run. We run reconciliation with multiple data vendors to ensure this should not have to be done. In addition, we run a sanity check query at the end of the pipeline generation which ensures that:
+
 1. The cumulative rewards for earners never decreases
 2. The tokens per day of an AVS is always >= sum(earener payouts) for a given snapshot and reward hash
 3. The number of rows of (`earner`, `reward_hash`, and `snapshot`) never decreases
+
 ```python=
 def get_gold_calculation_dates(**kwargs):
     # Cutoff Date
@@ -87,7 +96,7 @@ def get_gold_calculation_dates(**kwargs):
         is_backfill = str.lower(dag_run.conf.get('is_backfill', 'false'))
     else:
         raise ValueError('Dag run is None')
-    
+
     # Sanitize the start and end dates
     start_datetime = datetime.strptime(start_date_str, '%Y-%m-%d %H:%M:%S')
     end_datetime = datetime.strptime(end_date_str, '%Y-%m-%d %H:%M:%S')
@@ -95,7 +104,7 @@ def get_gold_calculation_dates(**kwargs):
 
     if start_datetime >= end_datetime:
         raise ValueError('Start date must be before end date')
-    
+
     if end_datetime > cutoff_datetime:
         raise ValueError('End date must be less than or equal to cutoff date')
 
@@ -106,11 +115,13 @@ def get_gold_calculation_dates(**kwargs):
 ```
 
 ## Queries
-This set of queries extracts event data from EigenLayer Core contracts. The event logs are automatically decoded from the contract ABIs [here](https://github.com/Layr-Labs/eigenlayer-contracts). Running `forge build` will build the contracts and ABIs are stored in the `/out` folder. 
 
-In the below queries, `block_date` is the date of the block whereas `block_time` is the full date + time of the block. 
+This set of queries extracts event data from EigenLayer Core contracts. The event logs are automatically decoded from the contract ABIs [here](https://github.com/Layr-Labs/eigenlayer-contracts). Running `forge build` will build the contracts and ABIs are stored in the `/out` folder.
+
+In the below queries, `block_date` is the date of the block whereas `block_time` is the full date + time of the block.
 
 ### Staker State
+
 #### Deposits
 
 ```sql=
@@ -131,7 +142,8 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 ```
 
 #### EigenPodShares
-*Note: Shares can be negative*
+
+_Note: Shares can be negative_
 
 ```sql=
 SELECT
@@ -150,7 +162,8 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 ```
 
 #### M1 Withdrawals
-Withdrawals in M1 were routed through the StrategyManager. Note that we remove the single withdrawal completed as shares in M1 as there was no deposit event for this code path. 
+
+Withdrawals in M1 were routed through the StrategyManager. Note that we remove the single withdrawal completed as shares in M1 as there was no deposit event for this code path.
 
 ```sql=
 SELECT
@@ -172,11 +185,12 @@ AND t.transaction_hash != '0x62eb0d0865b2636c74ed146e2d161e39e42b09bac7f86b8905f
 ```
 
 #### M2 Withdrawals
-Unlike M1 withdrawal events, M2 withdrawal events return a tuple with a list of strategies and shares. Thus, we unwind the tuple into indivudal rows to create (staker, strategy$_0$, share$_0$), (staker, strategy$_1$, share$_1$). We discard all M2 withdrawals that were migrated from M1 so we do not double count a withdrawal. 
+
+Unlike M1 withdrawal events, M2 withdrawal events return a tuple with a list of strategies and shares. Thus, we unwind the tuple into indivudal rows to create (staker, strategy$_0$, share$_0$), (staker, strategy$_1$, share$_1$). We discard all M2 withdrawals that were migrated from M1 so we do not double count a withdrawal.
 
 ```sql=
 WITH migrations AS (
-  SELECT 
+  SELECT
     (
       SELECT lower(string_agg(lpad(to_hex(elem::int), 2, '0'), ''))
       FROM jsonb_array_elements_text(t.output_data->'oldWithdrawalRoot') AS elem
@@ -216,20 +230,21 @@ full_m2_withdrawals AS (
   AND t_strategy.strategy_index = t_share.share_index
 )
 -- Parse out the m2 withdrawals that were migrated from m1
-SELECT 
+SELECT
   full_m2_withdrawals.*
-FROM 
+FROM
   full_m2_withdrawals
-LEFT JOIN 
-  migrations 
-ON 
+LEFT JOIN
+  migrations
+ON
   full_m2_withdrawals.withdrawal_root = migrations.m2_withdrawal_root
-WHERE 
+WHERE
   migrations.m2_withdrawal_root IS NULL
 ```
 
 ### Operator State
-Operator state is made of stake delegated to them by stakers. 
+
+Operator state is made of stake delegated to them by stakers.
 
 #### Operator Shares Increased
 
@@ -308,14 +323,17 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 ```
 
 ### Rewards Submissions
+
 There are two types of rewards submissions in the protocol:
+
 1. AVS Rewards Submission: Permissionless function called by any AVS
 2. Reward for All: Permissioned reward to all stakers of the protocol
 
-*Note: The amount in the RewardsCoordinator has a max value of $1e38-1$, which allows us to truncate it to a DECIMAL(38,0).*
+_Note: The amount in the RewardsCoordinator has a max value of $1e38-1$, which allows us to truncate it to a DECIMAL(38,0)._
 
 #### AVS Rewards Submissions
-For each rewards submission, we extract each (strategy,multiplier) in a separate row for easier accounting 
+
+For each rewards submission, we extract each (strategy,multiplier) in a separate row for easier accounting
 
 ```sql=
 SELECT
@@ -420,6 +438,7 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 Every deregistration and registration from an Operator to an AVS is recorded in the AVSDirectory
 
 #### Operator Registrations
+
 ```sql=
 SELECT
   lower(t.arguments #>> '{0,Value}') as operator,
@@ -438,7 +457,9 @@ AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 ```
 
 #### Operator Restaked Strategies
+
 The AVS Directory **does not** emit an event for the strategies that an operator restakes or un-restakes on an AVS. To retrieve this information we run a cron job every 3600 blocks (ie. `blockNum % 3600 = 0`), starting when the AVSDirectory was deployed, that:
+
 1. Retrieves all operators restaked on the AVS
 2. Calls `getOperatorRestakedStrategies(address operator) returns (address[])` on each AVS's serviceManager contract
 
@@ -446,33 +467,36 @@ It is a requirement that AVSs are compliant with this interface, as referenced i
 
 Assuming that an operator is registered to an AVS at timestamp $t$, an example output of this cron job is:
 
-| Operator | AVS | Strategy | Block Time |
-| -------- | ------- | ------- | ------- |
-| Operator1 | AVS-A | stETH | t |
-| Operator1 | AVS-A | rETH | t |
-| Operator2 | AVS-A | rETH | t |
-| Operator3 | AVS-B | cbETH | t |
-
+| Operator  | AVS   | Strategy | Block Time |
+| --------- | ----- | -------- | ---------- |
+| Operator1 | AVS-A | stETH    | t          |
+| Operator1 | AVS-A | rETH     | t          |
+| Operator2 | AVS-A | rETH     | t          |
+| Operator3 | AVS-B | cbETH    | t          |
 
 # Data Transformation
+
 Once we extract all logs and relevant storage of EigenLayer core contracts and AVSs, we transform this to create daily snapshots of state in two parts
 
 1. Aggregation of extraction data into on-chain contract state
 2. Combine state into ranges and unwind into daily snapshots
+
 ## Key Considerations
 
 In part 2, once state has been aggregated, we unwind the ranges of state into daily snapshots.
 
-***Snapshots of state are rounded up to the nearest day, except for operator<>avs deregistrations, which are rounded down***. Let's assume we have the following range with events A & B being updates for a staker's shares. 
+**_Snapshots of state are rounded up to the nearest day, except for operator<>avs deregistrations, which are rounded down_**. Let's assume we have the following range with events A & B being updates for a staker's shares.
 
 ```
 GENESIS_TIMESTAMP---------------------Day1---------------------Day2
                      ^       ^
                   A=100    B=200
 ```
-The output of the snapshot transformation should denote that on Day1 the Staker has 200 shares. More generally, we take the *latest* update in [Day$_{i-1}$, Day$_i$] range and set that to the state on Day$_i$. We refer to the reward on a given day as a *reward snapshot*.
+
+The output of the snapshot transformation should denote that on Day1 the Staker has 200 shares. More generally, we take the _latest_ update in [Day$_{i-1}$, Day$_i$] range and set that to the state on Day$_i$. We refer to the reward on a given day as a _reward snapshot_.
 
 ### Operator<>AVS Registration/Deregistration
+
 In the case of an operator registration and deregistration:
 
 ```
@@ -481,7 +505,7 @@ GENESIS_TIMESTAMP---------------------Day1---------------------Day2
                   Register                Deregister
 ```
 
-The end state is that the operator has registered & deregistered on day 1, resulting in no reward being made to the operator. We add this mechanism as a protection for operators gaining extra days of rewards if we were to round up deregistrations. The side effect is the following: 
+The end state is that the operator has registered & deregistered on day 1, resulting in no reward being made to the operator. We add this mechanism as a protection for operators gaining extra days of rewards if we were to round up deregistrations. The side effect is the following:
 
 ```
 --------------Day1--------------Day2--------------Day3--------------Day4
@@ -489,34 +513,36 @@ The end state is that the operator has registered & deregistered on day 1, resul
         Register                                             Deregister
 ```
 
-The operator in this case will be deregistered on Day3, resulting in the operator not receving any reward on the [Day3,Day4] range for which it was securing the AVS. Rounding down deregistrations is why the `cutoff_date` must be the *previous day* at 0:00 UTC.
+The operator in this case will be deregistered on Day3, resulting in the operator not receving any reward on the [Day3,Day4] range for which it was securing the AVS. Rounding down deregistrations is why the `cutoff_date` must be the _previous day_ at 0:00 UTC.
 
 ## Part 1: Aggregation
 
 ### Staker Shares
+
 The LST shares for a staker, $s$, and strategy, $y$, is given by:
 
 Shares$_{s,y}$ = Deposits$_{s,y}$ $-$ M1Withdrawals$_{s,y}$ $-$ M2Withdrawals$_{s,y}$
 
-The Native ETH shares for a staker is the sum of all `PodSharesUpdated` events for a given staker. Note that Shares *can be negative in this event*. 
+The Native ETH shares for a staker is the sum of all `PodSharesUpdated` events for a given staker. Note that Shares _can be negative in this event_.
 
 NativeETHShares$_s$ = $\sum_{i=0}^{n}$ PodSharesUpdated$_i$- M1Withdrawals$_i$ - M2Withdrawals$_i$
 
-Combining these two gives us the shares for a staker for every strategy for every update. 
+Combining these two gives us the shares for a staker for every strategy for every update.
 
 The key part of this query is:
 
 ```sql=
-SUM(shares) OVER (PARTITION BY staker, strategy ORDER BY block_time, log_index) AS shares, 
+SUM(shares) OVER (PARTITION BY staker, strategy ORDER BY block_time, log_index) AS shares,
 ```
-Which gets the ***running*** sum for every (staker, strategy) pair at every update.
+
+Which gets the **_running_** sum for every (staker, strategy) pair at every update.
 
 ```sql=
 SELECT
     staker,
     strategy,
     -- Sum each share amount over the window to get total shares for each (staker, strategy) at every timestamp update */
-    SUM(shares) OVER (PARTITION BY staker, strategy ORDER BY block_time, log_index) AS shares, 
+    SUM(shares) OVER (PARTITION BY staker, strategy ORDER BY block_time, log_index) AS shares,
     transaction_hash,
     log_index,
     strategy_index,
@@ -547,8 +573,10 @@ FROM (
 
 ```
 
-***Note: Rewards For All will not pay out stakers who have not proven their beacon chain balances to the execution layer.***
+**_Note: Rewards For All will not pay out stakers who have not proven their beacon chain balances to the execution layer._**
+
 ### Operator Shares
+
 The shares for an operator, $o$, for a strategy, $y$, is given by:
 $Shares_{o,y} = ShareIncrease_{o,y} - ShareDecrease_{o,y}$
 
@@ -573,11 +601,13 @@ FROM (
     FROM {{ ref('operator_share_decreases') }}
 ) combined_shares
 ```
+
 ### Staker Delegation Status
+
 Here, we aggregate each delegation and undelegation into a single view. When a staker is undelegated, we mark its operator as `0x0000000000000000000000000000000000000000`.
 
 ```sql=
-SELECT 
+SELECT
   staker,
   CASE when src = 'undelegations' THEN '0x0000000000000000000000000000000000000000' ELSE operator END AS operator,
   transaction_hash,
@@ -591,8 +621,10 @@ FROM (
     SELECT *, 'delegations' AS src FROM {{ ref('staker_delegations') }}
 ) as delegations_combined
 ```
+
 ### Combined Rewards Submissions
-Combines AVS Rewards Submissions and Rewards for All Submissions into one view, with an added `reward_type` parameter. 
+
+Combines AVS Rewards Submissions and Rewards for All Submissions into one view, with an added `reward_type` parameter.
 
 ```sql=
 SELECT *, 'avs' as reward_type from {{ ref('avs_reward_submissions') }}
@@ -607,7 +639,9 @@ SELECT *, 'all_earners' as reward_type from {{ ref('reward_submission_for_all_ea
 ```
 
 ### Operator AVS Statuses
-Formats the [status tuple](https://github.com/Layr-Labs/eigenlayer-contracts/blob/90a0f6aee79b4a38e1b63b32f9627f21b1162fbb/src/contracts/interfaces/IAVSDirectory.sol#L8-L11) in the AVSDirectory as a `true` or `false`. 
+
+Formats the [status tuple](https://github.com/Layr-Labs/eigenlayer-contracts/blob/90a0f6aee79b4a38e1b63b32f9627f21b1162fbb/src/contracts/interfaces/IAVSDirectory.sol#L8-L11) in the AVSDirectory as a `true` or `false`.
+
 ```sql=
 SELECT
     operator,
@@ -622,12 +656,12 @@ FROM {{ ref('operator_avs_registrations') }}
 ```
 
 ## Part 2: Windows & Snapshots
+
 Once we have transformed the on-chain state, we then aggregate the state into window of time for which the state was active. Lastly, the windows of state are unwound into daily snapshots.
 
-The key design decision, which we explained in the [considerations above](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw?view#Key-Considerations2), is that  ***state is always rounded up to the nearest day 0:00 UTC, except for operator<>avs deregistrations***. 
+The key design decision, which we explained in the [considerations above](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw?view#Key-Considerations2), is that **_state is always rounded up to the nearest day 0:00 UTC, except for operator<>avs deregistrations_**.
 
 ### Windows
-
 
 #### Staker Share Windows
 
@@ -655,6 +689,7 @@ WITH ranked_staker_records as (
      where rn = 1
  ),
 ```
+
 3. Staker_share_windows: Get the range for each staker, strategy, shares
 
 ```sql=
@@ -672,10 +707,11 @@ SELECT * from staker_share_windows
 ```
 
 We make use of the `LEAD` operator, in the `staker_share_windows` CTE. This operator finds the next record for a given (`staker`, `strategy`) combination. The logic is:
-- if there is no next record (ie. null), then set the `end_time` of the window to be the `cutoff_date`
-- if there is a record, set the `end_time` of the current record's window to be the next record's `start_time` 
 
-*Note: The above logic can have (`staker`, `strategy`) combinations where the `end_record` of one record equal the `start_time` of the next record. This is handled when we unwind the windows into snapshots.*
+- if there is no next record (ie. null), then set the `end_time` of the window to be the `cutoff_date`
+- if there is a record, set the `end_time` of the current record's window to be the next record's `start_time`
+
+_Note: The above logic can have (`staker`, `strategy`) combinations where the `end_record` of one record equal the `start_time` of the next record. This is handled when we unwind the windows into snapshots._
 
 #### Operator Share Windows
 
@@ -710,7 +746,7 @@ operator_share_windows as (
 SELECT * from operator_share_windows
 ```
 
-This logic is the exact same as the Staker Share Windows. 
+This logic is the exact same as the Staker Share Windows.
 
 #### Staker Delegation Windows
 
@@ -748,18 +784,19 @@ SELECT * from staker_delegation_windows
 This logic is the exact same as the Staker Share Windows.
 
 #### Operator AVS Registration Windows
+
 This calculation is different from the above 3 queries because registration windows cannot continue off each other. For example, if an operator had the following state:
 
-| Operator | AVS | Registered | Date | 
-| -------- | -------- | -------- | -------- |
-| Operator1 | AVS1 | True | 4-24-2024 |
-| Operator1 | AVS1 | False | 4-26-2024 |
-| Operator1 | AVS1 | True | 4-29-2024 |
-| Operator1 | AVS1 | False | 5-1-2024 |
-| Operator1 | AVS1 | True | 5-1-2024 |
-| Operator1 | AVS1 | False | 5-1-2024 |
+| Operator  | AVS  | Registered | Date      |
+| --------- | ---- | ---------- | --------- |
+| Operator1 | AVS1 | True       | 4-24-2024 |
+| Operator1 | AVS1 | False      | 4-26-2024 |
+| Operator1 | AVS1 | True       | 4-29-2024 |
+| Operator1 | AVS1 | False      | 5-1-2024  |
+| Operator1 | AVS1 | True       | 5-1-2024  |
+| Operator1 | AVS1 | False      | 5-1-2024  |
 
-We do not care about a (deregistration, registration) window from rows 2 and 3. We also need to discard the (registration,deregistration window) from rows 5 and 6. 
+We do not care about a (deregistration, registration) window from rows 2 and 3. We also need to discard the (registration,deregistration window) from rows 5 and 6.
 
 1. Mark a link between each registration
 
@@ -782,8 +819,9 @@ WITH marked_statuses AS (
         LAG(block_date) OVER (PARTITION BY operator, avs ORDER BY block_time ASC, log_index ASC) AS prev_block_date
     FROM {{ ref('operator_avs_status') }}
 ),
-``` 
-2. Ignore a (registration, deregistration) pair that occurs on the same day. This is to ensure that the grouping is not counted once we round deregistration down and registration up. 
+```
+
+2. Ignore a (registration, deregistration) pair that occurs on the same day. This is to ensure that the grouping is not counted once we round deregistration down and registration up.
 
 ```sql=
  removed_same_day_deregistrations AS (
@@ -801,7 +839,9 @@ WITH marked_statuses AS (
          )
  ),
 ```
+
 3. Mark the`end_time` of the record as the next record. If it's not the case, mark the `end_time` as the `cutoff_date`
+
 ```sql=
  registration_periods AS (
      SELECT
@@ -817,7 +857,8 @@ WITH marked_statuses AS (
  ),
 ```
 
-4. Round up each `start_time` and round down each end_time 
+4. Round up each `start_time` and round down each end_time
+
 ```sql=
  registration_windows_extra as (
      SELECT
@@ -841,9 +882,11 @@ select * from operator_avs_registration_windows
 ```
 
 #### Operator AVS Strategy Windows
-This query aggregates entries from the [operator restaked strategies](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw?view#Operator-Restaked-Strategies) cron job into windows. 
 
-1. Order all records. Round up `block_time` to 0 UTC. Log_index is irrelevant since this data is generated from RPC calls. 
+This query aggregates entries from the [operator restaked strategies](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw?view#Operator-Restaked-Strategies) cron job into windows.
+
+1. Order all records. Round up `block_time` to 0 UTC. Log_index is irrelevant since this data is generated from RPC calls.
+
 ```sql=
 with ranked_records AS (
     SELECT
@@ -895,7 +938,7 @@ with ranked_records AS (
  ),
 ```
 
-4. Parse out any holes (ie. any `next_start_times` that are not exactly one day after the current record's `start_time`). This is because the operator would have deregistered from the AVS. 
+4. Parse out any holes (ie. any `next_start_times` that are not exactly one day after the current record's `start_time`). This is because the operator would have deregistered from the AVS.
 
 ```sql=
  parsed_ranges AS (
@@ -938,7 +981,7 @@ with ranked_records AS (
  ),
 ```
 
-7. Next we, detect islands. If the `prev_end_time` is the same as the `start_time` then the records are part of the same continguous grouping. 
+7. Next we, detect islands. If the `prev_end_time` is the same as the `start_time` then the records are part of the same continguous grouping.
 
 ```sql=
  island_detection AS (
@@ -985,7 +1028,9 @@ with ranked_records AS (
  )
 select * from operator_avs_strategy_windows
 ```
+
 ### Snapshots
+
 **Once we've created windows for each table of core contract state, we unwind these windows into daily snapshots. In each of the below queries, we round down the `end_time` by one day because a new record can begin on the same day OR it will be included in a separate pipeline run after the `cutoff_date`.**
 
 #### Staker Share Snapshot
@@ -1006,7 +1051,7 @@ CROSS JOIN
     generate_series(DATE(start_time), DATE(end_time) - interval '1' day, interval '1' day) AS day
 ```
 
-We remove any records with erroneous `start_time` and `end_time` values. Then, we unwind the entire range. 
+We remove any records with erroneous `start_time` and `end_time` values. Then, we unwind the entire range.
 
 #### Operator Share Snapshot
 
@@ -1044,6 +1089,7 @@ FROM
 ```
 
 #### Operator AVS Strategy Snapshots
+
 ```sql=
 WITH cleaned_records AS (
     SELECT * FROM {{ ref('operator_avs_strategy_windows') }}
@@ -1061,6 +1107,7 @@ FROM
 ```
 
 #### Operator AVS Registration Snapshots
+
 ```sql=
 WITH cleaned_records AS (
     SELECT * FROM {{ ref('operator_avs_registration_windows') }}
@@ -1075,8 +1122,11 @@ CROSS JOIN generate_series(DATE(start_time), DATE(end_time) - interval '1' day, 
 ```
 
 # Reward Calculation
+
 ## Key Considerations
+
 ### Calculation Ranges
+
 Rewards distributions are calculated from daily snapshots of state. For example, if we had a rewards submission for the following range:
 
 ```
@@ -1084,10 +1134,11 @@ Day0------Day1------Day2------Day3------Day4------Day5------Day6------Day7
 
 ```
 
-The rewards pipeline would calculate a reward distribution from 7 snapshots of state: Day1, Day2,... Day7. We include the last day (Day7) as a snapshot instead of the first day (Day0). You can think of each snapshot as representing the most recent state update from the last 24 hours. Said another way, $Day_i$ represents the most recent state from [$Day_{i-1}$ 00:00 UTC, $Day_{i-1}$ 23:59 UTC]. 
+The rewards pipeline would calculate a reward distribution from 7 snapshots of state: Day1, Day2,... Day7. We include the last day (Day7) as a snapshot instead of the first day (Day0). You can think of each snapshot as representing the most recent state update from the last 24 hours. Said another way, $Day_i$ represents the most recent state from [$Day_{i-1}$ 00:00 UTC, $Day_{i-1}$ 23:59 UTC].
 
 ### State Entry/Exit
-Since snapshots are rounded *up* to the nearest day, except for operator<>avs deregistrations, state updates that are within the same day will receive the exact same reward amount.
+
+Since snapshots are rounded _up_ to the nearest day, except for operator<>avs deregistrations, state updates that are within the same day will receive the exact same reward amount.
 
 For example, assuming stakers A and B have equivalent amounts of stake and are opted into the same operator at the below times, their reward for the Day 2 `rewardSnaphot` will be equal:
 
@@ -1097,7 +1148,7 @@ Day1---------------------Day2
       A               B
 ```
 
-This is a known side-effect of computing rewards from daily snapshots. 
+This is a known side-effect of computing rewards from daily snapshots.
 
 In addition, exiting from the system holds the same property. If Operators J and K exit from the same AVS within the same day, they will both not receive rewards from the AVS:
 
@@ -1115,39 +1166,44 @@ As explained above in the transformation section, **a known side effect is that 
      Entry                                             Exit
 ```
 
-In the above scenario, the operator will count as registered on Day1 and deregistered on Day2, even though they've only validated the AVS for nearly 2 days. 
+In the above scenario, the operator will count as registered on Day1 and deregistered on Day2, even though they've only validated the AVS for nearly 2 days.
+
 ### Multiplier Calculation
-Every rewards submission has two arrays of equivalent length: `strategies` and `multiplier`. The pipeline uses this value to calculate the *stakeWeight* of earners for snapshot rewards. For a given staker, $s$, on snapshot, $d$, the stakeWeight is given by:
+
+Every rewards submission has two arrays of equivalent length: `strategies` and `multiplier`. The pipeline uses this value to calculate the _stakeWeight_ of earners for snapshot rewards. For a given staker, $s$, on snapshot, $d$, the stakeWeight is given by:
 
 $stakeWeight_{s, d} = multiplier_i \cdot shares_{i,s,d}$
 
 The calculation is also done in an AVS's `StakeRegistry` contract. [Reference solidity implementation](https://github.com/Layr-Labs/eigenlayer-middleware/blob/9968b1d99f5b85053665fdbc7657edf6d64c053e/src/StakeRegistry.sol#L484).
 
 ### Token Reward Amounts
+
 A key invariant is that for a given rewards submission, $r$, on the reward snapshot, $d$, $Tokens_{r,d} >= \sum_{i=0}^{n=paidEarners} Earner_{i,r,d}$
 
-In other words, the `tokensPerDay` of a rewards submission cannot be less than the sum of the reward distribution to all earners for the `rewardSnaphot`. We call this out as a key consideration from the truncation when converting shares and multipliers the double type, which holds up to 15 significant digits. 
+In other words, the `tokensPerDay` of a rewards submission cannot be less than the sum of the reward distribution to all earners for the `rewardSnaphot`. We call this out as a key consideration from the truncation when converting shares and multipliers the double type, which holds up to 15 significant digits.
 
 ### Reward Aggregation
-The`RewardsCoordinator` requires that `CALCULATION_INTERVAL_SECONDS % SNAPSHOT_CADENCE == 0`, which guarantees that every reward snapshot will lie within the bounds of a reward range. 
+
+The`RewardsCoordinator` requires that `CALCULATION_INTERVAL_SECONDS % SNAPSHOT_CADENCE == 0`, which guarantees that every reward snapshot will lie within the bounds of a reward range.
 
 At some cadence defined by the reward updater, the pipeline will aggregate all reward distribution snapshots up to some timestamp, $t$. For the root to be "net-new", it must merkleize state that is after a `rewardSnaphot` that is greater than the `lastRewardTimestamp`.
 
 ### Lack of reward rollover
-If an AVS has made a reward for a snapshot where there are no strategies restaked, the reward will not be redistributed to future snapshots of the rewards submission. See [reward snapshot operators](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw?view#Reward-Snapshot-Operators) a concrete example. 
+
+If an AVS has made a reward for a snapshot where there are no strategies restaked, the reward will not be redistributed to future snapshots of the rewards submission. See [reward snapshot operators](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw?view#Reward-Snapshot-Operators) a concrete example.
 
 ## 1. Get Active Rewards
 
-Each of the below queries is a set of CTEs that are part of the `active_rewards` view. 
+Each of the below queries is a set of CTEs that are part of the `active_rewards` view.
 
-To handle retroactive rewards we look for any reward that has started prior to the `cutoff_date`. To ensure that rewards are not recalculated, we clamp the range of snapshots for which the active reward is calculated for. 
+To handle retroactive rewards we look for any reward that has started prior to the `cutoff_date`. To ensure that rewards are not recalculated, we clamp the range of snapshots for which the active reward is calculated for.
 
-The following table will be used to aid in visualizing the transformations. Let's assume the `cutoff_date` for the pipeline is 4-29-2024 at 0:00 UTC. In addition, assume that the last reward snapshot was 4-24-2024. *Note: Because of the bronze table queries & cutoff date, reward events take 2 days to show up in the gold calculation for the current snapshot.*
+The following table will be used to aid in visualizing the transformations. Let's assume the `cutoff_date` for the pipeline is 4-29-2024 at 0:00 UTC. In addition, assume that the last reward snapshot was 4-24-2024. _Note: Because of the bronze table queries & cutoff date, reward events take 2 days to show up in the gold calculation for the current snapshot._
 
-| AVS | Reward Hash | Start Timestamp | Duration | End Timestamp | Amount | Strategy | Multiplier
-| -------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
-| AVS1 | 0xReward1 | 4-21-2024 | 21 days | 5-12-2024 | 21e18 | stETH | 1e18 |
-| AVS1 | 0xReward1 | 4-21-2024 | 21 days | 5-12-2024 | 21e18 | rETH | 2e18 |
+| AVS  | Reward Hash | Start Timestamp | Duration | End Timestamp | Amount | Strategy | Multiplier |
+| ---- | ----------- | --------------- | -------- | ------------- | ------ | -------- | ---------- |
+| AVS1 | 0xReward1   | 4-21-2024       | 21 days  | 5-12-2024     | 21e18  | stETH    | 1e18       |
+| AVS1 | 0xReward1   | 4-21-2024       | 21 days  | 5-12-2024     | 21e18  | rETH     | 2e18       |
 
 For brevity, only the relevant rows of the table are displayed in each example.
 
@@ -1168,11 +1224,12 @@ WITH active_rewards_modified as (
 - `global_end_inclusive` is the last snapshot for this pipeline run for which to calculate rewards. It is the same as the `cutoff_date`
 - The `end_timestamp` is greater than the start of UNIX time but will be properly handled in the next steps
 
-Tokens Per Day | Global End Inclusive |
-| -------- | ------- | 
-| 1e18 |4-27-2024 |
+| Tokens Per Day | Global End Inclusive |
+| -------------- | -------------------- |
+| 1e18           | 4-27-2024            |
 
 ### Active Rewards Updated End Timestamps
+
 ```sql=
  active_rewards_updated_end_timestamps as (
      SELECT
@@ -1200,8 +1257,9 @@ Tokens Per Day | Global End Inclusive |
 - `reward_end_inclusive` is the `MIN(global_end_inclsuive, end_timestamp)`. This is clamping the `end_timestamp` to be no greater than `cutoff_time` for the given run
 
 | Reward Start Exclusive | Reward End Inclusive |
-| -------- | ------- | 
-| 4-21-2024 |4-27-2024 |
+| ---------------------- | -------------------- |
+| 4-21-2024              | 4-27-2024            |
+
 ### Active Rewards Updated Start Timestamps
 
 ```sql=
@@ -1225,7 +1283,7 @@ Tokens Per Day | Global End Inclusive |
          ap.global_end_inclusive,
          ap.reward_submission_date
      FROM active_rewards_updated_end_timestamps ap
-              LEFT JOIN {{ var('schema_name') }}.gold_table g 
+              LEFT JOIN {{ var('schema_name') }}.gold_table g
                         ON g.reward_hash = ap.reward_hash
      GROUP BY ap.avs, ap.reward_end_inclusive, ap.token, ap.tokens_per_day, ap.multiplier, ap.strategy, ap.reward_hash, ap.global_end_inclusive, ap.reward_start_exclusive, ap.reward_for_all
  ),
@@ -1233,17 +1291,18 @@ Tokens Per Day | Global End Inclusive |
 
 Clamps the `reward_start_exclusive` based on the most recent `snapshot` for the `reward_hash` from the final gold table, which contains every `snapshotReward`. We do this so we do not recalculate rewards. If there is no snapshot in the gold table, then we just use the rewards submission's original `reward_start_exclusive`
 
-This step also casts `tokens_per_day` as a double, which will be used in the rest of the reward calculation. This allows us to support values up to 1e38-1, at the cost of only having 15 decimals of precision. 
+This step also casts `tokens_per_day` as a double, which will be used in the rest of the reward calculation. This allows us to support values up to 1e38-1, at the cost of only having 15 decimals of precision.
 
-Lastly, if the run is a backfill, we make the start timestamp as the earliest unix timestamp possible`1970-01-01 00:00:00`. 
+Lastly, if the run is a backfill, we make the start timestamp as the earliest unix timestamp possible`1970-01-01 00:00:00`.
 
 Let's assume that the most recent `snapshotReward` for the reward_hash is 4-24-2024. The previous value for `reward_start_exclusive` was 4-21-2024.
 
 | Reward start exclusive | Reward end inclusive |
-| -------- | ------- | 
-| 4-24-2024 |4-28-2024 |
+| ---------------------- | -------------------- |
+| 4-24-2024              | 4-28-2024            |
 
 ### Active Reward Ranges
+
 ```sql=
  active_reward_ranges AS (
      SELECT * from active_rewards_updated_start_timestamps
@@ -1253,29 +1312,33 @@ Let's assume that the most recent `snapshotReward` for the reward_hash is 4-24-2
      WHERE reward_start_exclusive < reward_end_inclusive
  ),
 ```
+
 Parse out invalid ranges. This can occur if the current run is a backfill and there was a snapshot from a previous run that was greater than the `cutoff_time` at which we are backfilling.
 
 ### Unwinded Active Reward Ranges
+
 ```sql=
  exploded_active_range_rewards AS (
      SELECT * FROM active_reward_ranges
      CROSS JOIN generate_series(DATE(reward_start_exclusive), DATE(reward_end_inclusive), INTERVAL '1' DAY) AS day
  ),
 ```
+
 Create a row for each snapshot in the reward range
 
-| AVS | Reward Hash | Day | Strategy | Multiplier | ...
-| -------- | ------- | ------- | ------- | ------- | ------- |
-| AVS1 | 0xReward1 | 4-24-2024 | stETH | 1e18 |
-| AVS1 | 0xReward1 | 4-25-2024 | stETH | 1e18 |
-| AVS1 | 0xReward1 | 4-26-2024 | stETH | 1e18 |
-| AVS1 | 0xReward1 | 4-27-2024 | stETH | 1e18 |
-| AVS1 | 0xReward1 | 4-24-2024 | rETH | 2e18 |
-| AVS1 | 0xReward1 | 4-25-2024 | rETH | 2e18 |
-| AVS1 | 0xReward1 | 4-26-2024 | rETH | 2e18 |
-| AVS1 | 0xReward1 | 4-27-2024 | rETH | 2e18 |
+| AVS  | Reward Hash | Day       | Strategy | Multiplier | ... |
+| ---- | ----------- | --------- | -------- | ---------- | --- |
+| AVS1 | 0xReward1   | 4-24-2024 | stETH    | 1e18       |
+| AVS1 | 0xReward1   | 4-25-2024 | stETH    | 1e18       |
+| AVS1 | 0xReward1   | 4-26-2024 | stETH    | 1e18       |
+| AVS1 | 0xReward1   | 4-27-2024 | stETH    | 1e18       |
+| AVS1 | 0xReward1   | 4-24-2024 | rETH     | 2e18       |
+| AVS1 | 0xReward1   | 4-25-2024 | rETH     | 2e18       |
+| AVS1 | 0xReward1   | 4-26-2024 | rETH     | 2e18       |
+| AVS1 | 0xReward1   | 4-27-2024 | rETH     | 2e18       |
 
 ### Final Active Reward
+
 ```sql=
  active_rewards_final AS (
      SELECT
@@ -1296,27 +1359,29 @@ Create a row for each snapshot in the reward range
 select * from active_rewards_final
 ```
 
-Remove rows whose snapshot are equal to the reward's reward_start_exclusive. 
+Remove rows whose snapshot are equal to the reward's reward_start_exclusive.
 
-| AVS | Reward Hash | Snapshot | Strategy | Multiplier | Reward Start Exclusive
-| -------- | ------- | ------- | ------- | ------- | ------- |
-| <s>AVS1</s> | <s>0xReward1</s> | <s>4-24-2024</s> | <s>stETH</s> | <s>1e18</s> | <s>4-24-2024</s> |
-| AVS1 | 0xReward1 | 4-25-2024 | stETH | 1e18 | 4-24-2024 |
-| AVS1 | 0xReward1 | 4-26-2024 | stETH | 1e18 | 4-24-2024 |
-| AVS1 | 0xReward1 | 4-27-2024 | stETH | 1e18 | 4-24-2024 |
-| <s>AVS1</s> | <s>0xReward1</s> | <s>4-24-2024</s> | <s>rETH</s> | <s>2e18</s> | <s>4-24-2024</s> |
-| AVS1 | 0xReward1 | 4-25-2024 | rETH | 2e18 | 4-24-2024 |
-| AVS1 | 0xReward1 | 4-26-2024 | rETH | 2e18 | 4-24-2024 |
-| AVS1 | 0xReward1 | 4-27-2024 | rETH | 2e18 | 4-24-2024 |
+| AVS         | Reward Hash      | Snapshot         | Strategy     | Multiplier  | Reward Start Exclusive |
+| ----------- | ---------------- | ---------------- | ------------ | ----------- | ---------------------- |
+| <s>AVS1</s> | <s>0xReward1</s> | <s>4-24-2024</s> | <s>stETH</s> | <s>1e18</s> | <s>4-24-2024</s>       |
+| AVS1        | 0xReward1        | 4-25-2024        | stETH        | 1e18        | 4-24-2024              |
+| AVS1        | 0xReward1        | 4-26-2024        | stETH        | 1e18        | 4-24-2024              |
+| AVS1        | 0xReward1        | 4-27-2024        | stETH        | 1e18        | 4-24-2024              |
+| <s>AVS1</s> | <s>0xReward1</s> | <s>4-24-2024</s> | <s>rETH</s>  | <s>2e18</s> | <s>4-24-2024</s>       |
+| AVS1        | 0xReward1        | 4-25-2024        | rETH         | 2e18        | 4-24-2024              |
+| AVS1        | 0xReward1        | 4-26-2024        | rETH         | 2e18        | 4-24-2024              |
+| AVS1        | 0xReward1        | 4-27-2024        | rETH         | 2e18        | 4-24-2024              |
 
 ## 2. Staker Reward Amounts
-After generating the active rewards, the pipeline then calculates the reward distribution to the staker operator set. 
+
+After generating the active rewards, the pipeline then calculates the reward distribution to the staker operator set.
 
 We cast the `multiplier` of a rewards submission and `shares` of a staker to a double in order to do computation on these values. The double type has 15 significant digits, and this imprecision is reflected in the CTEs that calculate the staker's `stakeWeight`, `staker_proportion`, `total_staker_operator_reward`, and `staker_tokens`. **It must be the case that, for a given rewards submission, $r$, $\sum_{i=0}^{n=avsStakerOperatorSet} stakeroperatorSetReward_{i, r} <= tokensPerDay_r$.**
 
-We first calculate the reward distribution to the entire staker operator set and then pass it down to operators and stakers. 
+We first calculate the reward distribution to the entire staker operator set and then pass it down to operators and stakers.
 
 ### Reward Snapshot Operators
+
 ```sql=
 WITH reward_snapshot_operators as (
   SELECT
@@ -1337,20 +1402,22 @@ WITH reward_snapshot_operators as (
   WHERE ap.reward_type = 'avs'
 ),
 ```
-From the `active_rewards`, get the operators that are registered for the AVS. We filter on `reward_for_all = false` since we are only looking at AVS rewards submissions. 
+
+From the `active_rewards`, get the operators that are registered for the AVS. We filter on `reward_for_all = false` since we are only looking at AVS rewards submissions.
 
 Let's assume that operator registration snapshots for the AVS are. 4-27-2024 is the active snapshot, but the bronze table will not have events from this date (since the query is for all events < `cutoffDate`). **No staker or operator will be paid out for 4-27-2024 on this run. This is where the two snapshot delay comes from.**
 
 For days where the are no operators opted into the AVS, the `tokens_per_day` of 1e18 will not be redistributed to future `rewardSnapshots`.
 
-| Operator | AVS | Snapshot |
-| -------- | ------- | ------- |
-| Operator1| AVS1 | 4-25-2024 |
-| Operator1| AVS1 | 4-26-2024 |
-| Operator2| AVS1 | 4-25-2024 |
-| Operator2| AVS1 | 4-26-2024 |
+| Operator  | AVS  | Snapshot  |
+| --------- | ---- | --------- |
+| Operator1 | AVS1 | 4-25-2024 |
+| Operator1 | AVS1 | 4-26-2024 |
+| Operator2 | AVS1 | 4-25-2024 |
+| Operator2 | AVS1 | 4-26-2024 |
 
 ### Operator Restaked Strategies
+
 ```sql=
 _operator_restaked_strategies AS (
   SELECT
@@ -1365,19 +1432,20 @@ _operator_restaked_strategies AS (
 ),
 ```
 
-From the operators that are restaked on the AVS, get the strategies and shares and shares for each AVS they have restaked on. 
+From the operators that are restaked on the AVS, get the strategies and shares and shares for each AVS they have restaked on.
 
 Let's assume the strategies for each operator on the AVS are:
 
-| Operator | AVS | Strategy | Snapshot |
-| -------- | ------- | ------- | ------- |
-| Operator1| AVS1 | stETH | 4-25-2024 |
-| Operator1| AVS1 | stETH | 4-26-2024 |
-| Operator1| AVS1 | rETH | 4-26-2024 |
-| Operator2| AVS1 | stETH | 4-25-2024 |
-| Operator2| AVS1 | stETH | 4-26-2024 |
+| Operator  | AVS  | Strategy | Snapshot  |
+| --------- | ---- | -------- | --------- |
+| Operator1 | AVS1 | stETH    | 4-25-2024 |
+| Operator1 | AVS1 | stETH    | 4-26-2024 |
+| Operator1 | AVS1 | rETH     | 4-26-2024 |
+| Operator2 | AVS1 | stETH    | 4-25-2024 |
+| Operator2 | AVS1 | stETH    | 4-26-2024 |
 
 ### Staker Delegated Operators
+
 ```sql=
 staker_delegated_operators AS (
   SELECT
@@ -1391,17 +1459,17 @@ staker_delegated_operators AS (
 ),
 ```
 
-Get the stakers that were delegated to the operator for the snapshot. 
+Get the stakers that were delegated to the operator for the snapshot.
 
-| Operator | AVS | Strategy | Snapshot | Staker |
-| -------- | ------- | ------- | ------- | ------- |
-| Operator1| AVS1 | stETH | 4-25-2024 | Staker1 |
-| Operator1| AVS1 | stETH | 4-26-2024 | Staker1 |
-| Operator1| AVS1 | stETH | 4-26-2024 | Staker2 |
-| Operator1| AVS1 | rETH  | 4-26-2024 | Staker1 |
-| Operator1| AVS1 | rETH  | 4-26-2024 | Staker2 |
-| Operator2| AVS1 | stETH | 4-25-2024 | Staker3 |
-| Operator2| AVS1 | stETH | 4-26-2024 | Staker3 |
+| Operator  | AVS  | Strategy | Snapshot  | Staker  |
+| --------- | ---- | -------- | --------- | ------- |
+| Operator1 | AVS1 | stETH    | 4-25-2024 | Staker1 |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker1 |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker2 |
+| Operator1 | AVS1 | rETH     | 4-26-2024 | Staker1 |
+| Operator1 | AVS1 | rETH     | 4-26-2024 | Staker2 |
+| Operator2 | AVS1 | stETH    | 4-25-2024 | Staker3 |
+| Operator2 | AVS1 | stETH    | 4-26-2024 | Staker3 |
 
 ### Staker Strategy Shares
 
@@ -1423,27 +1491,27 @@ staker_avs_strategy_shares AS (
 
 Let's assume that stakers have the following state:
 
-| Staker | Strategy | Shares | Snapshot |
-| -------- | ------- | ------- | ------- |
-|Staker1 | stETH | 1e18 | 4-25-2024 |
-|Staker1 | stETH | 1e18 | 4-26-2024 |
-|Staker1 | rETH  | 2e18 | 4-26-2024 | 
-|Staker2 | stETH | 1e18 | 4-26-2024 |
-|Staker3 | stETH | 2e18 | 4-25-2024 | 
-|Staker3 | stETH | 2e18 | 4-26-2024 | 
+| Staker  | Strategy | Shares | Snapshot  |
+| ------- | -------- | ------ | --------- |
+| Staker1 | stETH    | 1e18   | 4-25-2024 |
+| Staker1 | stETH    | 1e18   | 4-26-2024 |
+| Staker1 | rETH     | 2e18   | 4-26-2024 |
+| Staker2 | stETH    | 1e18   | 4-26-2024 |
+| Staker3 | stETH    | 2e18   | 4-25-2024 |
+| Staker3 | stETH    | 2e18   | 4-26-2024 |
 
 The join would produce the following:
 
-| Operator | AVS | Strategy | Snapshot | Staker | Shares |
-| -------- | ------- | ------- | ------- | ------- | ------- |
-| Operator1 |AVS1 |stETH |4-25-2024 |Staker1 | 1e18 |
-| Operator1 |AVS1 |stETH |4-26-2024|Staker1 | 1e18 |
-| Operator1 |AVS1 |rETH|4-26-2024|Staker1| 2e18|
-| Operator1 |AVS1 |stETH |4-26-2024|Staker2 | 1e18 |
-| Operator2 |AVS1 |stETH |4-25-2024|Staker3 | 2e18 |
-| Operator2 |AVS1 |stETH |4-26-2024|Staker3 | 2e18 |
+| Operator  | AVS  | Strategy | Snapshot  | Staker  | Shares |
+| --------- | ---- | -------- | --------- | ------- | ------ |
+| Operator1 | AVS1 | stETH    | 4-25-2024 | Staker1 | 1e18   |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker1 | 1e18   |
+| Operator1 | AVS1 | rETH     | 4-26-2024 | Staker1 | 2e18   |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker2 | 1e18   |
+| Operator2 | AVS1 | stETH    | 4-25-2024 | Staker3 | 2e18   |
+| Operator2 | AVS1 | stETH    | 4-26-2024 | Staker3 | 2e18   |
 
-Staker2 has no `rETH` shares, which is why this view has 1 less row. 
+Staker2 has no `rETH` shares, which is why this view has 1 less row.
 
 ### Staker Weights
 
@@ -1457,14 +1525,14 @@ staker_weights AS (
 
 Calculates the `stakeWeight` of the staker. A discussion on this calculation is [above](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw?view#Multiplier-Calculation).
 
-| Operator | AVS | Strategy | Snapshot | Staker | Shares | Multiplier | Staker Weight | 
-| -------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
-| Operator1 |AVS1 |stETH |4-25-2024 |Staker1 | 1e18 | 1e18 | 1e36 |
-| Operator1 | AVS1 |stETH |4-26-2024|Staker1 | 1e18 | 1e18 | 3e36 |
-| Operator1 |AVS1|rETH |4-26-2024|Staker1| 1e18| 2e18 | 3e36 |
-| Operator1 |AVS1 |stETH |4-26-2024|Staker2 | 1e18 | 1e18 | 1e36 |
-| Operator2 |AVS1 |stETH |4-25-2024|Staker3 | 2e18 | 1e18 | 2e36 | 
-| Operator2 |AVS1 |stETH |4-26-2024|Staker3 | 2e18 | 1e18 | 2e36 |
+| Operator  | AVS  | Strategy | Snapshot  | Staker  | Shares | Multiplier | Staker Weight |
+| --------- | ---- | -------- | --------- | ------- | ------ | ---------- | ------------- |
+| Operator1 | AVS1 | stETH    | 4-25-2024 | Staker1 | 1e18   | 1e18       | 1e36          |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker1 | 1e18   | 1e18       | 3e36          |
+| Operator1 | AVS1 | rETH     | 4-26-2024 | Staker1 | 1e18   | 2e18       | 3e36          |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker2 | 1e18   | 1e18       | 1e36          |
+| Operator2 | AVS1 | stETH    | 4-25-2024 | Staker3 | 2e18   | 1e18       | 2e36          |
+| Operator2 | AVS1 | stETH    | 4-26-2024 | Staker3 | 2e18   | 1e18       | 2e36          |
 
 ### Distinct Stakers
 
@@ -1483,19 +1551,19 @@ distinct_stakers AS (
 ),
 ```
 
-In the previous calculation, the stake weight is on a per (`reward_hash`, `staker`, `snapshot`). We need to delete any rows with the same combination since the next step is to calculate the total staker weight per snapshot. The strategy column is irrelevant because the final reward is given by 
-$tokensPerDay * stakerWeightProportion$. We add the order by clause in order to have the sum of staker weight in the next step be deterministic. 
+In the previous calculation, the stake weight is on a per (`reward_hash`, `staker`, `snapshot`). We need to delete any rows with the same combination since the next step is to calculate the total staker weight per snapshot. The strategy column is irrelevant because the final reward is given by
+$tokensPerDay * stakerWeightProportion$. We add the order by clause in order to have the sum of staker weight in the next step be deterministic.
 
 Remove rows with with same (`staker`, `reward_hash`, `snapshot`)
 
-| Operator | AVS | Strategy | Snapshot | Staker | Shares | Multiplier | Staker Weight | 
-| -------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
-| Operator1 |AVS1 |stETH |4-25-2024 |Staker1 | 1e18 | 1e18 | 1e36 |
-| Operator1 | AVS1 |stETH |4-26-2024|Staker1 | 1e18 | 1e18 | 3e36 |
-| <s> Operator1 </s> | <s> AVS1 </s> | <s> rETH </s> | <s> 4-26-2024 </s> | <s> Staker1 </s> | <s> 1e18 </s> | <s> 2e18 </s> | <s> 3e36 </s> | 
-| Operator1 |AVS1 |stETH |4-26-2024|Staker2 | 1e18 | 1e18 | 1e36 |
-| Operator2 |AVS1 |stETH |4-25-2024|Staker3 | 2e18 | 1e18 | 2e36 | 
-| Operator2 |AVS1 |stETH |4-26-2024|Staker3 | 2e18 | 1e18 | 2e36 |
+| Operator           | AVS           | Strategy      | Snapshot           | Staker           | Shares        | Multiplier    | Staker Weight |
+| ------------------ | ------------- | ------------- | ------------------ | ---------------- | ------------- | ------------- | ------------- |
+| Operator1          | AVS1          | stETH         | 4-25-2024          | Staker1          | 1e18          | 1e18          | 1e36          |
+| Operator1          | AVS1          | stETH         | 4-26-2024          | Staker1          | 1e18          | 1e18          | 3e36          |
+| <s> Operator1 </s> | <s> AVS1 </s> | <s> rETH </s> | <s> 4-26-2024 </s> | <s> Staker1 </s> | <s> 1e18 </s> | <s> 2e18 </s> | <s> 3e36 </s> |
+| Operator1          | AVS1          | stETH         | 4-26-2024          | Staker2          | 1e18          | 1e18          | 1e36          |
+| Operator2          | AVS1          | stETH         | 4-25-2024          | Staker3          | 2e18          | 1e18          | 2e36          |
+| Operator2          | AVS1          | stETH         | 4-26-2024          | Staker3          | 2e18          | 1e18          | 2e36          |
 
 ### Staker Weight Sum
 
@@ -1509,13 +1577,13 @@ staker_weight_sum AS (
 
 Get the sum of all staker weights for a given (`reward_hash`, `snapshot`)
 
-| Operator | AVS | Strategy | Snapshot | Staker | Shares | Staker Weight | Total Staker Weight |
-| -------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
-| Operator1 |AVS1 |stETH |4-25-2024 |Staker1 | 1e18 | 1e36 | 3e36 |
-| Operator1 | AVS1 |stETH |4-26-2024|Staker1 | 1e18 | 3e36 | 6e36 | 
-| Operator1 |AVS1 |stETH |4-26-2024|Staker2 | 1e18  | 1e36 | 6e36 | 
-| Operator2 |AVS1 |stETH |4-25-2024|Staker3 | 2e18  | 2e36 | 3e36 | 
-| Operator2 |AVS1 |stETH |4-26-2024|Staker3 | 2e18  | 2e36 | 6e36 | 
+| Operator  | AVS  | Strategy | Snapshot  | Staker  | Shares | Staker Weight | Total Staker Weight |
+| --------- | ---- | -------- | --------- | ------- | ------ | ------------- | ------------------- |
+| Operator1 | AVS1 | stETH    | 4-25-2024 | Staker1 | 1e18   | 1e36          | 3e36                |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker1 | 1e18   | 3e36          | 6e36                |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker2 | 1e18   | 1e36          | 6e36                |
+| Operator2 | AVS1 | stETH    | 4-25-2024 | Staker3 | 2e18   | 2e36          | 3e36                |
+| Operator2 | AVS1 | stETH    | 4-26-2024 | Staker3 | 2e18   | 2e36          | 6e36                |
 
 ### Staker Proportion
 
@@ -1527,15 +1595,15 @@ staker_proportion AS (
 ),
 ```
 
-Calculate the staker's proportion of tokens for the `snapshotReward` **We round down the `staker_proportion` to ensure that the sum of staker_proportions is not greater than 1**. 
+Calculate the staker's proportion of tokens for the `snapshotReward` **We round down the `staker_proportion` to ensure that the sum of staker_proportions is not greater than 1**.
 
-| Operator | AVS | Strategy | Snapshot | Staker | Shares | Staker Weight | Total Staker Weight | Staker Proportion
-| -------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
-| Operator1 |AVS1 |stETH |4-25-2024 |Staker1 | 1e18 | 1e36 | 3e36 | 0.333 |
-| Operator1 | AVS1 |stETH |4-26-2024|Staker1 | 1e18 | 3e36 | 6e36 | 0.5 |
-| Operator1 |AVS1 |stETH |4-26-2024|Staker2 | 1e18  | 1e36 | 6e36 | 0.166 |
-| Operator2 |AVS1 |stETH |4-25-2024|Staker3 | 2e18  | 2e36 | 3e36 | 0.666 |
-| Operator2 |AVS1 |stETH |4-26-2024|Staker3 | 2e18  | 2e36 | 6e36 | 0.333 |
+| Operator  | AVS  | Strategy | Snapshot  | Staker  | Shares | Staker Weight | Total Staker Weight | Staker Proportion |
+| --------- | ---- | -------- | --------- | ------- | ------ | ------------- | ------------------- | ----------------- |
+| Operator1 | AVS1 | stETH    | 4-25-2024 | Staker1 | 1e18   | 1e36          | 3e36                | 0.333             |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker1 | 1e18   | 3e36          | 6e36                | 0.5               |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker2 | 1e18   | 1e36          | 6e36                | 0.166             |
+| Operator2 | AVS1 | stETH    | 4-25-2024 | Staker3 | 2e18   | 2e36          | 3e36                | 0.666             |
+| Operator2 | AVS1 | stETH    | 4-26-2024 | Staker3 | 2e18   | 2e36          | 6e36                | 0.333             |
 
 ### Total Tokens
 
@@ -1556,21 +1624,21 @@ staker_operator_total_tokens AS (
 ```
 
 We have had to hard fork the code 2 times:
+
 1. Round down to text
 2. Use decimal instead of double everywhere.
 
-This code reflects handling this edge case to make calculations idempotent in the cases of a backfill. 
+This code reflects handling this edge case to make calculations idempotent in the cases of a backfill.
 
-Calculate the number of tokens that will be paid out to all stakers and operators. We cast the result from text to `DECIMAL(38,0)` to not lose any precision. Furthemore, the token value fits within this type for a given snapshot. 
+Calculate the number of tokens that will be paid out to all stakers and operators. We cast the result from text to `DECIMAL(38,0)` to not lose any precision. Furthemore, the token value fits within this type for a given snapshot.
 
-| Operator | AVS | Strategy | Snapshot | Staker | Shares | Staker Weight | Total Staker Weight | Staker Proportion | Tokens Per Day | Total Staker Operator Reward |
-| -------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
-| Operator1 |AVS1 |stETH |4-25-2024 |Staker1 | 1e18 | 1e36 | 3e36 | 0.333 | 1e18 | 333333333333333000 |
-| Operator1 | AVS1 |stETH |4-26-2024|Staker1 | 1e18 | 3e36 | 6e36 | 0.5 | 1e18 | 5e17 |
-| Operator1 |AVS1 |stETH |4-26-2024|Staker2 | 1e18  | 1e36 | 6e36 | 0.166 | 1e18 | 166666666666666000 |
-| Operator2 |AVS1 |stETH |4-25-2024|Staker3 | 2e18  | 2e36 | 3e36 | 0.666 | 1e18 | 666666666666666000 |
-| Operator2 |AVS1 |stETH |4-26-2024|Staker3 | 2e18  | 2e36 | 6e36 | 0.333 | 1e18 | 333333333333333000 |
-
+| Operator  | AVS  | Strategy | Snapshot  | Staker  | Shares | Staker Weight | Total Staker Weight | Staker Proportion | Tokens Per Day | Total Staker Operator Reward |
+| --------- | ---- | -------- | --------- | ------- | ------ | ------------- | ------------------- | ----------------- | -------------- | ---------------------------- |
+| Operator1 | AVS1 | stETH    | 4-25-2024 | Staker1 | 1e18   | 1e36          | 3e36                | 0.333             | 1e18           | 333333333333333000           |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker1 | 1e18   | 3e36          | 6e36                | 0.5               | 1e18           | 5e17                         |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker2 | 1e18   | 1e36          | 6e36                | 0.166             | 1e18           | 166666666666666000           |
+| Operator2 | AVS1 | stETH    | 4-25-2024 | Staker3 | 2e18   | 2e36          | 3e36                | 0.666             | 1e18           | 666666666666666000           |
+| Operator2 | AVS1 | stETH    | 4-26-2024 | Staker3 | 2e18   | 2e36          | 6e36                | 0.333             | 1e18           | 333333333333333000           |
 
 ### Token Breakdowns
 
@@ -1598,15 +1666,16 @@ token_breakdowns AS (
 SELECT * from token_breakdowns
 ORDER BY reward_hash, snapshot, staker, operator
 ```
+
 Calculate the number of tokens owed to the operator and to the staker. Operators get a fixed 10% commission. Casting from text to `DECIMAL(38,0)` will only truncate the decimal proportion of the number (ie. there will be no rounding). We add the order by clause in order to have the sum of staker weight in the next query be deterministic.
 
-| Operator | AVS | Strategy | Snapshot | Staker | Shares | Staker Weight | Total Staker Weight | Staker Proportion | Tokens Per Day | Total Staker Operator Reward | Operator Tokens | Staker Tokens |
-| -------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- |
-| Operator1 |AVS1 |stETH |4-25-2024 |Staker1 | 1e18 | 1e36 | 3e36 | 0.333 | 1e18 | 333333333333333000 | 33333333333333300 | 299999999999999700 |
-| Operator1 | AVS1 |stETH |4-26-2024|Staker1 | 1e18 | 3e36 | 6e36 | 0.5 | 1e18 | 5e17 | 5e16 | 4.5e17 |
-| Operator1 |AVS1 |stETH |4-26-2024|Staker2 | 1e18  | 1e36 | 6e36 | 0.166 | 1e18 | 166666666666666000 | 16666666666666600 | 149999999999999400 |
-| Operator2 |AVS1 |stETH |4-25-2024|Staker3 | 2e18  | 2e36 | 3e36 | 0.666 | 1e18 | 666666666666666000 | 66666666666666600 | 599999999999999400 |
-| Operator2 |AVS1 |stETH |4-26-2024|Staker3 | 2e18  | 2e36 | 6e36 | 0.333 | 1e18 | 333333333333333000 | 33333333333333300 | 299999999999999700 |
+| Operator  | AVS  | Strategy | Snapshot  | Staker  | Shares | Staker Weight | Total Staker Weight | Staker Proportion | Tokens Per Day | Total Staker Operator Reward | Operator Tokens   | Staker Tokens      |
+| --------- | ---- | -------- | --------- | ------- | ------ | ------------- | ------------------- | ----------------- | -------------- | ---------------------------- | ----------------- | ------------------ |
+| Operator1 | AVS1 | stETH    | 4-25-2024 | Staker1 | 1e18   | 1e36          | 3e36                | 0.333             | 1e18           | 333333333333333000           | 33333333333333300 | 299999999999999700 |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker1 | 1e18   | 3e36          | 6e36                | 0.5               | 1e18           | 5e17                         | 5e16              | 4.5e17             |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker2 | 1e18   | 1e36          | 6e36                | 0.166             | 1e18           | 166666666666666000           | 16666666666666600 | 149999999999999400 |
+| Operator2 | AVS1 | stETH    | 4-25-2024 | Staker3 | 2e18   | 2e36          | 3e36                | 0.666             | 1e18           | 666666666666666000           | 66666666666666600 | 599999999999999400 |
+| Operator2 | AVS1 | stETH    | 4-26-2024 | Staker3 | 2e18   | 2e36          | 6e36                | 0.333             | 1e18           | 333333333333333000           | 33333333333333300 | 299999999999999700 |
 
 ## 3. Operator Reward Amounts
 
@@ -1633,16 +1702,15 @@ WITH operator_token_sums AS (
 ),
 ```
 
+Gets the sum for each operator for a given `reward_hash` and `snapshot`. The tokens per day was `1e18`. If we take the operators reward distribution on `4-25-26`, that is roughly 10% of 1e18. In addition, the rows 2 and 3 are equivalent.
 
-Gets the sum for each operator for a given `reward_hash` and `snapshot`. The tokens per day was `1e18`. If we take the operators reward distribution on `4-25-26`, that is roughly 10% of 1e18. In addition, the rows 2 and 3 are equivalent. 
-
-| Operator | AVS | Strategy | Snapshot | Staker | Operator Tokens | Staker Tokens | Operator Tokens (Sum) |
-| -------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | 
-| Operator1 |AVS1 |stETH |4-25-2024 |Staker1 | 33333333333333300 | 299999999999999700 | 33333333333333300 |
-| Operator1 | AVS1 |stETH |4-26-2024|Staker1 | 5e16 | 4.5e17 | 66666666666666600 |
-| Operator1 |AVS1 |stETH |4-26-2024|Staker2 | 16666666666666600  | 149999999999999400 | 66666666666666600 |
-| Operator2 |AVS1 |stETH |4-25-2024|Staker3 | 66666666666666600  | 599999999999999400 | 66666666666666600 |
-| Operator2 |AVS1 |stETH |4-26-2024|Staker3 | 33333333333333300  | 299999999999999700 | 33333333333333300 |
+| Operator  | AVS  | Strategy | Snapshot  | Staker  | Operator Tokens   | Staker Tokens      | Operator Tokens (Sum) |
+| --------- | ---- | -------- | --------- | ------- | ----------------- | ------------------ | --------------------- |
+| Operator1 | AVS1 | stETH    | 4-25-2024 | Staker1 | 33333333333333300 | 299999999999999700 | 33333333333333300     |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker1 | 5e16              | 4.5e17             | 66666666666666600     |
+| Operator1 | AVS1 | stETH    | 4-26-2024 | Staker2 | 16666666666666600 | 149999999999999400 | 66666666666666600     |
+| Operator2 | AVS1 | stETH    | 4-25-2024 | Staker3 | 66666666666666600 | 599999999999999400 | 66666666666666600     |
+| Operator2 | AVS1 | stETH    | 4-26-2024 | Staker3 | 33333333333333300 | 299999999999999700 | 33333333333333300     |
 
 ### Dedupe Operators
 
@@ -1661,21 +1729,21 @@ distinct_operators AS (
 SELECT * FROM distinct_operators
 ```
 
-In the previous step, we aggregated operator rewards with the same `snapshot` and `reward_hash`. Now we remove these rows so the operator is only counted once per `reward_hash` and `snapshot` in the final reward distribution. 
+In the previous step, we aggregated operator rewards with the same `snapshot` and `reward_hash`. Now we remove these rows so the operator is only counted once per `reward_hash` and `snapshot` in the final reward distribution.
 
-| Operator | AVS | Strategy | Snapshot | Staker | Operator Tokens | Staker Tokens | Operator Tokens (Sum) |
-| -------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | 
-| Operator1 |AVS1 |stETH |4-25-2024 |Staker1 | 33333333333333300 | 299999999999999700 | 33333333333333300 |
-| <s> Operator1 </s> | <s> AVS1 </s> | <s> stETH </s> |<s> 4-26-2024 </s> |<s> Staker1 </s> | <s> 5e16 </s> | <s> 4.5e17 </s> | <s> 66666666666666600 </s> |
-| Operator1 |AVS1 |stETH |4-26-2024|Staker2 | 16666666666666600  | 149999999999999400 | 66666666666666600 |
-| Operator2 |AVS1 |stETH |4-25-2024|Staker3 | 66666666666666600  | 599999999999999400 | 66666666666666600 |
-| Operator2 |AVS1 |stETH |4-26-2024|Staker3 | 33333333333333300  | 299999999999999700 | 33333333333333300 |
+| Operator           | AVS           | Strategy       | Snapshot           | Staker           | Operator Tokens   | Staker Tokens      | Operator Tokens (Sum)      |
+| ------------------ | ------------- | -------------- | ------------------ | ---------------- | ----------------- | ------------------ | -------------------------- |
+| Operator1          | AVS1          | stETH          | 4-25-2024          | Staker1          | 33333333333333300 | 299999999999999700 | 33333333333333300          |
+| <s> Operator1 </s> | <s> AVS1 </s> | <s> stETH </s> | <s> 4-26-2024 </s> | <s> Staker1 </s> | <s> 5e16 </s>     | <s> 4.5e17 </s>    | <s> 66666666666666600 </s> |
+| Operator1          | AVS1          | stETH          | 4-26-2024          | Staker2          | 16666666666666600 | 149999999999999400 | 66666666666666600          |
+| Operator2          | AVS1          | stETH          | 4-25-2024          | Staker3          | 66666666666666600 | 599999999999999400 | 66666666666666600          |
+| Operator2          | AVS1          | stETH          | 4-26-2024          | Staker3          | 33333333333333300 | 299999999999999700 | 33333333333333300          |
 
 ## 4. Reward for all stakers
 
-This query calculates rewards made by via the `createRewardsForAllSubmission` function on the `RewardCoordinator`. This reward goes directly to stakers. 
+This query calculates rewards made by via the `createRewardsForAllSubmission` function on the `RewardCoordinator`. This reward goes directly to stakers.
 
-***Note: This functionality is currently paused and is unused, hence no hardfork logic is present.***
+**_Note: This functionality is currently paused and is unused, hence no hardfork logic is present._**
 
 ### Staker Snapshots
 
@@ -1702,7 +1770,6 @@ WITH reward_snapshot_stakers AS (
 ```
 
 Select all the rewards that set `reward_for_all` to true
-
 
 ### Staker Weights -> Staker Tokens
 
@@ -1750,7 +1817,8 @@ SELECT * from staker_tokens
 ```
 
 ## 5. Reward For All Earners - Stakers
-This reward functionality rewards all operators (and their delegated stakers) who have opted into at least one AVS. The operator gets a fixed 10% commission. 
+
+This reward functionality rewards all operators (and their delegated stakers) who have opted into at least one AVS. The operator gets a fixed 10% commission.
 
 We do this by:
 
@@ -1760,6 +1828,7 @@ We do this by:
 4. Calculate payout to operators (step 7)
 
 ### AVS Opted Operators
+
 ```sql=
 WITH avs_opted_operators AS (
   SELECT DISTINCT
@@ -1769,7 +1838,7 @@ WITH avs_opted_operators AS (
 ),
 ```
 
-Gets the unique operators who have registered for an AVS for a given snapshot. This uses the `operator_avs_registration_snapshots` preclalculation view. Note that deregistrations do not exist in this table. 
+Gets the unique operators who have registered for an AVS for a given snapshot. This uses the `operator_avs_registration_snapshots` preclalculation view. Note that deregistrations do not exist in this table.
 
 ### Reward Snapshot Operators
 
@@ -1799,7 +1868,7 @@ We add join the active rewards with operators who have registered to at least on
 ### Staker Delegated Operators
 
 ```sql=
--- Get the stakers that were delegated to the operator for the snapshot 
+-- Get the stakers that were delegated to the operator for the snapshot
 staker_delegated_operators AS (
   SELECT
     rso.*,
@@ -1812,11 +1881,11 @@ staker_delegated_operators AS (
 ),
 ```
 
-Get the stakers that were delegated to the registered operator for the snapshot. 
+Get the stakers that were delegated to the registered operator for the snapshot.
 
 ### Staker Strategy Shares -> Token Breakdowns
 
-The rest of the calculation proceeds as `2_staker_reward_amounts`, without having hard forks. 
+The rest of the calculation proceeds as `2_staker_reward_amounts`, without having hard forks.
 
 ```sql=
 -- Get the shares of each strategy the staker has delegated to the operator
@@ -1921,12 +1990,11 @@ SELECT * FROM distinct_operators
 This query combines the rewards from steps 2,3,4,5, and 6 to generate a table with the following columns:
 
 | Earner | Snapshot | Reward Hash | Token | Amount |
-| -------- | -------- | -------- | -------- | -------- |
+| ------ | -------- | ----------- | ----- | ------ |
 
 ### Get all rewards
 
-Aggregates the rewards from steps 2,3, and 4. We use `DISTINCT` as a sanity check to discard rows with the same `strategy` and `earner` for a given `reward_hash` and `snapshot`. 
-
+Aggregates the rewards from steps 2,3, and 4. We use `DISTINCT` as a sanity check to discard rows with the same `strategy` and `earner` for a given `reward_hash` and `snapshot`.
 
 ```sql=
 WITH staker_rewards AS (
@@ -2010,11 +2078,12 @@ deduped_earners AS (
 SELECT *
 FROM deduped_earners
 ```
-Sum up the balances for earners with multiple rows for a given `reward_hash` and `snapshot`. This step handles the case for operators who are also delegated to themselves. 
+
+Sum up the balances for earners with multiple rows for a given `reward_hash` and `snapshot`. This step handles the case for operators who are also delegated to themselves.
 
 ### 8. Gold Table Merge
 
-The previous queries were all views. This step selects rows from the [step 7](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw#6-Gold-Table-Staging) and appends them to a table. 
+The previous queries were all views. This step selects rows from the [step 7](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw#6-Gold-Table-Staging) and appends them to a table.
 
 ```sql=
 SELECT
@@ -2025,9 +2094,10 @@ SELECT
     amount
 FROM {{ ref('gold_staging') }}
 ```
-This table is merged via the `merge` `incremental_strategy` on the unique keys of `['reward_hash', 'earner', 'snapshot']`. See [dbt docs](https://docs.getdbt.com/docs/build/incremental-strategy) for more information. 
 
-Lastly, the Rewards Root Updater will query this table to get cumulative amounts merkelize the following earner, token, cumulative_amount columns. 
+This table is merged via the `merge` `incremental_strategy` on the unique keys of `['reward_hash', 'earner', 'snapshot']`. See [dbt docs](https://docs.getdbt.com/docs/build/incremental-strategy) for more information.
+
+Lastly, the Rewards Root Updater will query this table to get cumulative amounts merkelize the following earner, token, cumulative_amount columns.
 
 ```sql=
 SELECT
