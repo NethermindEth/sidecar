@@ -22,6 +22,7 @@ export default defineConfig({
 					label: 'Running the Sidecar',
 					items: [
 						{ slug: 'running/getting-started', label: 'Getting Started' },
+						{ slug: 'running/snapshots', label: 'Restore from a snapshot' },
 						{ slug: 'running/advanced-postgres', label: 'Advanced PostgreSQL Config' },
 						{ slug: 'running/docker-compose', label: 'Running with Docker Compose' },
 						{ slug: 'running/kubernetes', label: 'Running on Kubernetes' },
