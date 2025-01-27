@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://layr-labs.github.io',
 	integrations: [
 		starlight({
 			title: 'EigenLayer Sidecar',
@@ -11,6 +12,12 @@ export default defineConfig({
 				github: 'https://github.com/Layr-Labs/sidecar',
 			},
 			sidebar: [
+				{
+					label: 'About',
+					items: [
+						{ slug: 'about/overview', label: 'What is the Sidecar?' },
+					]
+				},
 				{
 					label: 'Running the Sidecar',
 					items: [
@@ -23,11 +30,11 @@ export default defineConfig({
 				},
 				{
 					label: 'Rewards Calculations',
-					autogenerate: { directory: 'reference' },
+					items: []
 				},
 				{
 					label: 'Sidecar API',
-					autogenerate: { directory: 'reference' },
+					items: []
 				},
 				{
 					label: 'Contributing',
