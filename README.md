@@ -255,16 +255,14 @@ See [Snapshots Docs](docs/snapshots_docs.md) for instructions on creating and re
 ### Snapshot Sources
 
 * Mainnet Ethereum (not yet available)
-* Testnet Holesky ([2024-11-22](https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky-20241122.tar.gz))
+* Testnet Holesky ([2025-01-22](https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump))
 
 ### Example boot from testnet snapshot (default schema)
 ```bash
-curl -LO https://eigenlayer-sidecar.s3.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky-20241122.tar.gz
-
-tar -xvf sidecar-testnet-2024-11-22.tar.gz
+curl -LO https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump
 
 ./bin/sidecar restore-snapshot \
-  --input_file=sidecar-testnet-2024-11-22.dump \
+  --input_file=sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
   --database.host=localhost \
   --database.user=sidecar \
   --database.password=... \
