@@ -360,6 +360,7 @@ There are two types of rewards submissions in the protocol:
 
 1. AVS Rewards Submission: Permissionless function called by any AVS
 2. Reward for All: Permissioned reward to all stakers of the protocol
+3. Operator-Directed Rewards Submission: Permissionless function called by any AVS to direct rewards to a specific operators
 
 _Note: The amount in the RewardsCoordinator has a max value of $1e38-1$, which allows us to truncate it to a DECIMAL(38,0)._
 
@@ -463,6 +464,49 @@ CROSS JOIN LATERAL jsonb_array_elements(
 WHERE address = '{{ var('rewards_coordinator_address') }}'
 AND event_name = 'RewardsSubmissionForAllEarnersCreated'
 AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
+```
+
+#### Operator-Directed Rewards Submissions
+
+```sql=
+WITH _operator_directed_rewards as (
+		SELECT
+			odrs.avs,
+			odrs.reward_hash,
+			odrs.token,
+			odrs.operator,
+			odrs.operator_index,
+			odrs.amount,
+			odrs.strategy,
+			odrs.strategy_index,
+			odrs.multiplier,
+			odrs.start_timestamp::TIMESTAMP(6),
+			odrs.end_timestamp::TIMESTAMP(6),
+			odrs.duration,
+			odrs.block_number,
+			b.block_time::TIMESTAMP(6),
+			TO_CHAR(b.block_time, 'YYYY-MM-DD') AS block_date
+		FROM operator_directed_reward_submissions AS odrs
+		JOIN blocks AS b ON(b.number = odrs.block_number)
+		WHERE b.block_time < TIMESTAMP '{{.cutoffDate}}'
+	)
+	SELECT
+		avs,
+		reward_hash,
+		token,
+		operator,
+		operator_index,
+		amount,
+		strategy,
+		strategy_index,
+		multiplier,
+		start_timestamp::TIMESTAMP(6),
+		end_timestamp::TIMESTAMP(6),
+		duration,
+		block_number,
+		block_time,
+		block_date
+	FROM _operator_directed_rewards
 ```
 
 ### Operator<>AVS State
