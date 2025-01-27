@@ -322,6 +322,38 @@ AND t.event_name = 'StakerUndelegated'
 AND date_trunc('day', b.block_time) < TIMESTAMP '{{ var("cutoff_date") }}'
 ```
 
+### Operator Splits
+
+Three types of operator splits are tracked daily:
+
+1. Default Operator Split: Determines reward split between operator and their delegated stakers for all operators (10% default, 1000 bips)
+2. Operator-PI Split: Determines reward split between operator and their delegated stakers for Programmatic Incentives.
+3. Operator-Set Split: Determines reward split between operator and their delegated stakers for Operator-Directed Rewards.
+
+Split calculation follows these rules:
+
+- Pre-Arno fork: Uses 10% default (1000 bips)
+- Post-Arno fork: Uses operator-specific split or 10% default (1000 bips)
+- Post-Trinity fork: Uses operator-specific split, global default, or 10% fallback
+
+Example operator-AVS split snapshot:
+
+```sql=
+WITH operator_avs_splits_with_block_info as (
+select
+oas.operator,
+oas.avs,
+oas.activated_at::timestamp(6) as activated_at,
+oas.new_operator_avs_split_bips as split,
+oas.block_number,
+oas.log_index,
+b.block_time::timestamp(6) as block_time
+from operator_avs_splits as oas
+join blocks as b on (b.number = oas.block_number)
+where activated_at < TIMESTAMP '{{.cutoffDate}}'
+)
+```
+
 ### Rewards Submissions
 
 There are two types of rewards submissions in the protocol:
