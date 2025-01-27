@@ -3,6 +3,7 @@ package migrations
 import (
 	"database/sql"
 	"fmt"
+	_202501241111_addIndexesForRpcFunctions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241111_addIndexesForRpcFunctions"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -134,6 +135,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202501061029_addDescription.Migration{},
 		&_202501061422_defaultOperatorSplits.Migration{},
 		&_202501071401_defaultOperatorSplitSnapshots.Migration{},
+		&_202501241111_addIndexesForRpcFunctions.Migration{},
 	}
 
 	for _, migration := range migrations {
@@ -177,7 +179,7 @@ func (m *Migrator) Migrate(migration Migration) error {
 		m.Logger.Sugar().Debugf("Migration %s already run", name)
 		return nil
 	}
-	m.Logger.Sugar().Infof("Migration %s applied", name)
+	m.Logger.Sugar().Debugf("Migration %s applied", name)
 	return nil
 }
 

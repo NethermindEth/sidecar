@@ -21,6 +21,8 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewards/stakerOperators"
 	"github.com/Layr-Labs/sidecar/pkg/rewardsCalculatorQueue"
 	"github.com/Layr-Labs/sidecar/pkg/rpcServer"
+	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
+	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	"github.com/Layr-Labs/sidecar/pkg/shutdown"
 	"github.com/Layr-Labs/sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
@@ -121,6 +123,9 @@ var runCmd = &cobra.Command{
 
 		rps := proofs.NewRewardsProofsStore(rc, l)
 
+		pds := protocolDataService.NewProtocolDataService(grm, l, cfg)
+		rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
+
 		go rcq.Process()
 
 		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sdc, eb, l)
@@ -133,7 +138,7 @@ var runCmd = &cobra.Command{
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
 			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, sm, rc, rcq, eb, rps, l)
+		}, mds, sm, rc, rcq, eb, rps, pds, rds, l)
 
 		// RPC channel to notify the RPC server to shutdown gracefully
 		rpcChannel := make(chan bool)

@@ -6,12 +6,13 @@ require (
 	github.com/DataDog/datadog-go/v5 v5.5.0
 	github.com/Layr-Labs/eigenlayer-contracts v0.4.1-holesky-pepe.0.20240813143901-00fc4b95e9c1
 	github.com/Layr-Labs/eigenlayer-rewards-proofs v0.2.13
-	github.com/Layr-Labs/protocol-apis v1.1.1-0.20250114181701-acb87ef4eeb5
+	github.com/Layr-Labs/protocol-apis v1.1.1-0.20250123230502-b2e6b309f9cd
 	github.com/ethereum/go-ethereum v1.14.9
 	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0
+	github.com/habx/pg-commands v0.6.1
 	github.com/lib/pq v1.10.9
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.0
@@ -53,7 +54,6 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
-	github.com/habx/pg-commands v0.6.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/holiman/uint256 v1.3.1 // indirect
 	github.com/iden3/go-iden3-crypto v0.0.16 // indirect

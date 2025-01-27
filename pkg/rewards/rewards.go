@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/pkg/rewards/rewardsTypes"
 	"time"
 
 	"sync/atomic"
@@ -482,15 +483,8 @@ func (rc *RewardsCalculator) DeleteCorruptedRewardsFromBlockHeight(blockHeight u
 	return nil
 }
 
-type Reward struct {
-	Earner           string
-	Token            string
-	Snapshot         string
-	CumulativeAmount string
-}
-
-func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string) ([]*Reward, error) {
-	var goldRows []*Reward
+func (rc *RewardsCalculator) FetchRewardsForSnapshot(snapshotDate string) ([]*rewardsTypes.Reward, error) {
+	var goldRows []*rewardsTypes.Reward
 	query, err := rewardsUtils.RenderQueryTemplate(`
 		select
 			earner,
@@ -796,15 +790,23 @@ type DistributionRoot struct {
 	Disabled bool
 }
 
-func (rc *RewardsCalculator) ListDistributionRoots() ([]*DistributionRoot, error) {
+// ListDistributionRoots returns a list of submitted distribution roots. If a non-zero blockHeight is provided,
+// DistributionRoots for only that blockHeight will be returned
+func (rc *RewardsCalculator) ListDistributionRoots(blockHeight uint64) ([]*DistributionRoot, error) {
 	query := `
 		select
 			sdr.*,
 			case when ddr.root_index is not null then true else false end as disabled
 		from submitted_distribution_roots as sdr
 		left join disabled_distribution_roots as ddr on (sdr.root_index = ddr.root_index)
-		order by root_index desc
 	`
+	if blockHeight > 0 {
+		query += `
+			where sdr.block_number = {{.blockHeight}}
+		`
+	}
+	query += ` order by root_index desc`
+
 	var submittedDistributionRoots []*DistributionRoot
 	res := rc.grm.Raw(query).Scan(&submittedDistributionRoots)
 	if res.Error != nil {
