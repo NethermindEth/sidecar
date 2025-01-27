@@ -1,3 +1,7 @@
+---
+title: Advanced PostgreSQL Config
+description: Stuff
+---
 
 ## Running PostgreSQL with the Sidecar
 

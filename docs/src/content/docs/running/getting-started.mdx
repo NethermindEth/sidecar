@@ -1,0 +1,112 @@
+---
+title: Getting started
+description: How to deploy an EigenLayer Sidecar
+---
+import { Steps } from '@astrojs/starlight/components';
+
+
+### Current versions
+
+* Mainnet: Sidecar ([v2.0.0](https://github.com/Layr-Labs/sidecar/releases/tag/v2.0.0))
+* Testnet: Sidecar ([v3.0.0-rc.1](https://github.com/Layr-Labs/sidecar/releases/tag/v3.0.0-rc.1))
+* Preprod: Sidecar ([v3.0.0-rc.1](https://github.com/Layr-Labs/sidecar/releases/tag/v3.0.0-rc.1))
+
+### Runtime dependencies
+
+* MacOS or Linux (arm64 or amd64)
+* PostgreSQL >= 15.x
+* Access to an Ethereum archive node (execution client)
+
+## Installation
+
+
+<Steps>
+1. Download the Sidecar binary
+
+    ```bash
+    VERSION="v2.0.0"
+    curl -s -L https://github.com/Layr-Labs/sidecar/releases/download/v2.0.0/sidecar-darwin-amd64-v2.0.0.tar.gz | tar xvz -C /usr/local/bin
+    ```
+
+2. Create a database for your sidecar
+
+    Assuming that you have PostgreSQL installed locally, or access to a remote PostgreSQL instance, you can create a database for your sidecar:
+
+    ```bash
+    psql --host <host> --port 5432 --user <username> --password
+
+    CREATE DATABASE sidecar;
+    ```
+
+    Please see the ["Advanced PostgreSQL Config"](running/advanced-postgres) for more information on setting up your PostgreSQL database.
+
+    #### Using a snapshot
+
+    If you are launching a Sidecar for Holesky, you will need to use a snapshot to intialize your database. Detailed directions can be found on the ["restore from snapshot"](running/snapshots) page.
+
+    ```bash
+    curl -LO https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump
+
+    /usr/local/bin/sidecar restore-snapshot \
+      --input_file=sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
+      --database.host=<postgres host> \
+      --database.user=<postgres user> \
+      --database.password=<postgres password> \
+      --database.port=5432 \
+      --database.db_name=sidecar \
+      --database.schema_name=public
+    ```
+
+3. Launch your Sidecar
+
+    ```bash
+    /usr/local/bin/sidecar
+        --ethereum.rpc-url="http://<your-ethereum-rpc-url>" \
+        --chain="mainnet" \
+        --database.host="<postgres host>" \
+        --database.port="5432" \
+        --database.user="<postgres user>" \
+        --database.password="<postgres password>" \
+        --database.db_name="sidecar"
+    ```
+
+</Steps>
+
+
+### Sidecar runtime flags
+
+```bash
+sidecar --help
+
+Run the sidecar
+
+Usage:
+  sidecar run [flags]
+
+Flags:
+  -h, --help   help for run
+
+Global Flags:
+  -c, --chain string                              The chain to use (mainnet, holesky, preprod (default "mainnet")
+      --database.db_name string                   PostgreSQL database name (default "sidecar")
+      --database.host string                      PostgreSQL host (default "localhost")
+      --database.password string                  PostgreSQL password
+      --database.port int                         PostgreSQL port (default 5432)
+      --database.schema_name string               PostgreSQL schema name (default "public")
+      --database.user string                      PostgreSQL username (default "sidecar")
+      --datadog.statsd.enabled                    e.g. "true" or "false"
+      --datadog.statsd.url string                 e.g. "localhost:8125"
+      --debug                                     "true" or "false"
+      --ethereum.chunked_batch_call_size int      The number of calls to make in parallel when using the chunked batch call method (default 10)
+      --ethereum.contract_call_batch_size int     The number of contract calls to batch together when fetching data from the Ethereum node (default 25)
+      --ethereum.native_batch_call_size int       The number of calls to batch together when using the native eth_call method (default 500)
+      --ethereum.rpc-url string                   e.g. "http://<hostname>:8545"
+      --ethereum.use_native_batch_call            Use the native eth_call method for batch calls (default true)
+      --prometheus.enabled                        e.g. "true" or "false"
+      --prometheus.port int                       The port to run the prometheus server on (default 2112)
+      --rewards.generate_staker_operators_table   Generate staker operators table while indexing
+      --rewards.validate_rewards_root             Validate rewards roots while indexing (default true)
+      --rpc.grpc-port int                         gRPC port (default 7100)
+      --rpc.http-port int                         http rpc port (default 7101)
+
+```
