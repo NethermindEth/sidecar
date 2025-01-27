@@ -340,17 +340,17 @@ Example operator-AVS split snapshot:
 
 ```sql=
 WITH operator_avs_splits_with_block_info as (
-select
-oas.operator,
-oas.avs,
-oas.activated_at::timestamp(6) as activated_at,
-oas.new_operator_avs_split_bips as split,
-oas.block_number,
-oas.log_index,
-b.block_time::timestamp(6) as block_time
-from operator_avs_splits as oas
-join blocks as b on (b.number = oas.block_number)
-where activated_at < TIMESTAMP '{{.cutoffDate}}'
+SELECT
+  oas.operator,
+  oas.avs,
+  oas.activated_at::timestamp(6) as activated_at,
+  oas.new_operator_avs_split_bips as split,
+  oas.block_number,
+  oas.log_index,
+  b.block_time::timestamp(6) as block_time
+FROM operator_avs_splits as oas
+JOIN blocks as b on (b.number = oas.block_number)
+WHERE activated_at < TIMESTAMP '{{.cutoffDate}}'
 )
 ```
 
@@ -2061,7 +2061,7 @@ distinct_operators AS (
 SELECT * FROM distinct_operators
 ```
 
-## Step 7: Gold Active OD Rewards
+## 7. Gold Active OD Rewards
 
 ```sql=
 WITH
