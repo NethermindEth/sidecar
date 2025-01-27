@@ -2061,9 +2061,408 @@ distinct_operators AS (
 SELECT * FROM distinct_operators
 ```
 
-## 7. Gold Table Staging
+## Step 7: Gold Active OD Rewards
 
-This query combines the rewards from steps 2,3,4,5, and 6 to generate a table with the following columns:
+```sql=
+WITH
+-- Step 2: Modify active rewards and compute tokens per day
+active_rewards_modified AS (
+    SELECT
+        *,
+        CAST(@cutoffDate AS TIMESTAMP(6)) AS global_end_inclusive -- Inclusive means we DO USE this day as a snapshot
+    FROM operator_directed_rewards
+    WHERE end_timestamp >= TIMESTAMP '{{.rewardsStart}}'
+      AND start_timestamp <= TIMESTAMP '{{.cutoffDate}}'
+      AND block_time <= TIMESTAMP '{{.cutoffDate}}' -- Always ensure we're not using future data. Should never happen since we're never backfilling, but here for safety and consistency.
+),
+
+-- Step 3: Cut each reward's start and end windows to handle the global range
+active_rewards_updated_end_timestamps AS (
+    SELECT
+        avs,
+        operator,
+        /**
+         * Cut the start and end windows to handle
+         * A. Retroactive rewards that came recently whose start date is less than start_timestamp
+         * B. Don't make any rewards past end_timestamp for this run
+         */
+        start_timestamp AS reward_start_exclusive,
+        LEAST(global_end_inclusive, end_timestamp) AS reward_end_inclusive,
+        amount,
+        token,
+        multiplier,
+        strategy,
+        reward_hash,
+        duration,
+        global_end_inclusive,
+        block_date AS reward_submission_date
+    FROM active_rewards_modified
+),
+
+-- Step 4: For each reward hash, find the latest snapshot
+active_rewards_updated_start_timestamps AS (
+    SELECT
+        ap.avs,
+        ap.operator,
+        COALESCE(MAX(g.snapshot), ap.reward_start_exclusive) AS reward_start_exclusive,
+        ap.reward_end_inclusive,
+        ap.token,
+        -- We use floor to ensure we are always underestimating total tokens per day
+        FLOOR(ap.amount) AS amount_decimal,
+        ap.multiplier,
+        ap.strategy,
+        ap.reward_hash,
+        ap.duration,
+        ap.global_end_inclusive,
+        ap.reward_submission_date
+    FROM active_rewards_updated_end_timestamps ap
+    LEFT JOIN gold_table g
+        ON g.reward_hash = ap.reward_hash
+    GROUP BY
+        ap.avs,
+        ap.operator,
+        ap.reward_end_inclusive,
+        ap.token,
+        ap.amount,
+        ap.multiplier,
+        ap.strategy,
+        ap.reward_hash,
+        ap.duration,
+        ap.global_end_inclusive,
+        ap.reward_start_exclusive,
+        ap.reward_submission_date
+),
+
+-- Step 5: Filter out invalid reward ranges
+active_reward_ranges AS (
+    /** Take out (reward_start_exclusive, reward_end_inclusive) windows where
+	* 1. reward_start_exclusive >= reward_end_inclusive: The reward period is done or we will handle on a subsequent run
+	*/
+    SELECT *
+    FROM active_rewards_updated_start_timestamps
+    WHERE reward_start_exclusive < reward_end_inclusive
+),
+
+-- Step 6: Explode out the ranges for a day per inclusive date
+exploded_active_range_rewards AS (
+    SELECT
+        *
+    FROM active_reward_ranges
+    CROSS JOIN generate_series(
+        DATE(reward_start_exclusive),
+        DATE(reward_end_inclusive),
+        INTERVAL '1' DAY
+    ) AS day
+),
+
+-- Step 7: Prepare cleaned active rewards
+active_rewards_cleaned AS (
+    SELECT
+        avs,
+        operator,
+        CAST(day AS DATE) AS snapshot,
+        token,
+        amount_decimal,
+        multiplier,
+        strategy,
+        duration,
+        reward_hash,
+        reward_submission_date
+    FROM exploded_active_range_rewards
+    -- Remove snapshots on the start day
+    WHERE day != reward_start_exclusive
+),
+
+-- Step 8: Dedupe the active rewards by (avs, snapshot, operator, reward_hash)
+active_rewards_reduced_deduped AS (
+    SELECT DISTINCT avs, snapshot, operator, reward_hash
+    FROM active_rewards_cleaned
+),
+
+-- Step 9: Divide by the number of snapshots that the operator was registered
+op_avs_num_registered_snapshots AS (
+    SELECT
+        ar.reward_hash,
+        ar.operator,
+        COUNT(*) AS num_registered_snapshots
+    FROM active_rewards_reduced_deduped ar
+    JOIN operator_avs_registration_snapshots oar
+    ON
+        ar.avs = oar.avs
+        AND ar.snapshot = oar.snapshot
+        AND ar.operator = oar.operator
+    GROUP BY ar.reward_hash, ar.operator
+),
+
+-- Step 10: Divide amount to pay by the number of snapshots that the operator was registered
+active_rewards_with_registered_snapshots AS (
+    SELECT
+        arc.*,
+        COALESCE(nrs.num_registered_snapshots, 0) as num_registered_snapshots
+    FROM active_rewards_cleaned arc
+    LEFT JOIN op_avs_num_registered_snapshots nrs
+    ON
+        arc.reward_hash = nrs.reward_hash
+        AND arc.operator = nrs.operator
+),
+
+-- Step 11: Divide amount to pay by the number of snapshots that the operator was registered
+active_rewards_final AS (
+    SELECT
+        ar.*,
+        CASE
+            -- If the operator was not registered for any snapshots, just get regular tokens per day to refund the AVS
+            WHEN ar.num_registered_snapshots = 0 THEN floor(ar.amount_decimal / (duration / 86400))
+            ELSE floor(ar.amount_decimal / ar.num_registered_snapshots)
+        END AS tokens_per_registered_snapshot_decimal
+    FROM active_rewards_with_registered_snapshots ar
+)
+
+SELECT * FROM active_rewards_final
+```
+
+## 8. Gold Operator Operator-Directed Reward Amounts
+
+```sql=
+-- Step 1: Get the rows where operators have registered for the AVS
+WITH reward_snapshot_operators AS (
+    SELECT
+        ap.reward_hash,
+        ap.snapshot AS snapshot,
+        ap.token,
+        ap.tokens_per_registered_snapshot_decimal,
+        ap.avs AS avs,
+        ap.operator AS operator,
+        ap.strategy,
+        ap.multiplier,
+        ap.reward_submission_date
+    FROM {{.activeODRewardsTable}} ap
+    JOIN operator_avs_registration_snapshots oar
+        ON ap.avs = oar.avs
+       AND ap.snapshot = oar.snapshot
+       AND ap.operator = oar.operator
+),
+
+-- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
+-- Since the above result is a flattened operator-directed reward submission across strategies.
+distinct_operators AS (
+    SELECT *
+    FROM (
+        SELECT
+            *,
+            -- We can use an arbitrary order here since the avs_tokens is the same for each (operator, strategy, hash, snapshot)
+            -- We use strategy ASC for better debuggability
+            ROW_NUMBER() OVER (
+                PARTITION BY reward_hash, snapshot, operator
+                ORDER BY strategy ASC
+            ) AS rn
+        FROM reward_snapshot_operators
+    ) t
+    -- Keep only the first row for each (operator, reward hash, snapshot)
+    WHERE rn = 1
+),
+
+-- Step 3: Calculate the tokens for each operator with dynamic split logic
+-- If no split is found, default to 1000 (10%)
+operator_splits AS (
+    SELECT
+        dop.*,
+        CASE
+            WHEN dop.snapshot < @trinityHardforkDate AND dop.reward_submission_date < @trinityHardforkDate THEN
+                COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL)
+            ELSE
+                COALESCE(oas.split, dos.split, 1000) / CAST(10000 AS DECIMAL)
+        END AS split_pct,
+        CASE
+            WHEN dop.snapshot < @trinityHardforkDate AND dop.reward_submission_date < @trinityHardforkDate THEN
+                FLOOR(dop.tokens_per_registered_snapshot_decimal * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL))
+            ELSE
+                FLOOR(dop.tokens_per_registered_snapshot_decimal * COALESCE(oas.split, dos.split, 1000) / CAST(10000 AS DECIMAL))
+        END AS operator_tokens
+    FROM distinct_operators dop
+    LEFT JOIN operator_avs_split_snapshots oas
+        ON dop.operator = oas.operator
+       AND dop.avs = oas.avs
+       AND dop.snapshot = oas.snapshot
+    LEFT JOIN default_operator_split_snapshots dos ON (dop.snapshot = dos.snapshot)
+)
+
+-- Step 4: Output the final table with operator splits
+SELECT * FROM operator_splits
+```
+
+## 9. Gold Staker Operator-Directed Reward Amounts
+
+```sql=
+-- Step 1: Get the rows where operators have registered for the AVS
+WITH reward_snapshot_operators AS (
+    SELECT
+        ap.reward_hash,
+        ap.snapshot AS snapshot,
+        ap.token,
+        ap.tokens_per_registered_snapshot_decimal,
+        ap.avs AS avs,
+        ap.operator AS operator,
+        ap.strategy,
+        ap.multiplier,
+        ap.reward_submission_date
+    FROM {{.activeODRewardsTable}} ap
+    JOIN operator_avs_registration_snapshots oar
+        ON ap.avs = oar.avs
+       AND ap.snapshot = oar.snapshot
+       AND ap.operator = oar.operator
+),
+
+-- Calculate the total staker split for each operator reward with dynamic split logic
+-- If no split is found, default to 1000 (10%)
+staker_splits AS (
+    SELECT
+        rso.*,
+        CASE
+            WHEN rso.snapshot < @trinityHardforkDate AND rso.reward_submission_date < @trinityHardforkDate THEN
+                rso.tokens_per_registered_snapshot_decimal - FLOOR(rso.tokens_per_registered_snapshot_decimal * COALESCE(oas.split, 1000) / CAST(10000 AS DECIMAL))
+            ELSE
+                rso.tokens_per_registered_snapshot_decimal - FLOOR(rso.tokens_per_registered_snapshot_decimal * COALESCE(oas.split, dos.split, 1000) / CAST(10000 AS DECIMAL))
+        END AS staker_split
+    FROM reward_snapshot_operators rso
+    LEFT JOIN operator_avs_split_snapshots oas
+        ON rso.operator = oas.operator
+       AND rso.avs = oas.avs
+       AND rso.snapshot = oas.snapshot
+    LEFT JOIN default_operator_split_snapshots dos ON (rso.snapshot = dos.snapshot)
+),
+-- Get the stakers that were delegated to the operator for the snapshot
+staker_delegated_operators AS (
+    SELECT
+        ors.*,
+        sds.staker
+    FROM staker_splits ors
+    JOIN staker_delegation_snapshots sds
+        ON ors.operator = sds.operator
+       AND ors.snapshot = sds.snapshot
+),
+
+-- Get the shares for stakers delegated to the operator
+staker_avs_strategy_shares AS (
+    SELECT
+        sdo.*,
+        sss.shares
+    FROM staker_delegated_operators sdo
+    JOIN staker_share_snapshots sss
+        ON sdo.staker = sss.staker
+       AND sdo.snapshot = sss.snapshot
+       AND sdo.strategy = sss.strategy
+    -- Filter out negative shares and zero multiplier to avoid division by zero
+    WHERE sss.shares > 0 AND sdo.multiplier != 0
+),
+
+-- Calculate the weight of each staker
+staker_weights AS (
+    SELECT
+        *,
+        SUM(multiplier * shares) OVER (PARTITION BY staker, reward_hash, snapshot) AS staker_weight
+    FROM staker_avs_strategy_shares
+),
+-- Get distinct stakers since their weights are already calculated
+distinct_stakers AS (
+    SELECT *
+    FROM (
+        SELECT
+            *,
+            -- We can use an arbitrary order here since the staker_weight is the same for each (staker, strategy, hash, snapshot)
+            -- We use strategy ASC for better debuggability
+            ROW_NUMBER() OVER (
+                PARTITION BY reward_hash, snapshot, staker
+                ORDER BY strategy ASC
+            ) AS rn
+        FROM staker_weights
+    ) t
+    WHERE rn = 1
+    ORDER BY reward_hash, snapshot, staker
+),
+-- Calculate the sum of all staker weights for each reward and snapshot
+staker_weight_sum AS (
+    SELECT
+        *,
+        SUM(staker_weight) OVER (PARTITION BY reward_hash, operator, snapshot) AS total_weight
+    FROM distinct_stakers
+),
+-- Calculate staker proportion of tokens for each reward and snapshot
+staker_proportion AS (
+    SELECT
+        *,
+        FLOOR((staker_weight / total_weight) * 1000000000000000) / 1000000000000000 AS staker_proportion
+    FROM staker_weight_sum
+),
+-- Calculate the staker reward amounts
+staker_reward_amounts AS (
+    SELECT
+        *,
+        FLOOR(staker_proportion * staker_split) AS staker_tokens
+    FROM staker_proportion
+)
+-- Output the final table
+SELECT * FROM staker_reward_amounts
+```
+
+## 10. Gold AVS Operator-Directed Reward Amounts
+
+```sql=
+-- Step 1: Get the rows where operators have not registered for the AVS or if the AVS does not exist
+WITH reward_snapshot_operators AS (
+    SELECT
+        ap.reward_hash,
+        ap.snapshot AS snapshot,
+        ap.token,
+        ap.tokens_per_registered_snapshot_decimal,
+        ap.avs AS avs,
+        ap.operator AS operator,
+        ap.strategy,
+        ap.multiplier,
+        ap.reward_submission_date
+    FROM {{.activeODRewardsTable}} ap
+    WHERE
+        ap.num_registered_snapshots = 0
+),
+
+-- Step 2: Dedupe the operator tokens across strategies for each (operator, reward hash, snapshot)
+-- Since the above result is a flattened operator-directed reward submission across strategies
+distinct_operators AS (
+    SELECT *
+    FROM (
+        SELECT
+            *,
+            -- We can use an arbitrary order here since the avs_tokens is the same for each (operator, strategy, hash, snapshot)
+            -- We use strategy ASC for better debuggability
+            ROW_NUMBER() OVER (
+                PARTITION BY reward_hash, snapshot, operator
+                ORDER BY strategy ASC
+            ) AS rn
+        FROM reward_snapshot_operators
+    ) t
+    WHERE rn = 1
+),
+
+-- Step 3: Sum the operator tokens for each (reward hash, snapshot)
+-- Since we want to refund the sum of those operator amounts to the AVS in that reward submission for that snapshot
+operator_token_sums AS (
+    SELECT
+        reward_hash,
+        snapshot,
+        token,
+        avs,
+        operator,
+        SUM(tokens_per_registered_snapshot_decimal) OVER (PARTITION BY reward_hash, snapshot) AS avs_tokens
+    FROM distinct_operators
+)
+
+-- Step 4: Output the final table
+SELECT * FROM operator_token_sums
+```
+
+## 11. Gold Table Staging
+
+This query combines the rewards from steps 2,3,4,5,6,7,8,9,10 to generate a table with the following columns:
 
 | Earner | Snapshot | Reward Hash | Token | Amount |
 | ------ | -------- | ----------- | ----- | ------ |
@@ -2081,7 +2480,7 @@ WITH staker_rewards AS (
     reward_hash,
     token,
     staker_tokens as amount
-  FROM {{ ref('2_staker_reward_amounts') }}
+  FROM {{.stakerRewardAmountsTable}}
 ),
 operator_rewards AS (
   SELECT DISTINCT
@@ -2091,7 +2490,7 @@ operator_rewards AS (
     reward_hash,
     token,
     operator_tokens as amount
-  FROM {{ ref('3_operator_reward_amounts') }}
+  FROM {{.operatorRewardAmountsTable}}
 ),
 rewards_for_all AS (
   SELECT DISTINCT
@@ -2100,7 +2499,7 @@ rewards_for_all AS (
     reward_hash,
     token,
     staker_tokens as amount
-  FROM {{ ref('4_deprecated_rewards_for_all') }}
+  FROM {{.rewardsForAllTable}}
 ),
 rewards_for_all_earners_stakers AS (
   SELECT DISTINCT
@@ -2109,7 +2508,7 @@ rewards_for_all_earners_stakers AS (
     reward_hash,
     token,
     staker_tokens as amounts
-  FROM {{ ref('5_rfae_stakers.sql')}}
+  FROM {{.rfaeStakerTable}}
 ),
 rewards_for_all_earners_operators AS (
   SELECT DISTINCT
@@ -2118,8 +2517,40 @@ rewards_for_all_earners_operators AS (
     reward_hash,
     token,
     operator_tokens as amount
-  FROM {{ ref('6_rfae_operators.sql')}}
-)
+  FROM {{.rfaeOperatorTable}}
+),
+{{ if .enableRewardsV2 }}
+operator_od_rewards AS (
+  SELECT DISTINCT
+    -- We can select DISTINCT here because the operator's tokens are the same for each strategy in the reward hash
+    operator as earner,
+    snapshot,
+    reward_hash,
+    token,
+    operator_tokens as amount
+  FROM {{.operatorODRewardAmountsTable}}
+),
+staker_od_rewards AS (
+  SELECT DISTINCT
+    -- We can select DISTINCT here because the staker's tokens are the same for each strategy in the reward hash
+    staker as earner,
+    snapshot,
+    reward_hash,
+    token,
+    staker_tokens as amount
+  FROM {{.stakerODRewardAmountsTable}}
+),
+avs_od_rewards AS (
+  SELECT DISTINCT
+    -- We can select DISTINCT here because the avs's tokens are the same for each strategy in the reward hash
+    avs as earner,
+    snapshot,
+    reward_hash,
+    token,
+    avs_tokens as amount
+  FROM {{.avsODRewardAmountsTable}}
+),
+{{ end }}
 combined_rewards AS (
   SELECT * FROM operator_rewards
   UNION ALL
@@ -2130,7 +2561,15 @@ combined_rewards AS (
   SELECT * FROM rewards_for_all_earners_stakers
   UNION ALL
   SELECT * FROM rewards_for_all_earners_operators
-),
+{{ if .enableRewardsV2 }}
+  UNION ALL
+  SELECT * FROM operator_od_rewards
+  UNION ALL
+  SELECT * FROM staker_od_rewards
+  UNION ALL
+  SELECT * FROM avs_od_rewards
+{{ end }}
+)
 ```
 
 ### Dedupe Earners
@@ -2157,7 +2596,7 @@ FROM deduped_earners
 
 Sum up the balances for earners with multiple rows for a given `reward_hash` and `snapshot`. This step handles the case for operators who are also delegated to themselves.
 
-### 8. Gold Table Merge
+### 12. Gold Table Merge
 
 The previous queries were all views. This step selects rows from the [step 7](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw#6-Gold-Table-Staging) and appends them to a table.
 
