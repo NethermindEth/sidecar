@@ -42,8 +42,6 @@ export default defineConfig({
 					label: 'Contributing',
 					items: [
 						{ slug: 'development/building', label: 'Building' },
-						{ slug: 'development/testing', label: 'Testing' },
-						{ slug: 'development/extended-tests', label: 'Extended Tests' },
 					]
 				}
 			],
