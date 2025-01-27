@@ -1,10 +1,10 @@
 ---
-title: EigenLayer Rewards Calculation - Foundation Incentives
+title: EigenLayer Rewards Calculation
 ---
 
-# EigenLayer Rewards Calculation - Programmatic Incentives
+# EigenLayer Rewards Calculation
 
-The previous rewards calculation link is [here](https://hackmd.io/u-NHKEvtQ7m7CVDb4_42bA). A Diff is [here](https://www.diffchecker.com/zxczJFZr/)
+The previous rewards calculation link is [here](https://hackmd.io/Fmjcckn1RoivWpPLRAPwBw).
 
 [TOC]
 
