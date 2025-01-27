@@ -29,8 +29,10 @@ export default defineConfig({
 					],
 				},
 				{
-					label: 'Rewards Calculations',
-					items: []
+					label: 'Rewards',
+					items: [
+						{ slug: 'rewards/calculation', label: 'Rewards Calculations' },
+					]
 				},
 				{
 					label: 'Sidecar API',
