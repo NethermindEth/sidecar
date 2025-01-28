@@ -2,6 +2,7 @@ package rpcServer
 
 import (
 	"context"
+	"github.com/Layr-Labs/sidecar/internal/version"
 
 	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/sidecar"
 	"google.golang.org/grpc/codes"
@@ -46,5 +47,13 @@ func (rpc *RpcServer) GetStateRoot(ctx context.Context, req *sidecarV1.GetStateR
 		EthBlockHash:   stateRoot.EthBlockHash,
 		EthBlockNumber: stateRoot.EthBlockNumber,
 		StateRoot:      stateRoot.StateRoot,
+	}, nil
+}
+
+func (rpc *RpcServer) About(ctx context.Context, req *sidecarV1.AboutRequest) (*sidecarV1.AboutResponse, error) {
+	return &sidecarV1.AboutResponse{
+		Version: version.GetVersion(),
+		Commit:  version.GetCommit(),
+		Chain:   rpc.globalConfig.Chain.String(),
 	}, nil
 }

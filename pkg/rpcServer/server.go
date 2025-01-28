@@ -9,6 +9,7 @@ import (
 	protocolV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/protocol"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/sidecar"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
@@ -46,6 +47,7 @@ type RpcServer struct {
 	rewardsProofs       *proofs.RewardsProofsStore
 	protocolDataService *protocolDataService.ProtocolDataService
 	rewardsDataService  *rewardsDataService.RewardsDataService
+	globalConfig        *config.Config
 }
 
 func NewRpcServer(
@@ -59,6 +61,7 @@ func NewRpcServer(
 	pds *protocolDataService.ProtocolDataService,
 	rds *rewardsDataService.RewardsDataService,
 	l *zap.Logger,
+	cfg *config.Config,
 ) *RpcServer {
 	server := &RpcServer{
 		rpcConfig:           config,
@@ -71,6 +74,7 @@ func NewRpcServer(
 		protocolDataService: pds,
 		rewardsDataService:  rds,
 		Logger:              l,
+		globalConfig:        cfg,
 	}
 
 	return server

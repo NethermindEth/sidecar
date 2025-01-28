@@ -91,6 +91,10 @@ type PrometheusConfig struct {
 	Port    int
 }
 
+type SidecarPrimaryConfig struct {
+	Url string
+}
+
 type Config struct {
 	Debug             bool
 	EthereumRpcConfig EthereumRpcConfig

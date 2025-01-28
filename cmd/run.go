@@ -138,7 +138,7 @@ var runCmd = &cobra.Command{
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
 			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, sm, rc, rcq, eb, rps, pds, rds, l)
+		}, mds, sm, rc, rcq, eb, rps, pds, rds, l, cfg)
 
 		// RPC channel to notify the RPC server to shutdown gracefully
 		rpcChannel := make(chan bool)
