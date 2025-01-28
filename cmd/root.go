@@ -24,12 +24,6 @@ func Execute() {
 
 func init() {
 	initConfig(rootCmd)
-	rootCmd.AddCommand(runCmd)
-	rootCmd.AddCommand(runOperatorRestakedStrategiesCmd)
-	rootCmd.AddCommand(runVersionCmd)
-	rootCmd.AddCommand(runDatabaseCmd)
-	rootCmd.AddCommand(createSnapshotCmd)
-	rootCmd.AddCommand(restoreSnapshotCmd)
 
 	rootCmd.PersistentFlags().Bool("debug", false, `"true" or "false"`)
 	rootCmd.PersistentFlags().StringP("chain", "c", "mainnet", "The chain to use (mainnet, holesky, preprod")
@@ -59,8 +53,20 @@ func init() {
 	rootCmd.PersistentFlags().Bool("prometheus.enabled", false, `e.g. "true" or "false"`)
 	rootCmd.PersistentFlags().Int("prometheus.port", 2112, `The port to run the prometheus server on`)
 
+	// setup sub commands
+	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(runOperatorRestakedStrategiesCmd)
+	rootCmd.AddCommand(runVersionCmd)
+	rootCmd.AddCommand(runDatabaseCmd)
+	rootCmd.AddCommand(createSnapshotCmd)
+	rootCmd.AddCommand(restoreSnapshotCmd)
+	rootCmd.AddCommand(rpcCmd)
+
+	// bind any subcommand flags
 	createSnapshotCmd.PersistentFlags().String(config.SnapshotOutputFile, "", "Path to save the snapshot file to (required)")
 	restoreSnapshotCmd.PersistentFlags().String(config.SnapshotInputFile, "", "Path to the snapshot file (required)")
+
+	rpcCmd.PersistentFlags().String(config.SidecarPrimaryUrl, "", `RPC url of the "primary" Sidecar instance in an HA environment`)
 
 	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		key := config.KebabToSnakeCase(f.Name)

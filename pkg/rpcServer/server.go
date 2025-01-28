@@ -9,8 +9,9 @@ import (
 	protocolV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/protocol"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/sidecar"
+	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
-	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
+	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
 	"github.com/Layr-Labs/sidecar/pkg/proofs"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -39,31 +40,32 @@ type RpcServer struct {
 	Logger              *zap.Logger
 	rpcConfig           *RpcServerConfig
 	blockStore          storage.BlockStore
-	stateManager        *stateManager.EigenStateManager
 	rewardsCalculator   *rewards.RewardsCalculator
 	rewardsQueue        *rewardsCalculatorQueue.RewardsCalculatorQueue
 	eventBus            eventBusTypes.IEventBus
 	rewardsProofs       *proofs.RewardsProofsStore
 	protocolDataService *protocolDataService.ProtocolDataService
 	rewardsDataService  *rewardsDataService.RewardsDataService
+	globalConfig        *config.Config
+	sidecarClient       *sidecarClient.SidecarClient
 }
 
 func NewRpcServer(
 	config *RpcServerConfig,
 	bs storage.BlockStore,
-	sm *stateManager.EigenStateManager,
 	rc *rewards.RewardsCalculator,
 	rcq *rewardsCalculatorQueue.RewardsCalculatorQueue,
 	eb eventBusTypes.IEventBus,
 	rp *proofs.RewardsProofsStore,
 	pds *protocolDataService.ProtocolDataService,
 	rds *rewardsDataService.RewardsDataService,
+	scc *sidecarClient.SidecarClient,
 	l *zap.Logger,
+	cfg *config.Config,
 ) *RpcServer {
 	server := &RpcServer{
 		rpcConfig:           config,
 		blockStore:          bs,
-		stateManager:        sm,
 		rewardsCalculator:   rc,
 		rewardsQueue:        rcq,
 		eventBus:            eb,
@@ -71,6 +73,8 @@ func NewRpcServer(
 		protocolDataService: pds,
 		rewardsDataService:  rds,
 		Logger:              l,
+		globalConfig:        cfg,
+		sidecarClient:       scc,
 	}
 
 	return server

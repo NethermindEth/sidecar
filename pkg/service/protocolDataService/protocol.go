@@ -3,9 +3,12 @@ package protocolDataService
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/types"
+	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"strings"
@@ -398,4 +401,62 @@ func (pds *ProtocolDataService) ListStakerShares(ctx context.Context, staker str
 		return nil, res.Error
 	}
 	return shares, nil
+}
+
+func (pds *ProtocolDataService) GetStateRoot(ctx context.Context, blockHeight uint64) (*stateManager.StateRoot, error) {
+	var stateRoot *stateManager.StateRoot
+
+	query := pds.db.Model(&stateRoot)
+	if blockHeight > 0 {
+		query = query.Where("block_number = ?", blockHeight)
+	} else {
+		query = query.Order("block_number desc")
+	}
+
+	res := query.First(&stateRoot)
+	if res.Error != nil {
+		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, res.Error
+	}
+	return stateRoot, nil
+}
+
+func (pds *ProtocolDataService) GetCurrentConfirmedBlockHeight(ctx context.Context) (*storage.Block, error) {
+	stateRoot, err := pds.GetStateRoot(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	if stateRoot == nil {
+		return nil, errors.New("no state root found")
+	}
+
+	var block *storage.Block
+	res := pds.db.Model(&block).Where("number = ?", stateRoot.EthBlockNumber).First(&block)
+	if res.Error != nil {
+		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, res.Error
+	}
+	return block, nil
+}
+
+func (pds *ProtocolDataService) GetCurrentBlockHeight(ctx context.Context, confirmed bool) (*storage.Block, error) {
+	if confirmed {
+		return pds.GetCurrentConfirmedBlockHeight(ctx)
+	}
+
+	var block *storage.Block
+	res := pds.db.Model(&block).Order("number desc").First(&block)
+
+	if res.Error != nil {
+		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, res.Error
+	}
+	return block, nil
 }

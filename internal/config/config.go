@@ -91,16 +91,23 @@ type PrometheusConfig struct {
 	Port    int
 }
 
+type SidecarPrimaryConfig struct {
+	Url       string
+	Secure    bool
+	IsPrimary bool
+}
+
 type Config struct {
-	Debug             bool
-	EthereumRpcConfig EthereumRpcConfig
-	DatabaseConfig    DatabaseConfig
-	SnapshotConfig    SnapshotConfig
-	RpcConfig         RpcConfig
-	Chain             Chain
-	Rewards           RewardsConfig
-	DataDogConfig     DataDogConfig
-	PrometheusConfig  PrometheusConfig
+	Debug                bool
+	EthereumRpcConfig    EthereumRpcConfig
+	DatabaseConfig       DatabaseConfig
+	SnapshotConfig       SnapshotConfig
+	RpcConfig            RpcConfig
+	Chain                Chain
+	Rewards              RewardsConfig
+	DataDogConfig        DataDogConfig
+	PrometheusConfig     PrometheusConfig
+	SidecarPrimaryConfig SidecarPrimaryConfig
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -136,6 +143,8 @@ var (
 
 	PrometheusEnabled = "prometheus.enabled"
 	PrometheusPort    = "prometheus.port"
+
+	SidecarPrimaryUrl = "sidecar-primary.url"
 )
 
 func NewConfig() *Config {
@@ -185,6 +194,10 @@ func NewConfig() *Config {
 		PrometheusConfig: PrometheusConfig{
 			Enabled: viper.GetBool(normalizeFlagName(PrometheusEnabled)),
 			Port:    viper.GetInt(normalizeFlagName(PrometheusPort)),
+		},
+
+		SidecarPrimaryConfig: SidecarPrimaryConfig{
+			Url: viper.GetString(normalizeFlagName(SidecarPrimaryUrl)),
 		},
 	}
 }
