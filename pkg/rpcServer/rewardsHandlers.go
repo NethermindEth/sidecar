@@ -16,10 +16,38 @@ import (
 )
 
 func (rpc *RpcServer) GetRewardsRoot(ctx context.Context, req *rewardsV1.GetRewardsRootRequest) (*rewardsV1.GetRewardsRootResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetRewardsRoot not implemented")
+	blockHeight := req.GetBlockHeight()
+
+	root, err := rpc.rewardsDataService.GetDistributionRootForBlockHeight(ctx, blockHeight)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if root == nil {
+		return nil, status.Error(codes.NotFound, "no rewards root found for the given block height")
+	}
+	return &rewardsV1.GetRewardsRootResponse{
+		RewardsRoot: &rewardsV1.DistributionRoot{
+			Root:                      root.Root,
+			RootIndex:                 root.RootIndex,
+			RewardsCalculationEnd:     timestamppb.New(root.RewardsCalculationEnd),
+			RewardsCalculationEndUnit: root.RewardsCalculationEndUnit,
+			ActivatedAt:               timestamppb.New(root.ActivatedAt),
+			ActivatedAtUnit:           root.ActivatedAtUnit,
+			CreatedAtBlockNumber:      root.CreatedAtBlockNumber,
+			TransactionHash:           root.TransactionHash,
+			BlockHeight:               root.BlockNumber,
+			LogIndex:                  root.LogIndex,
+			Disabled:                  root.Disabled,
+		},
+	}, nil
 }
 
 func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *rewardsV1.GenerateRewardsRequest) (*rewardsV1.GenerateRewardsResponse, error) {
+	// Generating rewards is a write operation so we need to proxy the request to the "primary" sidecar
+	if !rpc.globalConfig.SidecarPrimaryConfig.IsPrimary {
+		return rpc.sidecarClient.RewardsClient.GenerateRewards(ctx, req)
+	}
+
 	cutoffDate := req.GetCutoffDate()
 	waitForComplete := req.GetWaitForComplete()
 
@@ -55,6 +83,10 @@ func (rpc *RpcServer) GenerateRewards(ctx context.Context, req *rewardsV1.Genera
 }
 
 func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *rewardsV1.GenerateRewardsRootRequest) (*rewardsV1.GenerateRewardsRootResponse, error) {
+	// Generating rewards is a write operation so we need to proxy the request to the "primary" sidecar
+	if !rpc.globalConfig.SidecarPrimaryConfig.IsPrimary {
+		return rpc.sidecarClient.RewardsClient.GenerateRewardsRoot(ctx, req)
+	}
 	cutoffDate := req.GetCutoffDate()
 	if cutoffDate == "" {
 		return nil, status.Error(codes.InvalidArgument, "snapshot date is required")
@@ -110,6 +142,11 @@ func (rpc *RpcServer) GenerateRewardsRoot(ctx context.Context, req *rewardsV1.Ge
 }
 
 func (rpc *RpcServer) GenerateStakerOperators(ctx context.Context, req *rewardsV1.GenerateStakerOperatorsRequest) (*rewardsV1.GenerateStakerOperatorsResponse, error) {
+	// Generating the staker operators table involves writing to the database so we must proxy to
+	// the primary sidecar instance
+	if !rpc.globalConfig.SidecarPrimaryConfig.IsPrimary {
+		return rpc.sidecarClient.RewardsClient.GenerateStakerOperators(ctx, req)
+	}
 	cutoffDate := req.GetCutoffDate()
 
 	if cutoffDate == "" {
@@ -144,7 +181,11 @@ func (rpc *RpcServer) GenerateStakerOperators(ctx context.Context, req *rewardsV
 }
 
 func (rpc *RpcServer) BackfillStakerOperators(ctx context.Context, req *rewardsV1.BackfillStakerOperatorsRequest) (*rewardsV1.BackfillStakerOperatorsResponse, error) {
-
+	// Backfilling the staker operators table involves writing to the database so we must proxy to
+	// the primary sidecar instance
+	if !rpc.globalConfig.SidecarPrimaryConfig.IsPrimary {
+		return rpc.sidecarClient.RewardsClient.BackfillStakerOperators(ctx, req)
+	}
 	var err error
 	queued := false
 	msg := rewardsCalculatorQueue.RewardsCalculationData{

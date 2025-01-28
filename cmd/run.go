@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/metrics/prometheus"
 	"github.com/Layr-Labs/sidecar/internal/version"
 	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
+	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
 	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
@@ -46,6 +47,8 @@ var runCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		initRunCmd(cmd)
 		cfg := config.NewConfig()
+		cfg.SidecarPrimaryConfig.IsPrimary = true
+
 		ctx := context.Background()
 
 		l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
@@ -130,6 +133,11 @@ var runCmd = &cobra.Command{
 
 		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sdc, eb, l)
 
+		scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
+		if err != nil {
+			l.Sugar().Fatalw("Failed to create sidecar client", zap.Error(err))
+		}
+
 		// Create new sidecar instance
 		sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
 			GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
@@ -138,7 +146,7 @@ var runCmd = &cobra.Command{
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
 			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, sm, rc, rcq, eb, rps, pds, rds, l, cfg)
+		}, mds, sm, rc, rcq, eb, rps, pds, rds, scc, l, cfg)
 
 		// RPC channel to notify the RPC server to shutdown gracefully
 		rpcChannel := make(chan bool)

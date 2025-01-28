@@ -520,3 +520,27 @@ func (rds *RewardsDataService) ListAvailableRewardsTokens(ctx context.Context, e
 	}
 	return tokens, nil
 }
+
+func (rds *RewardsDataService) GetDistributionRootForBlockHeight(ctx context.Context, blockHeight uint64) (*rewards.DistributionRoot, error) {
+	query := `
+		select
+			sdr.*,
+			case when ddr.root_index is null then false else true end as disabled
+		from submitted_distribution_roots as sdr
+		left join disabled_distribution_roots as ddr on (sdr.root_index = ddr.root_index)
+		where
+			ddr.root_index is null
+			and sdr.block_number = @blockHeight
+		limit 1
+	`
+	var root *rewards.DistributionRoot
+
+	res := rds.db.Raw(query, sql.Named("blockHeight", blockHeight)).Scan(&root)
+	if res.Error != nil {
+		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, res.Error
+	}
+	return root, nil
+}

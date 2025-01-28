@@ -20,6 +20,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"io"
 )
 
 func (rpc *RpcServer) subscribeToBlocks(ctx context.Context, requestId string, handleBlock func(interface{}) error) error {
@@ -47,6 +48,28 @@ func (rpc *RpcServer) subscribeToBlocks(ctx context.Context, requestId string, h
 }
 
 func (rpc *RpcServer) StreamEigenStateChanges(request *v1.StreamEigenStateChangesRequest, g grpc.ServerStreamingServer[v1.StreamEigenStateChangesResponse]) error {
+	// Since this rpc sidecar is not processing blocks, we need to connect to the primary sidecar to get the events
+	if !rpc.globalConfig.SidecarPrimaryConfig.IsPrimary {
+		ctx := g.Context()
+		stream, err := rpc.sidecarClient.EventsClient.StreamEigenStateChanges(ctx, request)
+		if err != nil {
+			return err
+		}
+
+		for {
+			resp, err := stream.Recv()
+			if err == io.EOF {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if err := g.Send(resp); err != nil {
+				return err
+			}
+		}
+	}
+
 	requestId, err := uuid.NewRandom()
 	if err != nil {
 		rpc.Logger.Error("Failed to generate request ID", zap.Error(err))
@@ -69,6 +92,27 @@ func (rpc *RpcServer) StreamEigenStateChanges(request *v1.StreamEigenStateChange
 }
 
 func (rpc *RpcServer) StreamIndexedBlocks(request *v1.StreamIndexedBlocksRequest, g grpc.ServerStreamingServer[v1.StreamIndexedBlocksResponse]) error {
+	// Since this rpc sidecar is not processing blocks, we need to connect to the primary sidecar to get the events
+	if !rpc.globalConfig.SidecarPrimaryConfig.IsPrimary {
+		ctx := g.Context()
+		stream, err := rpc.sidecarClient.EventsClient.StreamIndexedBlocks(ctx, request)
+		if err != nil {
+			return err
+		}
+
+		for {
+			resp, err := stream.Recv()
+			if err == io.EOF {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if err := g.Send(resp); err != nil {
+				return err
+			}
+		}
+	}
 	requestId, err := uuid.NewRandom()
 	if err != nil {
 		rpc.Logger.Error("Failed to generate request ID", zap.Error(err))
