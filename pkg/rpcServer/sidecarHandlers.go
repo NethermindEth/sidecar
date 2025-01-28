@@ -11,25 +11,12 @@ import (
 
 func (rpc *RpcServer) GetBlockHeight(ctx context.Context, req *sidecarV1.GetBlockHeightRequest) (*sidecarV1.GetBlockHeightResponse, error) {
 	verified := req.GetVerified()
-	if verified {
-		sr, err := rpc.stateManager.GetLatestStateRoot()
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		block, err := rpc.blockStore.GetBlockByNumber(sr.EthBlockNumber)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		return &sidecarV1.GetBlockHeightResponse{
-			BlockNumber: block.Number,
-			BlockHash:   block.Hash,
-		}, nil
-	}
-
-	block, err := rpc.blockStore.GetLatestBlock()
-
+	block, err := rpc.protocolDataService.GetCurrentBlockHeight(ctx, verified)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if block == nil {
+		return nil, status.Error(codes.NotFound, "Block not found")
 	}
 	return &sidecarV1.GetBlockHeightResponse{
 		BlockNumber: block.Number,
@@ -39,7 +26,7 @@ func (rpc *RpcServer) GetBlockHeight(ctx context.Context, req *sidecarV1.GetBloc
 
 func (rpc *RpcServer) GetStateRoot(ctx context.Context, req *sidecarV1.GetStateRootRequest) (*sidecarV1.GetStateRootResponse, error) {
 	blockNumber := req.GetBlockNumber()
-	stateRoot, err := rpc.stateManager.GetStateRootForBlock(blockNumber)
+	stateRoot, err := rpc.protocolDataService.GetStateRoot(ctx, blockNumber)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

@@ -12,7 +12,6 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
-	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
 	"github.com/Layr-Labs/sidecar/pkg/proofs"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -41,7 +40,6 @@ type RpcServer struct {
 	Logger              *zap.Logger
 	rpcConfig           *RpcServerConfig
 	blockStore          storage.BlockStore
-	stateManager        *stateManager.EigenStateManager
 	rewardsCalculator   *rewards.RewardsCalculator
 	rewardsQueue        *rewardsCalculatorQueue.RewardsCalculatorQueue
 	eventBus            eventBusTypes.IEventBus
@@ -55,7 +53,6 @@ type RpcServer struct {
 func NewRpcServer(
 	config *RpcServerConfig,
 	bs storage.BlockStore,
-	sm *stateManager.EigenStateManager,
 	rc *rewards.RewardsCalculator,
 	rcq *rewardsCalculatorQueue.RewardsCalculatorQueue,
 	eb eventBusTypes.IEventBus,
@@ -69,7 +66,6 @@ func NewRpcServer(
 	server := &RpcServer{
 		rpcConfig:           config,
 		blockStore:          bs,
-		stateManager:        sm,
 		rewardsCalculator:   rc,
 		rewardsQueue:        rcq,
 		eventBus:            eb,

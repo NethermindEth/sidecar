@@ -5,17 +5,10 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/metrics/prometheus"
 	"github.com/Layr-Labs/sidecar/internal/version"
-	"github.com/Layr-Labs/sidecar/pkg/clients/ethereum"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
-	"github.com/Layr-Labs/sidecar/pkg/contractCaller/sequentialContractCaller"
-	"github.com/Layr-Labs/sidecar/pkg/contractManager"
 	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
-	"github.com/Layr-Labs/sidecar/pkg/fetcher"
-	"github.com/Layr-Labs/sidecar/pkg/indexer"
-	"github.com/Layr-Labs/sidecar/pkg/metaState/metaStateManager"
-	"github.com/Layr-Labs/sidecar/pkg/pipeline"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/proofs"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -25,7 +18,6 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/service/protocolDataService"
 	"github.com/Layr-Labs/sidecar/pkg/service/rewardsDataService"
 	"github.com/Layr-Labs/sidecar/pkg/shutdown"
-	"github.com/Layr-Labs/sidecar/pkg/sidecar"
 	pgStorage "github.com/Layr-Labs/sidecar/pkg/storage/postgres"
 	"log"
 	"time"
@@ -41,19 +33,19 @@ import (
 	"go.uber.org/zap"
 )
 
-var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Run the sidecar",
+var rpcCmd = &cobra.Command{
+	Use:   "rpc",
+	Short: "Run just the Sidecar RPC server",
 	Run: func(cmd *cobra.Command, args []string) {
-		initRunCmd(cmd)
+		initRpcCmd(cmd)
 		cfg := config.NewConfig()
-		cfg.SidecarPrimaryConfig.IsPrimary = true
+		cfg.SidecarPrimaryConfig.IsPrimary = false
 
 		ctx := context.Background()
 
 		l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
-		l.Sugar().Infow("sidecar run",
+		l.Sugar().Infow("sidecar rpc",
 			zap.String("version", version.GetVersion()),
 			zap.String("commit", version.GetCommit()),
 			zap.String("chain", cfg.Chain.String()),
@@ -66,12 +58,10 @@ var runCmd = &cobra.Command{
 			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 		}
 
-		sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
+		_, err = metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
 		if err != nil {
 			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 		}
-
-		client := ethereum.NewClient(ethereum.ConvertGlobalConfigToEthereumConfig(&cfg.EthereumRpcConfig), l)
 
 		pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 
@@ -95,25 +85,16 @@ var runCmd = &cobra.Command{
 			log.Fatalf("Failed to initialize core contracts: %v", err)
 		}
 
-		cm := contractManager.NewContractManager(contractStore, client, sdc, l)
-
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {
 			log.Fatalln(err)
 		}
 
 		sm := stateManager.NewEigenStateManager(l, grm)
-		msm := metaStateManager.NewMetaStateManager(grm, l, cfg)
 
 		if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
 			l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
 		}
-
-		fetchr := fetcher.NewFetcher(client, cfg, l)
-
-		cc := sequentialContractCaller.NewSequentialContractCaller(client, cfg, cfg.EthereumRpcConfig.ContractCallBatchSize, l)
-
-		idxr := indexer.NewIndexer(mds, contractStore, cm, client, fetchr, cc, grm, l, cfg)
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
@@ -131,17 +112,10 @@ var runCmd = &cobra.Command{
 
 		go rcq.Process()
 
-		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sdc, eb, l)
-
 		scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
 		if err != nil {
 			l.Sugar().Fatalw("Failed to create sidecar client", zap.Error(err))
 		}
-
-		// Create new sidecar instance
-		sidecar := sidecar.NewSidecar(&sidecar.SidecarConfig{
-			GenesisBlockNumber: cfg.GetGenesisBlockNumber(),
-		}, cfg, mds, p, sm, msm, rc, rcq, rps, l, client)
 
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
@@ -164,9 +138,6 @@ var runCmd = &cobra.Command{
 			}
 		}
 
-		// Start the sidecar main process in a goroutine so that we can listen for a shutdown signal
-		go sidecar.Start(ctx)
-
 		l.Sugar().Info("Started Sidecar")
 
 		gracefulShutdown := shutdown.CreateGracefulShutdownChannel()
@@ -175,12 +146,11 @@ var runCmd = &cobra.Command{
 		shutdown.ListenForShutdown(gracefulShutdown, done, func() {
 			l.Sugar().Info("Shutting down...")
 			rpcChannel <- true
-			sidecar.ShutdownChan <- true
 		}, time.Second*5, l)
 	},
 }
 
-func initRunCmd(cmd *cobra.Command) {
+func initRpcCmd(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		if err := viper.BindPFlag(config.KebabToSnakeCase(f.Name), f); err != nil {
 			fmt.Printf("Failed to bind flag '%s' - %+v\n", f.Name, err)
