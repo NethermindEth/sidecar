@@ -155,7 +155,7 @@ func NewSlotIDWithSuffix(txHash string, logIndex uint64, suffix string) types.Sl
 func CastCommittedStateToInterface[T any](committedState []*T) []interface{} {
 	state := make([]interface{}, len(committedState))
 	for i, v := range committedState {
-		state[i] = *v
+		state[i] = v
 	}
 	return state
 }
