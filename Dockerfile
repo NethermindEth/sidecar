@@ -1,20 +1,17 @@
-FROM debian:testing-slim AS builder
+FROM golang:1.23-bookworm AS builder
 
 ARG TARGETARCH
-
-RUN apt update && \
-    apt install -y make curl git
 
 WORKDIR /build
 
 COPY . .
 
 # system and linux dependencies
-RUN make deps
+RUN make deps/go
 
 RUN make build
 
-FROM debian:testing-slim
+FROM golang:1.23-bookworm
 
 RUN apt-get update && apt-get install -y ca-certificates postgresql-client
 

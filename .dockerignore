@@ -12,3 +12,4 @@ go-sidecar
 !/sqlite-extensions
 /internal/tests/testdata
 /snapshots
+/docs
