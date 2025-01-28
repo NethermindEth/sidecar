@@ -41,6 +41,10 @@ var rpcCmd = &cobra.Command{
 		cfg := config.NewConfig()
 		cfg.SidecarPrimaryConfig.IsPrimary = false
 
+		if len(cfg.SidecarPrimaryConfig.Url) == 0 {
+			log.Fatalf("%s URL is required", config.SidecarPrimaryUrl)
+		}
+
 		ctx := context.Background()
 
 		l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
