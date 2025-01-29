@@ -6,7 +6,6 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/metrics/prometheus"
 	"github.com/Layr-Labs/sidecar/internal/version"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
-	"github.com/Layr-Labs/sidecar/pkg/contractStore/postgresContractStore"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
@@ -76,11 +75,6 @@ var rpcCmd = &cobra.Command{
 		grm, err := postgres.NewGormFromPostgresConnection(pg.Db)
 		if err != nil {
 			l.Fatal("Failed to create gorm instance", zap.Error(err))
-		}
-
-		contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
-		if err := contractStore.InitializeCoreContracts(); err != nil {
-			log.Fatalf("Failed to initialize core contracts: %v", err)
 		}
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
