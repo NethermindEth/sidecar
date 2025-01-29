@@ -26,7 +26,6 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
-	"github.com/Layr-Labs/sidecar/pkg/postgres/migrations"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -77,11 +76,6 @@ var rpcCmd = &cobra.Command{
 		grm, err := postgres.NewGormFromPostgresConnection(pg.Db)
 		if err != nil {
 			l.Fatal("Failed to create gorm instance", zap.Error(err))
-		}
-
-		migrator := migrations.NewMigrator(pg.Db, grm, l, cfg)
-		if err = migrator.MigrateAll(); err != nil {
-			l.Fatal("Failed to migrate", zap.Error(err))
 		}
 
 		contractStore := postgresContractStore.NewPostgresContractStore(grm, l, cfg)
