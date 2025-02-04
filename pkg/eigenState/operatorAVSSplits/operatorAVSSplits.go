@@ -323,3 +323,13 @@ func (oas *OperatorAVSSplitModel) sortValuesForMerkleTree(splits []*OperatorAVSS
 func (oas *OperatorAVSSplitModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return oas.BaseEigenState.DeleteState("operator_avs_splits", startBlockNumber, endBlockNumber, oas.DB)
 }
+
+func (oar *OperatorAVSSplitModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var splits []*OperatorAVSSplit
+	res := oar.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
+	if res.Error != nil {
+		oar.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(splits), nil
+}

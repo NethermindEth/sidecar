@@ -621,3 +621,13 @@ func (ss *StakerSharesModel) sortValuesForMerkleTree(diffs []*StakerShareDeltas)
 func (ss *StakerSharesModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return ss.BaseEigenState.DeleteState("staker_share_deltas", startBlockNumber, endBlockNumber, ss.DB)
 }
+
+func (ss *StakerSharesModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var deltas []*StakerShareDeltas
+	res := ss.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&deltas)
+	if res.Error != nil {
+		ss.logger.Sugar().Errorw("Failed to fetch staker share deltas", zap.Error(res.Error))
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(deltas), nil
+}

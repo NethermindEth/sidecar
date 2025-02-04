@@ -118,3 +118,19 @@ func (rpc *RpcServer) GetStakerShares(ctx context.Context, request *protocolV1.G
 		Shares: stakerShares,
 	}, nil
 }
+
+func (rpc *RpcServer) GetEigenStateChanges(ctx context.Context, request *protocolV1.GetEigenStateChangesRequest) (*protocolV1.GetEigenStateChangesResponse, error) {
+	stateChanges, err := rpc.protocolDataService.GetEigenStateChangesForBlock(ctx, request.GetBlockHeight())
+	if err != nil {
+		return nil, err
+	}
+
+	changes, err := rpc.parseCommittedChanges(stateChanges)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protocolV1.GetEigenStateChangesResponse{
+		Changes: changes,
+	}, nil
+}

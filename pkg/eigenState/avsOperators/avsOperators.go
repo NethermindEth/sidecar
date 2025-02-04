@@ -272,3 +272,17 @@ func (a *AvsOperatorsModel) sortValuesForMerkleTree(deltas []*AvsOperatorStateCh
 func (a *AvsOperatorsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return a.BaseEigenState.DeleteState("avs_operator_state_changes", startBlockNumber, endBlockNumber, a.DB)
 }
+
+func (a *AvsOperatorsModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	records := make([]*AvsOperatorStateChange, 0)
+	res := a.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&records)
+	if res.Error != nil {
+		a.logger.Sugar().Errorw("Failed to list records for block range",
+			zap.Error(res.Error),
+			zap.Uint64("startBlockNumber", startBlockNumber),
+			zap.Uint64("endBlockNumber", endBlockNumber),
+		)
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(records), nil
+}

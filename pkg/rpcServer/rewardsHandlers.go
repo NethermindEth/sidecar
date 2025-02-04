@@ -415,3 +415,7 @@ func (rpc *RpcServer) ListDistributionRoots(ctx context.Context, req *rewardsV1.
 		DistributionRoots: responseRoots,
 	}, nil
 }
+
+func (rpc *RpcServer) GetRewardsByAvsForDistributionRoot(ctx context.Context, req *rewardsV1.GetRewardsByAvsForDistributionRootRequest) (*rewardsV1.GetRewardsByAvsForDistributionRootResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetRewardsByAvsForDistributionRoot not implemented")
+}

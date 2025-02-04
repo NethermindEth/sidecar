@@ -326,3 +326,17 @@ func (sdr *SubmittedDistributionRootsModel) GetSubmittedRootsForBlock(blockNumbe
 	}
 	return records, nil
 }
+
+func (sdr *SubmittedDistributionRootsModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var deltas []*types.SubmittedDistributionRoot
+	res := sdr.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&deltas)
+	if res.Error != nil {
+		sdr.logger.Sugar().Errorw("Failed to list deltas for block range",
+			zap.Error(res.Error),
+			zap.Uint64("startBlockNumber", startBlockNumber),
+			zap.Uint64("endBlockNumber", endBlockNumber),
+		)
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(deltas), nil
+}

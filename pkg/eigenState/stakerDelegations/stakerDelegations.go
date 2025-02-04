@@ -250,3 +250,17 @@ func (s *StakerDelegationsModel) sortValuesForMerkleTree(deltas []*StakerDelegat
 func (s *StakerDelegationsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return s.BaseEigenState.DeleteState("staker_delegation_changes", startBlockNumber, endBlockNumber, s.DB)
 }
+
+func (s *StakerDelegationsModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var deltas []*StakerDelegationChange
+	res := s.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&deltas)
+	if res.Error != nil {
+		s.logger.Sugar().Errorw("Failed to list deltas for block range",
+			zap.Error(res.Error),
+			zap.Uint64("startBlockNumber", startBlockNumber),
+			zap.Uint64("endBlockNumber", endBlockNumber),
+		)
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(deltas), nil
+}

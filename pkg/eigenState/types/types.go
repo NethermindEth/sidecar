@@ -47,6 +47,9 @@ type IEigenStateModel interface {
 	// @param startBlockNumber the block number to start deleting state from (inclusive)
 	// @param endBlockNumber the block number to end deleting state from (inclusive). If 0, delete all state from startBlockNumber
 	DeleteState(startBlockNumber uint64, endBlockNumber uint64) error
+
+	// ListForBlockRange lists all records for the block range, inclusive of start and end block numbers
+	ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error)
 }
 
 // StateTransitions

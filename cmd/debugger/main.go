@@ -107,7 +107,7 @@ func main() {
 
 	p := pipeline.NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sdc, eb, l)
 	rps := proofs.NewRewardsProofsStore(rc, l)
-	pds := protocolDataService.NewProtocolDataService(grm, l, cfg)
+	pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 	rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
 
 	scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)

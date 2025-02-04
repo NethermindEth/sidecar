@@ -126,7 +126,7 @@ var runCmd = &cobra.Command{
 
 		rps := proofs.NewRewardsProofsStore(rc, l)
 
-		pds := protocolDataService.NewProtocolDataService(grm, l, cfg)
+		pds := protocolDataService.NewProtocolDataService(sm, grm, l, cfg)
 		rds := rewardsDataService.NewRewardsDataService(grm, l, cfg, rc)
 
 		go rcq.Process()
