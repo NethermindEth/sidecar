@@ -5,6 +5,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/Layr-Labs/sidecar/internal/tests"
+	"github.com/Layr-Labs/sidecar/pkg/eigenState/stateManager"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -54,7 +55,9 @@ func Test_ProtocolDataService(t *testing.T) {
 		t.Fatalf("Failed to setup test: %v", err)
 	}
 
-	pds := NewProtocolDataService(grm, l, cfg)
+	sm := stateManager.NewEigenStateManager(l, grm)
+
+	pds := NewProtocolDataService(sm, grm, l, cfg)
 
 	t.Run("Test ListRegisteredAVSsForOperator", func(t *testing.T) {
 		operator := "0xb5ead7a953052da8212da7e9462d65f91205d06d"

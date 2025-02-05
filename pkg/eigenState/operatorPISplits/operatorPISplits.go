@@ -319,3 +319,13 @@ func (ops *OperatorPISplitModel) sortValuesForMerkleTree(splits []*OperatorPISpl
 func (ops *OperatorPISplitModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return ops.BaseEigenState.DeleteState("operator_pi_splits", startBlockNumber, endBlockNumber, ops.DB)
 }
+
+func (ops *OperatorPISplitModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var splits []*OperatorPISplit
+	res := ops.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
+	if res.Error != nil {
+		ops.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(splits), nil
+}

@@ -356,3 +356,13 @@ func (rs *RewardSubmissionsModel) sortValuesForMerkleTree(submissions []*RewardS
 func (rs *RewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return rs.BaseEigenState.DeleteState("reward_submissions", startBlockNumber, endBlockNumber, rs.DB)
 }
+
+func (rs *RewardSubmissionsModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var submissions []*RewardSubmission
+	res := rs.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&submissions)
+	if res.Error != nil {
+		rs.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(submissions), nil
+}

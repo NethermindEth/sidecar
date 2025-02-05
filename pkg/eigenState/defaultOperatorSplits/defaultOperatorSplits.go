@@ -273,3 +273,13 @@ func (dos *DefaultOperatorSplitModel) sortValuesForMerkleTree(splits []*DefaultO
 func (dos *DefaultOperatorSplitModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return dos.BaseEigenState.DeleteState("default_operator_splits", startBlockNumber, endBlockNumber, dos.DB)
 }
+
+func (dos *DefaultOperatorSplitModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var splits []*DefaultOperatorSplit
+	res := dos.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&splits)
+	if res.Error != nil {
+		dos.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(splits), nil
+}

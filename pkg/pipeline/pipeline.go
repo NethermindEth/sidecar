@@ -296,6 +296,8 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 
 			rewardsTotalTimeMs := time.Since(rewardStartTime).Milliseconds()
 
+			_ = p.metricsSink.Gauge(metricsTypes.Metric_Gauge_LastDistributionRootBlockHeight, float64(blockNumber), nil)
+
 			// nolint:all
 			if strings.ToLower(root) != strings.ToLower(rs.Root) {
 				if !p.globalConfig.CanIgnoreIncorrectRewardsRoot(blockNumber) {

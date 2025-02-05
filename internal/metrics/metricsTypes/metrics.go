@@ -26,6 +26,8 @@ var (
 	Metric_Incr_BlockProcessed = "blockProcessed"
 
 	Metric_Gauge_CurrentBlockHeight = "currentBlockHeight"
+
+	Metric_Gauge_LastDistributionRootBlockHeight = "lastDistributionRootBlockHeight"
 )
 
 var MetricTypes = map[MetricsType][]MetricsTypeConfig{

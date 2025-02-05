@@ -435,3 +435,13 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) sortValuesForMerkleTree(subm
 func (odrs *OperatorDirectedRewardSubmissionsModel) DeleteState(startBlockNumber uint64, endBlockNumber uint64) error {
 	return odrs.BaseEigenState.DeleteState("operator_directed_reward_submissions", startBlockNumber, endBlockNumber, odrs.DB)
 }
+
+func (odrs *OperatorDirectedRewardSubmissionsModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	var submissions []*OperatorDirectedRewardSubmission
+	res := odrs.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&submissions)
+	if res.Error != nil {
+		odrs.logger.Sugar().Errorw("Failed to list records", zap.Error(res.Error))
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(submissions), nil
+}

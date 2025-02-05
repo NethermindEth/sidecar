@@ -20,9 +20,11 @@ type ProtocolDataService struct {
 	db           *gorm.DB
 	logger       *zap.Logger
 	globalConfig *config.Config
+	stateManager *stateManager.EigenStateManager
 }
 
 func NewProtocolDataService(
+	sm *stateManager.EigenStateManager,
 	db *gorm.DB,
 	logger *zap.Logger,
 	globalConfig *config.Config,
@@ -31,6 +33,7 @@ func NewProtocolDataService(
 		BaseDataService: baseDataService.BaseDataService{
 			DB: db,
 		},
+		stateManager: sm,
 		db:           db,
 		logger:       logger,
 		globalConfig: globalConfig,
@@ -459,4 +462,12 @@ func (pds *ProtocolDataService) GetCurrentBlockHeight(ctx context.Context, confi
 		return nil, res.Error
 	}
 	return block, nil
+}
+
+func (pds *ProtocolDataService) GetEigenStateChangesForBlock(ctx context.Context, blockHeight uint64) (map[string][]interface{}, error) {
+	results, err := pds.stateManager.ListForBlockRange(blockHeight, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
 }

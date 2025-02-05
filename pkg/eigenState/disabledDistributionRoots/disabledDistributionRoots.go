@@ -258,3 +258,17 @@ func (ddr *DisabledDistributionRootsModel) GetSubmittedRootsForBlock(blockNumber
 	}
 	return records, nil
 }
+
+func (ddr *DisabledDistributionRootsModel) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) ([]interface{}, error) {
+	records := make([]*types.DisabledDistributionRoot, 0)
+	res := ddr.DB.Where("block_number >= ? AND block_number <= ?", startBlockNumber, endBlockNumber).Find(&records)
+	if res.Error != nil {
+		ddr.logger.Sugar().Errorw("Failed to list records for block range",
+			zap.Error(res.Error),
+			zap.Uint64("startBlockNumber", startBlockNumber),
+			zap.Uint64("endBlockNumber", endBlockNumber),
+		)
+		return nil, res.Error
+	}
+	return base.CastCommittedStateToInterface(records), nil
+}

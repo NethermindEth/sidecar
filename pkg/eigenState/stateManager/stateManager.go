@@ -7,6 +7,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/pkg/eigenState/types"
@@ -231,4 +232,44 @@ func (e *EigenStateManager) GetSubmittedDistributionRoots(blockNumber uint64) ([
 		return nil, res.Error
 	}
 	return roots, nil
+}
+
+type EigenStateResult struct {
+	Results []interface{}
+	Error   error
+}
+
+// ListForBlockRange lists all records for the block range, inclusive of start and end block numbers.
+// Each model is processed concurrently in a goroutine
+func (e *EigenStateManager) ListForBlockRange(startBlockNumber uint64, endBlockNumber uint64) (map[string][]interface{}, error) {
+	channelMap := make(map[string]chan EigenStateResult)
+
+	var wg sync.WaitGroup
+	for _, index := range e.GetSortedModelIndexes() {
+		wg.Add(1)
+		ch := make(chan EigenStateResult, 1)
+		channelMap[e.StateModels[index].GetModelName()] = ch
+
+		go func(ch chan EigenStateResult) {
+			defer wg.Done()
+			state := e.StateModels[index]
+			res, err := state.ListForBlockRange(startBlockNumber, endBlockNumber)
+
+			ch <- EigenStateResult{
+				Results: res,
+				Error:   err,
+			}
+		}(ch)
+	}
+	wg.Wait()
+	records := make(map[string][]interface{})
+	for name, ch := range channelMap {
+		close(ch)
+		result := <-ch
+		if result.Error != nil {
+			return nil, result.Error
+		}
+		records[name] = result.Results
+	}
+	return records, nil
 }
