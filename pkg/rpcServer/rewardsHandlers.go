@@ -314,6 +314,13 @@ func (rpc *RpcServer) GetAvailableRewardsTokens(ctx context.Context, req *reward
 	}, nil
 }
 
+func withDefaultValue(value string, defaultValue string) string {
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
 func (rpc *RpcServer) GetSummarizedRewardsForEarner(ctx context.Context, req *rewardsV1.GetSummarizedRewardsForEarnerRequest) (*rewardsV1.GetSummarizedRewardsForEarnerResponse, error) {
 	earner := req.GetEarnerAddress()
 	blockHeight := req.GetBlockHeight()
@@ -329,12 +336,13 @@ func (rpc *RpcServer) GetSummarizedRewardsForEarner(ctx context.Context, req *re
 
 	return &rewardsV1.GetSummarizedRewardsForEarnerResponse{
 		Rewards: utils.Map(summarizedRewards, func(r *rewardsDataService.SummarizedReward, i uint64) *rewardsV1.SummarizedEarnerReward {
+
 			return &rewardsV1.SummarizedEarnerReward{
 				Token:     r.Token,
-				Earned:    r.Earned,
-				Active:    r.Active,
-				Claimed:   r.Claimed,
-				Claimable: r.Claimable,
+				Earned:    withDefaultValue(r.Earned, "0"),
+				Active:    withDefaultValue(r.Active, "0"),
+				Claimed:   withDefaultValue(r.Claimed, "0"),
+				Claimable: withDefaultValue(r.Claimable, "0"),
 			}
 		}),
 	}, nil
