@@ -136,4 +136,13 @@ func Test_RewardsDataService(t *testing.T) {
 		assert.NotNil(t, r)
 		fmt.Printf("Available rewards tokens: %v\n", r)
 	})
+
+	t.Run("Test GetRewardsByAvsForDistributionRoot", func(t *testing.T) {
+		rootIndex := uint64(189)
+
+		r, err := rds.GetRewardsByAvsForDistributionRoot(context.Background(), rootIndex)
+		assert.Nil(t, err)
+		assert.NotNil(t, r)
+		assert.True(t, len(r) > 0)
+	})
 }
