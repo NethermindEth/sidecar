@@ -89,6 +89,23 @@ jobs:
           else
             docker buildx build --platform "linux/amd64" -t $REGISTRY/$REPOSITORY:$VERSION --push .
           fi
+  build-binaries:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check and set release version
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          ./scripts/version.sh $REF
+      - name: Build binary
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          echo "Building binary for version $VERSION"
+          make release-with-docker
+          sudo chown -R $USER:$USER .
+          ./scripts/bundleReleases.sh $VERSION
   build-create-release:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -107,6 +124,7 @@ jobs:
           VERSION=$(cat VERSION | tr -d '[:space:]')
           echo "Building binary for version $VERSION"
           make release-with-docker
+          sudo chown -R $USER:$USER .
           ./scripts/bundleReleases.sh $VERSION
       - name: Create Release
         id: create_release
