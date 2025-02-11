@@ -2,8 +2,6 @@ module github.com/Layr-Labs/sidecar
 
 go 1.23.6
 
-toolchain go1.23.6
-
 require (
 	github.com/DataDog/datadog-go/v5 v5.5.0
 	github.com/Layr-Labs/eigenlayer-contracts v0.4.1-holesky-pepe.0.20240813143901-00fc4b95e9c1
