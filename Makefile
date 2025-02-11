@@ -45,6 +45,10 @@ release:
 	$(MAKE) build/cmd/sidecar/linux-arm64
 	$(MAKE) build/cmd/sidecar/linux-amd64
 
+.PHONY: release-with-docker
+release-with-docker:
+	docker run -it --rm -v `pwd`:/build golang:1.23.6 /bin/bash -c "cd /build && make release"
+
 .PHONY: build
 build: build/cmd/sidecar
 

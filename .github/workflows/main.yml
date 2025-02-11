@@ -106,7 +106,7 @@ jobs:
         run: |
           VERSION=$(cat VERSION | tr -d '[:space:]')
           echo "Building binary for version $VERSION"
-          make release
+          make release-with-docker
           ./scripts/bundleReleases.sh $VERSION
       - name: Create Release
         id: create_release
