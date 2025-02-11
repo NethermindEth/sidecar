@@ -430,6 +430,9 @@ func convertRewardTypeToEnum(rewardType string) (rewardsV1.RewardType, error) {
 	}
 }
 
+// GetRewardsByAvsForDistributionRoot returns the rewards for a specific distribution root.
+//
+// TODO(seanmcgary): add pagination if this response gets too large in the future
 func (rpc *RpcServer) GetRewardsByAvsForDistributionRoot(ctx context.Context, req *rewardsV1.GetRewardsByAvsForDistributionRootRequest) (*rewardsV1.GetRewardsByAvsForDistributionRootResponse, error) {
 	rootIndex := req.GetRootIndex()
 
