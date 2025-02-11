@@ -1,6 +1,8 @@
 module github.com/Layr-Labs/sidecar
 
-go 1.23
+go 1.23.6
+
+toolchain go1.23.6
 
 require (
 	github.com/DataDog/datadog-go/v5 v5.5.0
