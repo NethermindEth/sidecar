@@ -18,3 +18,8 @@ updates:
       interval: weekly
     commit-message:
       prefix: "chore"
+    groups:
+      # Group all dependency updates together
+      all-dependencies:
+        patterns:
+          - "*"
