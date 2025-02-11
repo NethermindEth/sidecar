@@ -3,6 +3,7 @@ package rpcServer
 import (
 	"context"
 	"errors"
+	"fmt"
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	"github.com/Layr-Labs/sidecar/pkg/metaState/types"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -416,6 +417,48 @@ func (rpc *RpcServer) ListDistributionRoots(ctx context.Context, req *rewardsV1.
 	}, nil
 }
 
+func convertRewardTypeToEnum(rewardType string) (rewardsV1.RewardType, error) {
+	switch rewardType {
+	case "avs":
+		return rewardsV1.RewardType_REWARD_TYPE_AVS, nil
+	case "all_stakers":
+		return rewardsV1.RewardType_REWARD_TYPE_FOR_ALL, nil
+	case "all_earners":
+		return rewardsV1.RewardType_REWARD_TYPE_FOR_ALL_EARNERS, nil
+	default:
+		return -1, fmt.Errorf("unknown reward type '%s'", rewardType)
+	}
+}
+
+// GetRewardsByAvsForDistributionRoot returns the rewards for a specific distribution root.
+//
+// TODO(seanmcgary): add pagination if this response gets too large in the future
 func (rpc *RpcServer) GetRewardsByAvsForDistributionRoot(ctx context.Context, req *rewardsV1.GetRewardsByAvsForDistributionRootRequest) (*rewardsV1.GetRewardsByAvsForDistributionRootResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetRewardsByAvsForDistributionRoot not implemented")
+	rootIndex := req.GetRootIndex()
+
+	rewards, err := rpc.rewardsDataService.GetRewardsByAvsForDistributionRoot(ctx, rootIndex)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	rewardsResponse := make([]*rewardsV1.AvsReward, 0, len(rewards))
+	for _, r := range rewards {
+		rewardType, err := convertRewardTypeToEnum(r.RewardType)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		rewardsResponse = append(rewardsResponse, &rewardsV1.AvsReward{
+			Earner:     r.Earner,
+			Avs:        r.Avs,
+			Token:      r.Token,
+			Amount:     r.Amount,
+			RewardHash: r.RewardHash,
+			Snapshot:   r.Snapshot,
+			RewardType: rewardType,
+		})
+	}
+
+	return &rewardsV1.GetRewardsByAvsForDistributionRootResponse{
+		Rewards: rewardsResponse,
+	}, nil
 }

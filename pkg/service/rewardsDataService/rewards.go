@@ -13,6 +13,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/rewardsUtils"
 	"github.com/Layr-Labs/sidecar/pkg/service/baseDataService"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
+	errors2 "github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"reflect"
@@ -543,4 +544,85 @@ func (rds *RewardsDataService) GetDistributionRootForBlockHeight(ctx context.Con
 		return nil, res.Error
 	}
 	return root, nil
+}
+
+func (rds *RewardsDataService) getDistributionRootByRootIndex(rootIndex uint64) (*eigenStateTypes.SubmittedDistributionRoot, error) {
+	var root *eigenStateTypes.SubmittedDistributionRoot
+	query := `
+		select
+			*
+		from submitted_distribution_roots
+		where root_index = @rootIndex
+	`
+	res := rds.db.Raw(query, sql.Named("rootIndex", rootIndex)).Scan(&root)
+
+	if res.Error != nil {
+		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+			return nil, errors2.Wrapf(res.Error, "distribution root not found for root index '%d'", rootIndex)
+		}
+		return nil, res.Error
+	}
+	return root, nil
+}
+
+type AvsReward struct {
+	Avs        string
+	Earner     string
+	Token      string
+	Snapshot   string
+	RewardHash string
+	Amount     string
+	RewardType string
+}
+
+func (rds *RewardsDataService) GetRewardsByAvsForDistributionRoot(ctx context.Context, rootIndex uint64) ([]*AvsReward, error) {
+	root, err := rds.getDistributionRootByRootIndex(rootIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	if root == nil {
+		return nil, fmt.Errorf("no distribution root found for root index '%d'", rootIndex)
+	}
+
+	tablePattern := fmt.Sprintf("%s_%s",
+		rewardsUtils.GoldTableNameSearchPattern[rewardsUtils.Table_11_GoldStaging],
+		utils.SnakeCase(root.GetSnapshotDate()),
+	)
+
+	stagingTableName, err := rewardsUtils.FindTableByLikeName(tablePattern, rds.db, rds.globalConfig.DatabaseConfig.SchemaName)
+	if err != nil {
+		return nil, err
+	}
+	if stagingTableName == "" {
+		return nil, fmt.Errorf("no staging table found for pattern '%s'", tablePattern)
+	}
+
+	query := `
+		SELECT
+			cr.avs as avs,
+			cr.reward_type as reward_type,
+			gt.*
+		FROM {{.goldStagingName}} gt
+		JOIN (
+			SELECT DISTINCT avs, reward_hash,
+				reward_type
+			FROM combined_rewards as cr
+		) cr ON (cr.reward_hash = gt.reward_hash)
+	`
+
+	renderedQuery, err := rewardsUtils.RenderQueryTemplate(query, map[string]interface{}{
+		"goldStagingName": stagingTableName,
+	})
+
+	if err != nil {
+		return nil, errors2.Wrap(err, "failed to render query template")
+	}
+
+	var rewards []*AvsReward
+	res := rds.db.Raw(renderedQuery).Scan(&rewards)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return rewards, nil
 }

@@ -154,7 +154,7 @@ func DropTableIfExists(grm *gorm.DB, tableName string, l *zap.Logger) error {
 	return nil
 }
 
-func findTableByLikeName(likeName string, grm *gorm.DB, schemaName string) (string, error) {
+func FindTableByLikeName(likeName string, grm *gorm.DB, schemaName string) (string, error) {
 	if schemaName == "" {
 		schemaName = "public"
 	}
@@ -167,7 +167,7 @@ func findTableByLikeName(likeName string, grm *gorm.DB, schemaName string) (stri
 			limit 1
 		`
 	var tname string
-	res := grm.Raw(query,
+	res := grm.Debug().Raw(query,
 		sql.Named("schemaName", schemaName),
 		sql.Named("pattern", likeName)).
 		Scan(&tname)
@@ -190,7 +190,7 @@ func FindRewardsTableNamesForSearchPatterns(patterns map[string]string, cutoffDa
 	for key, pattern := range patterns {
 		snakeCaseCutoffDate := utils.SnakeCase(cutoffDate)
 		p := fmt.Sprintf("%s_%s", pattern, snakeCaseCutoffDate)
-		tname, err := findTableByLikeName(p, grm, schemaName)
+		tname, err := FindTableByLikeName(p, grm, schemaName)
 		if err != nil {
 			return nil, err
 		}

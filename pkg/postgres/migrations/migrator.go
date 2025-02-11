@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_202501241111_addIndexesForRpcFunctions "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202501241111_addIndexesForRpcFunctions"
+	_202502100846_goldTableRewardHashIndex "github.com/Layr-Labs/sidecar/pkg/postgres/migrations/202502100846_goldTableRewardHashIndex"
 	"time"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
@@ -136,6 +137,7 @@ func (m *Migrator) MigrateAll() error {
 		&_202501061422_defaultOperatorSplits.Migration{},
 		&_202501071401_defaultOperatorSplitSnapshots.Migration{},
 		&_202501241111_addIndexesForRpcFunctions.Migration{},
+		&_202502100846_goldTableRewardHashIndex.Migration{},
 	}
 
 	for _, migration := range migrations {

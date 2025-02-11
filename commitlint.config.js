@@ -8,6 +8,8 @@ module.exports = {
 			2,
 			'always',
 			['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore', 'revert']
-		]
+		],
+		'footer-max-line-length': [2, 'always', Infinity],
+		'footer-leading-blank': [0]
 	}
 };

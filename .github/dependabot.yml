@@ -12,7 +12,7 @@ updates:
       interval: weekly
     commit-message:
       prefix: "chore"
-  - package-ecosystem: "go"
+  - package-ecosystem: "gomod"
     directory: "/"
     schedule:
       interval: weekly
