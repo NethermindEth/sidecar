@@ -47,7 +47,7 @@ release:
 
 .PHONY: release-with-docker
 release-with-docker:
-	docker run --rm -v `pwd`:/build golang:1.23.6 /bin/bash -c "cd /build && make release"
+	docker run -u $(id -u):$(id -g) --rm -v `pwd`:/build golang:1.23.6 /bin/bash -c "cd /build && make release"
 
 .PHONY: build
 build: build/cmd/sidecar
