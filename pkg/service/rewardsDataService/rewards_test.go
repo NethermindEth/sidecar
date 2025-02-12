@@ -125,6 +125,10 @@ func Test_RewardsDataService(t *testing.T) {
 		r, err := rds.GetSummarizedRewards(context.Background(), earner, nil, blockNumber)
 		assert.Nil(t, err)
 		assert.NotNil(t, r)
+		fmt.Printf("Summarized rewards: %+v\n", r)
+		for _, sr := range r {
+			fmt.Printf("  %+v\n", sr)
+		}
 	})
 
 	t.Run("Test ListAvailableRewardsTokens", func(t *testing.T) {

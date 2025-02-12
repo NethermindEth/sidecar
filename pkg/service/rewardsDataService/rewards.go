@@ -56,17 +56,29 @@ type TotalClaimedReward struct {
 	Amount string
 }
 
+func lowercaseTokenList(tokens []string) []string {
+	return utils.Map(tokens, func(token string, i uint64) string {
+		return strings.ToLower(token)
+	})
+}
+
 func (rds *RewardsDataService) GetTotalClaimedRewards(ctx context.Context, earner string, tokens []string, blockHeight uint64) ([]*TotalClaimedReward, error) {
 	blockHeight, err := rds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
 		return nil, err
 	}
 
+	if earner == "" {
+		return nil, fmt.Errorf("earner is required")
+	}
+	earner = strings.ToLower(earner)
+	tokens = lowercaseTokenList(tokens)
+
 	query := `
 		select
 			earner,
 			token,
-			sum(claimed_amount) as amount
+			coalesce(sum(claimed_amount), 0) as amount
 		from rewards_claimed as rc
 		where
 			earner = @earner
@@ -134,14 +146,12 @@ func (rds *RewardsDataService) ListClaimedRewardsByBlockRange(
 	}
 	if earner != "" {
 		query += " and earner = @earner"
-		args = append(args, sql.Named("earner", earner))
+		args = append(args, sql.Named("earner", strings.ToLower(earner)))
 	}
 	if len(tokens) > 0 {
 		query += " and token in (?)"
-		formattedTokens := utils.Map(tokens, func(token string, i uint64) string {
-			return strings.ToLower(token)
-		})
-		args = append(args, sql.Named("tokens", formattedTokens))
+		tokens = lowercaseTokenList(tokens)
+		args = append(args, sql.Named("tokens", tokens))
 	}
 	query += " order by block_number, log_index"
 
@@ -170,6 +180,7 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(
 	if earner == "" {
 		return nil, fmt.Errorf("earner is required")
 	}
+	earner = strings.ToLower(earner)
 
 	snapshot, err := rds.findDistributionRootClosestToBlockHeight(blockHeight, claimable)
 	if err != nil {
@@ -192,7 +203,7 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(
 		)
 		select
 			token,
-			sum(amount) as amount
+			coalesce(sum(amount), 0) as amount
 		from token_snapshots
 		group by 1
 	`
@@ -202,10 +213,8 @@ func (rds *RewardsDataService) GetTotalRewardsForEarner(
 	}
 	if len(tokens) > 0 {
 		query += " and token in (?)"
-		formattedTokens := utils.Map(tokens, func(token string, i uint64) string {
-			return strings.ToLower(token)
-		})
-		args = append(args, sql.Named("tokens", formattedTokens))
+		tokens = lowercaseTokenList(tokens)
+		args = append(args, sql.Named("tokens", tokens))
 	}
 
 	rewardAmounts := make([]*RewardAmount, 0)
@@ -232,6 +241,8 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 	if earner == "" {
 		return nil, nil, fmt.Errorf("earner is required")
 	}
+	earner = strings.ToLower(earner)
+
 	snapshot, err := rds.findDistributionRootClosestToBlockHeight(blockHeight, true)
 	if err != nil {
 		return nil, nil, err
@@ -281,10 +292,8 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 	}
 	if len(tokens) > 0 {
 		query += " and token in (?)"
-		formattedTokens := utils.Map(tokens, func(token string, i uint64) string {
-			return strings.ToLower(token)
-		})
-		args = append(args, sql.Named("tokens", formattedTokens))
+		tokens = lowercaseTokenList(tokens)
+		args = append(args, sql.Named("tokens", tokens))
 	}
 
 	claimableRewards := make([]*RewardAmount, 0)
@@ -372,6 +381,8 @@ func (rds *RewardsDataService) GetSummarizedRewards(ctx context.Context, earner 
 	if earner == "" {
 		return nil, fmt.Errorf("earner is required")
 	}
+	earner = strings.ToLower(earner)
+	tokens = lowercaseTokenList(tokens)
 
 	blockHeight, err := rds.BaseDataService.GetCurrentBlockHeightIfNotPresent(context.Background(), blockHeight)
 	if err != nil {
@@ -487,6 +498,7 @@ func (rds *RewardsDataService) ListAvailableRewardsTokens(ctx context.Context, e
 	if earner == "" {
 		return nil, fmt.Errorf("earner is required")
 	}
+	earner = strings.ToLower(earner)
 
 	blockHeight, err := rds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
 	if err != nil {
