@@ -23,3 +23,6 @@ updates:
       all-dependencies:
         patterns:
           - "*"
+        exclude-patterns:
+          - "github.com/Layr-Labs/*"
+          - "github.com/layr-labs/*"

@@ -17,8 +17,6 @@ func convertClaimProofToRPCResponse(root []byte, rewardsProof *rewardsCoordinato
 			CumulativeEarnings: l.CumulativeEarnings.String(),
 		})
 	}
-	var earnerTokenRoot []byte
-	copy(earnerTokenRoot[:], rewardsProof.EarnerLeaf.EarnerTokenRoot[:])
 
 	return &rewardsV1.Proof{
 		Root:            root,
@@ -27,7 +25,7 @@ func convertClaimProofToRPCResponse(root []byte, rewardsProof *rewardsCoordinato
 		EarnerTreeProof: rewardsProof.EarnerTreeProof,
 		EarnerLeaf: &rewardsV1.EarnerLeaf{
 			Earner:          rewardsProof.EarnerLeaf.Earner.String(),
-			EarnerTokenRoot: earnerTokenRoot,
+			EarnerTokenRoot: rewardsProof.EarnerLeaf.EarnerTokenRoot[:],
 		},
 		TokenIndices:    rewardsProof.TokenIndices,
 		TokenTreeProofs: rewardsProof.TokenTreeProofs,
