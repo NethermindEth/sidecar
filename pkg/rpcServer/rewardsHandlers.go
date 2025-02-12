@@ -364,6 +364,7 @@ func (rpc *RpcServer) GetClaimedRewardsByBlock(ctx context.Context, req *rewards
 				Claimer:     c.Claimer,
 				Token:       c.Token,
 				BlockNumber: c.BlockNumber,
+				Recipient:   c.Recipient,
 			}
 		}),
 	}, nil
@@ -391,6 +392,7 @@ func (rpc *RpcServer) ListClaimedRewardsByBlockRange(ctx context.Context, req *r
 				Claimer:     c.Claimer,
 				Token:       c.Token,
 				BlockNumber: c.BlockNumber,
+				Recipient:   c.Recipient,
 			}
 		}),
 	}, nil
