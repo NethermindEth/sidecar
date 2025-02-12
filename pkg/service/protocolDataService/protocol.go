@@ -411,9 +411,9 @@ func (pds *ProtocolDataService) GetStateRoot(ctx context.Context, blockHeight ui
 
 	query := pds.db.Model(&stateRoot)
 	if blockHeight > 0 {
-		query = query.Where("block_number = ?", blockHeight)
+		query = query.Where("eth_block_number = ?", blockHeight)
 	} else {
-		query = query.Order("block_number desc")
+		query = query.Order("eth_block_number desc")
 	}
 
 	res := query.First(&stateRoot)
