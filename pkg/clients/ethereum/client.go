@@ -497,6 +497,10 @@ func (c *Client) chunkedBatchCall(ctx context.Context, requests []*RPCRequest) (
 }
 
 func (c *Client) BatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
+	if len(requests) == 0 {
+		c.Logger.Sugar().Warnw("No requests to batch call")
+		return make([]*RPCResponse, 0), nil
+	}
 	if c.clientConfig.UseNativeBatchCall {
 		return c.chunkedNativeBatchCall(ctx, requests)
 	}

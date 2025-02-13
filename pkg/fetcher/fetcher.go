@@ -64,6 +64,11 @@ func (f *Fetcher) FetchReceiptsForBlock(ctx context.Context, block *ethereum.Eth
 		zap.Int("count", len(txReceiptRequests)),
 		zap.Uint64("blockNumber", blockNumber),
 	)
+	receipts := make(map[string]*ethereum.EthereumTransactionReceipt)
+
+	if len(txReceiptRequests) == 0 {
+		return receipts, nil
+	}
 
 	receiptResponses, err := f.EthClient.BatchCall(ctx, txReceiptRequests)
 	if err != nil {
@@ -80,7 +85,6 @@ func (f *Fetcher) FetchReceiptsForBlock(ctx context.Context, block *ethereum.Eth
 		return nil, errors.New("failed to fetch all transaction receipts")
 	}
 
-	receipts := make(map[string]*ethereum.EthereumTransactionReceipt)
 	for _, response := range receiptResponses {
 		r, err := ethereum.RPCMethod_getTransactionReceipt.ResponseParser(response.Result)
 		if err != nil {
