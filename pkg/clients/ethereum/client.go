@@ -347,6 +347,10 @@ func (c *Client) batchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCR
 }
 
 func (c *Client) chunkedNativeBatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
+	if len(requests) == 0 {
+		c.Logger.Sugar().Warnw("No requests to batch call")
+		return make([]*RPCResponse, 0), nil
+	}
 	batches := [][]*RPCRequest{}
 
 	currentIndex := 0
@@ -414,6 +418,10 @@ type BatchedResponse struct {
 //
 // This function allows for better retry and error handling over the batch call method.
 func (c *Client) chunkedBatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
+	if len(requests) == 0 {
+		c.Logger.Sugar().Warnw("No requests to batch call")
+		return make([]*RPCResponse, 0), nil
+	}
 	batches := [][]*IndexedRpcRequestResponse{}
 
 	// all requests in a flat list with their index stored
@@ -497,6 +505,10 @@ func (c *Client) chunkedBatchCall(ctx context.Context, requests []*RPCRequest) (
 }
 
 func (c *Client) BatchCall(ctx context.Context, requests []*RPCRequest) ([]*RPCResponse, error) {
+	if len(requests) == 0 {
+		c.Logger.Sugar().Warnw("No requests to batch call")
+		return make([]*RPCResponse, 0), nil
+	}
 	if c.clientConfig.UseNativeBatchCall {
 		return c.chunkedNativeBatchCall(ctx, requests)
 	}
