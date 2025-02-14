@@ -141,6 +141,10 @@ func (f *Fetcher) FetchBlocks(ctx context.Context, startBlockInclusive uint64, e
 		blockNumbers = append(blockNumbers, i)
 	}
 
+	if len(blockNumbers) == 0 {
+		return []*FetchedBlock{}, nil
+	}
+
 	blockRequests := make([]*ethereum.RPCRequest, 0)
 	for i, n := range blockNumbers {
 		blockRequests = append(blockRequests, ethereum.GetBlockByNumberRequest(n, uint(i)))
