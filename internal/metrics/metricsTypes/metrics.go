@@ -1,8 +1,11 @@
 package metricsTypes
 
+import "time"
+
 type IMetricsClient interface {
 	Incr(name string, labels []MetricsLabel, value float64) error
 	Gauge(name string, value float64, labels []MetricsLabel) error
+	Timing(name string, value time.Duration, labels []MetricsLabel) error
 }
 
 type MetricsLabel struct {
@@ -13,8 +16,9 @@ type MetricsLabel struct {
 type MetricsType string
 
 var (
-	MetricsType_Incr  MetricsType = "incr"
-	MetricsType_Gauge MetricsType = "gauge"
+	MetricsType_Incr   MetricsType = "incr"
+	MetricsType_Gauge  MetricsType = "gauge"
+	MetricsType_Timing MetricsType = "timing"
 )
 
 type MetricsTypeConfig struct {

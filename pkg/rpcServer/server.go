@@ -10,7 +10,8 @@ import (
 	rewardsV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/rewards"
 	sidecarV1 "github.com/Layr-Labs/protocol-apis/gen/protos/eigenlayer/sidecar/v1/sidecar"
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/internal/metrics"
+	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
 	sidecarClient "github.com/Layr-Labs/sidecar/pkg/clients/sidecar"
 	"github.com/Layr-Labs/sidecar/pkg/eventBus/eventBusTypes"
 	"github.com/Layr-Labs/sidecar/pkg/proofs"
@@ -25,10 +26,14 @@ import (
 	"github.com/rs/cors"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 	"net"
 	"net/http"
 	"regexp"
+	"strings"
+	"time"
 )
 
 type RpcServerConfig struct {
@@ -48,6 +53,7 @@ type RpcServer struct {
 	rewardsDataService  *rewardsDataService.RewardsDataService
 	globalConfig        *config.Config
 	sidecarClient       *sidecarClient.SidecarClient
+	metricsSink         *metrics.MetricsSink
 }
 
 func NewRpcServer(
@@ -60,6 +66,7 @@ func NewRpcServer(
 	pds *protocolDataService.ProtocolDataService,
 	rds *rewardsDataService.RewardsDataService,
 	scc *sidecarClient.SidecarClient,
+	ms *metrics.MetricsSink,
 	l *zap.Logger,
 	cfg *config.Config,
 ) *RpcServer {
@@ -75,6 +82,7 @@ func NewRpcServer(
 		Logger:              l,
 		globalConfig:        cfg,
 		sidecarClient:       scc,
+		metricsSink:         ms,
 	}
 
 	return server
@@ -114,6 +122,152 @@ func (s *RpcServer) registerHandlers(ctx context.Context, grpcServer *grpc.Serve
 	return nil
 }
 
+func (s *RpcServer) MetricsGrpcUnaryInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		startTime := time.Now()
+		method := info.FullMethod
+
+		res, err := handler(ctx, req)
+
+		duration := time.Since(startTime)
+
+		labels := []metricsTypes.MetricsLabel{
+			{Name: "grpc_method", Value: method},
+			{Name: "status", Value: status.Code(err).String()},
+			{Name: "status_code", Value: fmt.Sprintf("%d", status.Code(err))},
+			{Name: "rpc", Value: "grpc"},
+		}
+
+		_ = s.metricsSink.Incr("rpc.grpc.request", labels, 1)
+		_ = s.metricsSink.Timing("rpc.grpc.duration", duration, labels)
+
+		return res, err
+	}
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	statusCode int
+	written    bool
+}
+
+// NewStatusRecorder creates a new statusRecorder
+func NewStatusRecorder(w http.ResponseWriter) *statusRecorder {
+	return &statusRecorder{
+		ResponseWriter: w,
+		statusCode:     http.StatusOK, // Default to 200 OK
+	}
+}
+
+// WriteHeader captures the status code and writes it to the underlying ResponseWriter
+func (r *statusRecorder) WriteHeader(code int) {
+	if !r.written {
+		r.statusCode = code
+		r.written = true
+		r.ResponseWriter.WriteHeader(code)
+	}
+}
+
+// Write captures implicit 200 status code and writes to the underlying ResponseWriter
+func (r *statusRecorder) Write(b []byte) (int, error) {
+	if !r.written {
+		r.statusCode = http.StatusOK
+		r.written = true
+	}
+	return r.ResponseWriter.Write(b)
+}
+
+type RequestMetadata struct {
+	Method  string
+	Pattern string
+}
+
+const requestMetadataKey = "request_metadata"
+
+func (s *RpcServer) MetricsAndLogsHttpHandler(next *runtime.ServeMux, l *zap.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		startTime := time.Now()
+
+		md := &RequestMetadata{}
+		//nolint:staticcheck
+		r = r.WithContext(context.WithValue(r.Context(), requestMetadataKey, md))
+
+		// Overloaded response writer to capture the status code of the response
+		recorder := NewStatusRecorder(w)
+
+		next.ServeHTTP(recorder, r)
+
+		method := r.Method
+		path := r.URL.Path
+		statusCode := recorder.statusCode
+		pattern := "unknown"
+
+		if md.Pattern != "" {
+			pattern = md.Pattern
+		}
+
+		grpcService := ""
+		grpcMethod := ""
+
+		if md.Method != "" {
+			parts := strings.Split(md.Method, "/")
+			grpcService = parts[1]
+			grpcMethod = parts[2]
+		}
+
+		duration := time.Since(startTime)
+
+		labels := []metricsTypes.MetricsLabel{
+			{Name: "method", Value: method},
+			{Name: "path", Value: path},
+			{Name: "status_code", Value: fmt.Sprintf("%d", statusCode)},
+			{Name: "grpc_method", Value: md.Method},
+			{Name: "pattern", Value: pattern},
+			{Name: "rpc", Value: "http"},
+		}
+
+		_ = s.metricsSink.Incr("rpc.http.request", labels, 1)
+		_ = s.metricsSink.Timing("rpc.http.duration", duration, labels)
+
+		healthRegex := regexp.MustCompile(`v1\/health$`)
+		readyRegex := regexp.MustCompile(`v1\/ready$`)
+
+		if !healthRegex.MatchString(r.URL.Path) && !readyRegex.MatchString(path) {
+			l.Sugar().Infow(fmt.Sprintf("%s %s", method, path),
+				zap.String("system", "http"),
+				zap.String("method", method),
+				zap.String("path", path),
+				zap.Int("status_code", statusCode),
+				zap.Duration("duration", duration),
+				zap.String("pattern", pattern),
+				zap.String("grpc.service", grpcService),
+				zap.String("grpc.method", grpcMethod),
+				zap.Uint64("grpc.time_ms", uint64(duration.Milliseconds())),
+			)
+		}
+	})
+}
+
+func injectGrpcHttpMetadata(ctx context.Context, r *http.Request) metadata.MD {
+	requestMetadata := r.Context().Value(requestMetadataKey).(*RequestMetadata)
+
+	md := make(map[string]string)
+	if method, ok := runtime.RPCMethod(ctx); ok {
+		md["method"] = method
+		if requestMetadata != nil {
+			requestMetadata.Method = method
+		}
+	}
+	if pattern, ok := runtime.HTTPPathPattern(ctx); ok {
+		md["pattern"] = pattern
+		if requestMetadata != nil {
+			requestMetadata.Pattern = pattern
+		}
+	}
+
+	return metadata.New(md)
+}
+
 func (s *RpcServer) Start(ctx context.Context, shutdown chan bool) error {
 	ctx, cancelCtx := context.WithCancel(ctx)
 	grpcPort := s.rpcConfig.GrpcPort
@@ -148,7 +302,10 @@ func (s *RpcServer) Start(ctx context.Context, shutdown chan bool) error {
 		),
 	)
 	reflection.Register(grpcServer)
-	mux := runtime.NewServeMux()
+
+	mux := runtime.NewServeMux(
+		runtime.WithMetadata(injectGrpcHttpMetadata),
+	)
 
 	if err = s.registerHandlers(ctx, grpcServer, mux); err != nil {
 		s.Logger.Sugar().Errorw("Failed to register handlers", zap.Error(err))
@@ -158,7 +315,7 @@ func (s *RpcServer) Start(ctx context.Context, shutdown chan bool) error {
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", httpPort),
-		Handler: cors.AllowAll().Handler(logger.HttpLoggerMiddleware(mux, s.Logger)),
+		Handler: cors.AllowAll().Handler(s.MetricsAndLogsHttpHandler(mux, s.Logger)),
 		BaseContext: func(listener net.Listener) context.Context {
 			//nolint:staticcheck
 			ctx = context.WithValue(ctx, "httpServer", listener.Addr().String())

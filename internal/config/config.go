@@ -78,8 +78,9 @@ type RewardsConfig struct {
 }
 
 type StatsdConfig struct {
-	Enabled bool
-	Url     string
+	Enabled    bool
+	Url        string
+	SampleRate float64
 }
 
 type DataDogConfig struct {
@@ -138,8 +139,9 @@ var (
 	EthereumRpcNativeBatchCallSize   = "ethereum.native_batch_call_size"
 	EthereumRpcChunkedBatchCallSize  = "ethereum.chunked_batch_call_size"
 
-	DataDogStatsdEnabled = "datadog.statsd.enabled"
-	DataDogStatsdUrl     = "datadog.statsd.url"
+	DataDogStatsdEnabled    = "datadog.statsd.enabled"
+	DataDogStatsdUrl        = "datadog.statsd.url"
+	DataDogStatsdSampleRate = "datadog.statsd.sample-rate"
 
 	PrometheusEnabled = "prometheus.enabled"
 	PrometheusPort    = "prometheus.port"
@@ -186,8 +188,9 @@ func NewConfig() *Config {
 
 		DataDogConfig: DataDogConfig{
 			StatsdConfig: StatsdConfig{
-				Enabled: viper.GetBool(normalizeFlagName(DataDogStatsdEnabled)),
-				Url:     viper.GetString(normalizeFlagName(DataDogStatsdUrl)),
+				Enabled:    viper.GetBool(normalizeFlagName(DataDogStatsdEnabled)),
+				Url:        viper.GetString(normalizeFlagName(DataDogStatsdUrl)),
+				SampleRate: viper.GetFloat64(normalizeFlagName(DataDogStatsdSampleRate)),
 			},
 		},
 

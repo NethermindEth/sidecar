@@ -4,6 +4,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
+	"time"
 )
 
 type PrometheusMetricsConfig struct {
@@ -14,8 +15,9 @@ type PrometheusMetricsClient struct {
 	logger *zap.Logger
 	config *PrometheusMetricsConfig
 
-	counters map[string]*prometheus.CounterVec
-	gauges   map[string]*prometheus.GaugeVec
+	counters   map[string]*prometheus.CounterVec
+	gauges     map[string]*prometheus.GaugeVec
+	histograms map[string]*prometheus.HistogramVec
 }
 
 func NewPrometheusMetricsClient(config *PrometheusMetricsConfig, l *zap.Logger) (*PrometheusMetricsClient, error) {
@@ -23,8 +25,9 @@ func NewPrometheusMetricsClient(config *PrometheusMetricsConfig, l *zap.Logger) 
 		config: config,
 		logger: l,
 
-		counters: make(map[string]*prometheus.CounterVec),
-		gauges:   make(map[string]*prometheus.GaugeVec),
+		counters:   make(map[string]*prometheus.CounterVec),
+		gauges:     make(map[string]*prometheus.GaugeVec),
+		histograms: make(map[string]*prometheus.HistogramVec),
 	}
 
 	client.initializeTypes()
@@ -61,6 +64,15 @@ func (pmc *PrometheusMetricsClient) initializeTypes() {
 					Name: mt.Name,
 				}, mt.Labels)
 				prometheus.MustRegister(pmc.gauges[mt.Name])
+			case metricsTypes.MetricsType_Timing:
+				if _, ok := pmc.counters[mt.Name]; ok {
+					pmc.logExistingMetric(t, mt)
+					continue
+				}
+				pmc.histograms[mt.Name] = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+					Name: mt.Name,
+				}, mt.Labels)
+				prometheus.MustRegister(pmc.histograms[mt.Name])
 			}
 		}
 	}
@@ -98,5 +110,21 @@ func (pmc *PrometheusMetricsClient) Gauge(name string, value float64, labels []m
 		return nil
 	}
 	m.With(pmc.formatLabels(labels)).Set(value)
+	return nil
+}
+
+func (pmc *PrometheusMetricsClient) Timing(name string, value time.Duration, labels []metricsTypes.MetricsLabel) error {
+	return pmc.Histogram(name, value, labels)
+}
+
+func (pmc *PrometheusMetricsClient) Histogram(name string, value time.Duration, labels []metricsTypes.MetricsLabel) error {
+	m, ok := pmc.histograms[name]
+	if !ok {
+		pmc.logger.Sugar().Warnw("Prometheus histogram not found",
+			zap.String("name", name),
+		)
+		return nil
+	}
+	m.With(pmc.formatLabels(labels)).Observe(float64(value.Milliseconds()))
 	return nil
 }

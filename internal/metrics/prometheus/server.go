@@ -3,7 +3,6 @@ package prometheus
 import (
 	"context"
 	"fmt"
-	"github.com/Layr-Labs/sidecar/internal/logger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"net/http"
@@ -31,7 +30,7 @@ func (ps *PrometheusServer) Start(gracefulShutdown chan bool) error {
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", ps.config.Port),
-		Handler: logger.HttpLoggerMiddleware(mux, ps.logger),
+		Handler: mux,
 	}
 
 	go func() {

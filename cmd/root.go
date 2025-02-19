@@ -49,6 +49,7 @@ func init() {
 
 	rootCmd.PersistentFlags().Bool("datadog.statsd.enabled", false, `e.g. "true" or "false"`)
 	rootCmd.PersistentFlags().String("datadog.statsd.url", "", `e.g. "localhost:8125"`)
+	rootCmd.PersistentFlags().Float64(config.DataDogStatsdSampleRate, 1.0, `The sample rate to use for statsd metrics`)
 
 	rootCmd.PersistentFlags().Bool("prometheus.enabled", false, `e.g. "true" or "false"`)
 	rootCmd.PersistentFlags().Int("prometheus.port", 2112, `The port to run the prometheus server on`)
