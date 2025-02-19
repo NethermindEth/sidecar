@@ -97,7 +97,7 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 		l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
 	}
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
-	rc, _ := rewards.NewRewardsCalculator(cfg, grm, mds, sog, l)
+	rc, _ := rewards.NewRewardsCalculator(cfg, grm, mds, sog, sdc, l)
 
 	rcq := rewardsCalculatorQueue.NewRewardsCalculatorQueue(rc, l)
 

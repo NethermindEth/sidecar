@@ -2,6 +2,7 @@ package rewards
 
 import (
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"slices"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ func setupStakerDelegationSnapshot() (
 	*config.Config,
 	*gorm.DB,
 	*zap.Logger,
+	*metrics.MetricsSink,
 	error,
 ) {
 	testContext := getRewardsTestContext()
@@ -33,19 +35,21 @@ func setupStakerDelegationSnapshot() (
 	case "mainnet-reduced":
 		cfg.Chain = config.Chain_Mainnet
 	default:
-		return "", nil, nil, nil, fmt.Errorf("Unknown test context")
+		return "", nil, nil, nil, nil, fmt.Errorf("Unknown test context")
 	}
 
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
+	sink, _ := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, nil)
+
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
-		return dbname, nil, nil, nil, err
+		return dbname, nil, nil, nil, nil, err
 	}
 
-	return dbname, cfg, grm, l, nil
+	return dbname, cfg, grm, l, sink, nil
 }
 
 func teardownStakerDelegationSnapshot(dbname string, cfg *config.Config, db *gorm.DB, l *zap.Logger) {
@@ -82,7 +86,7 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 	}
 
 	projectRoot := getProjectRootPath()
-	dbFileName, cfg, grm, l, err := setupStakerDelegationSnapshot()
+	dbFileName, cfg, grm, l, sink, err := setupStakerDelegationSnapshot()
 
 	if err != nil {
 		t.Fatal(err)
@@ -103,7 +107,7 @@ func Test_StakerDelegationSnapshots(t *testing.T) {
 	})
 	t.Run("Should generate staker share snapshots", func(t *testing.T) {
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
-		rewards, _ := NewRewardsCalculator(cfg, grm, nil, sog, l)
+		rewards, _ := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
 
 		t.Log("Generating staker delegation snapshots")
 		err = rewards.GenerateAndInsertStakerDelegationSnapshots(snapshotDate)

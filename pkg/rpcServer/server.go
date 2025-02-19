@@ -138,8 +138,8 @@ func (s *RpcServer) MetricsGrpcUnaryInterceptor() grpc.UnaryServerInterceptor {
 			{Name: "rpc", Value: "grpc"},
 		}
 
-		_ = s.metricsSink.Incr("rpc.grpc.request", labels, 1)
-		_ = s.metricsSink.Timing("rpc.grpc.duration", duration, labels)
+		_ = s.metricsSink.Incr(metricsTypes.Metric_Incr_GrpcRequest, labels, 1)
+		_ = s.metricsSink.Timing(metricsTypes.Metric_Timing_GrpcDuration, duration, labels)
 
 		return res, err
 	}
@@ -226,8 +226,8 @@ func (s *RpcServer) MetricsAndLogsHttpHandler(next *runtime.ServeMux, l *zap.Log
 			{Name: "rpc", Value: "http"},
 		}
 
-		_ = s.metricsSink.Incr("rpc.http.request", labels, 1)
-		_ = s.metricsSink.Timing("rpc.http.duration", duration, labels)
+		_ = s.metricsSink.Incr(metricsTypes.Metric_Incr_HttpRequest, labels, 1)
+		_ = s.metricsSink.Timing(metricsTypes.Metric_Timing_HttpDuration, duration, labels)
 
 		healthRegex := regexp.MustCompile(`v1\/health$`)
 		readyRegex := regexp.MustCompile(`v1\/ready$`)
