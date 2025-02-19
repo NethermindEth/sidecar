@@ -102,7 +102,7 @@ var runDatabaseCmd = &cobra.Command{
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
-		rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, sog, l)
+		rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, sog, sdc, l)
 		if err != nil {
 			l.Sugar().Fatalw("Failed to create rewards calculator", zap.Error(err))
 		}

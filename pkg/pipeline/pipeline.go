@@ -15,6 +15,7 @@ import (
 	"github.com/Layr-Labs/sidecar/pkg/storage"
 	"github.com/Layr-Labs/sidecar/pkg/utils"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -68,11 +69,21 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	blockNumber := block.Block.Number.Value()
 
 	totalRunTime := time.Now()
+	calculatedRewards := false
+	hasError := false
 	blockFetchTime := time.Now()
+
+	defer func() {
+		_ = p.metricsSink.Timing(metricsTypes.Metric_Timing_BlockProcessDuration, time.Since(totalRunTime), []metricsTypes.MetricsLabel{
+			{Name: "rewardsCalculated", Value: strconv.FormatBool(calculatedRewards)},
+			{Name: "hasError", Value: strconv.FormatBool(hasError)},
+		})
+	}()
 
 	indexedBlock, found, err := p.Indexer.IndexFetchedBlock(block)
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to index block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		hasError = true
 		return err
 	}
 	if found {
@@ -95,6 +106,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 			zap.String("transactionHash", ierr.TransactionHash),
 			zap.Error(ierr.Err),
 		)
+		hasError = true
 		return ierr
 	}
 	p.Logger.Sugar().Debugw("Parsed transactions",
@@ -105,10 +117,12 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 
 	if err := p.stateManager.InitProcessingForBlock(blockNumber); err != nil {
 		p.Logger.Sugar().Errorw("Failed to init processing for block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		hasError = true
 		return err
 	}
 	if err := p.metaStateManager.InitProcessingForBlock(blockNumber); err != nil {
 		p.Logger.Sugar().Errorw("MetaStateManager: Failed to init processing for block", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		hasError = true
 		return err
 	}
 	p.Logger.Sugar().Debugw("Initialized processing for block", zap.Uint64("blockNumber", blockNumber))
@@ -129,6 +143,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				zap.String("transactionHash", pt.Transaction.Hash.Value()),
 				zap.Error(err),
 			)
+			hasError = true
 			return err
 		}
 		indexedTransactions = append(indexedTransactions, indexedTransaction)
@@ -153,6 +168,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.Uint64("logIndex", log.LogIndex),
 					zap.Error(err),
 				)
+				hasError = true
 				return err
 			}
 			indexedTransactionLogs = append(indexedTransactionLogs, indexedLog)
@@ -169,6 +185,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.Uint64("logIndex", log.LogIndex),
 					zap.Error(err),
 				)
+				hasError = true
 				return err
 			}
 
@@ -179,6 +196,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.Uint64("logIndex", log.LogIndex),
 					zap.Error(err),
 				)
+				hasError = true
 				return err
 			}
 		}
@@ -197,6 +215,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 		p.Logger.Sugar().Infow("Indexing OperatorRestakedStrategies", zap.Uint64("blockNumber", block.Block.Number.Value()))
 		if err := p.Indexer.ProcessRestakedStrategiesForBlock(ctx, block.Block.Number.Value()); err != nil {
 			p.Logger.Sugar().Errorw("Failed to process restaked strategies", zap.Uint64("blockNumber", block.Block.Number.Value()), zap.Error(err))
+			hasError = true
 			return err
 		}
 	}
@@ -205,11 +224,13 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	committedState, err := p.stateManager.CommitFinalState(blockNumber)
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to commit final state", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		hasError = true
 		return err
 	}
 	_, err = p.metaStateManager.CommitFinalState(blockNumber)
 	if err != nil {
 		p.Logger.Sugar().Errorw("MetaStateManager: Failed to commit final state", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		hasError = true
 		return err
 	}
 	p.Logger.Sugar().Debugw("Committed final state", zap.Uint64("blockNumber", blockNumber), zap.Duration("indexTime", time.Since(blockFetchTime)))
@@ -231,6 +252,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.Uint64("rootIndex", rs.RootIndex),
 					zap.Error(err),
 				)
+				hasError = true
 				return err
 			}
 			if rewardsRoot.Disabled {
@@ -250,6 +272,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 				)
 				continue
 			}
+			calculatedRewards = true
 
 			// The RewardsCalculationEnd date is the max(snapshot) from the gold table at the time, NOT the exclusive
 			// cutoff date that was actually used to generate the rewards. To get that proper cutoff date, we need
@@ -277,6 +300,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.Uint64("blockNumber", blockNumber),
 					zap.Any("distributionRoot", rs),
 				)
+				hasError = true
 				return err
 			}
 
@@ -290,6 +314,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 					zap.String("cutoffDate", cutoffDate), zap.Error(err),
 					zap.Uint64("blockNumber", blockNumber),
 				)
+				hasError = true
 				return err
 			}
 			root := utils.ConvertBytesToString(accountTree.Root())
@@ -308,6 +333,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 						zap.String("computedRoot", root),
 						zap.Int64("rewardsTotalTimeMs", rewardsTotalTimeMs),
 					)
+					hasError = true
 					return errors.New("roots do not match")
 				}
 				p.Logger.Sugar().Warnw("Roots do not match, but allowed to ignore",
@@ -327,6 +353,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	stateRoot, err := p.stateManager.GenerateStateRoot(blockNumber, block.Block.Hash.Value())
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to generate state root", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		hasError = true
 		return err
 	}
 	p.Logger.Sugar().Debugw("Generated state root", zap.Duration("indexTime", time.Since(blockFetchTime)))
@@ -335,6 +362,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 	sr, err := p.stateManager.WriteStateRoot(blockNumber, block.Block.Hash.Value(), stateRoot)
 	if err != nil {
 		p.Logger.Sugar().Errorw("Failed to write state root", zap.Uint64("blockNumber", blockNumber), zap.Error(err))
+		hasError = true
 		return err
 	} else {
 		p.Logger.Sugar().Debugw("Wrote state root", zap.Uint64("blockNumber", blockNumber), zap.Any("stateRoot", sr))
@@ -353,8 +381,7 @@ func (p *Pipeline) RunForFetchedBlock(ctx context.Context, block *fetcher.Fetche
 		_ = p.stateManager.CleanupProcessedStateForBlock(blockNumber)
 		_ = p.metaStateManager.CleanupProcessedStateForBlock(blockNumber)
 	}()
-
-	return err
+	return nil
 }
 
 func (p *Pipeline) RunForBlock(ctx context.Context, blockNumber uint64, isBackfill bool) error {

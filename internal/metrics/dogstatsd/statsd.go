@@ -9,11 +9,12 @@ import (
 )
 
 type DogStatsdMetricsClient struct {
-	client *statsd.Client
-	logger *zap.Logger
+	client     *statsd.Client
+	logger     *zap.Logger
+	sampleRate float64
 }
 
-func NewDogStatsdMetricsClient(addr string, l *zap.Logger) (*DogStatsdMetricsClient, error) {
+func NewDogStatsdMetricsClient(addr string, sampleRate float64, l *zap.Logger) (*DogStatsdMetricsClient, error) {
 	var err error
 	s, err := statsd.New(addr,
 		statsd.WithNamespace("sidecar."),
@@ -26,8 +27,9 @@ func NewDogStatsdMetricsClient(addr string, l *zap.Logger) (*DogStatsdMetricsCli
 	}
 
 	return &DogStatsdMetricsClient{
-		client: s,
-		logger: l,
+		client:     s,
+		logger:     l,
+		sampleRate: sampleRate,
 	}, nil
 }
 
@@ -44,5 +46,9 @@ func (s *DogStatsdMetricsClient) Incr(name string, labels []metricsTypes.Metrics
 }
 
 func (s *DogStatsdMetricsClient) Gauge(name string, value float64, labels []metricsTypes.MetricsLabel) error {
-	return s.client.Gauge(name, value, s.formatLabels(labels), 1)
+	return s.client.Gauge(name, value, s.formatLabels(labels), s.sampleRate)
+}
+
+func (s *DogStatsdMetricsClient) Timing(name string, value time.Duration, labels []metricsTypes.MetricsLabel) error {
+	return s.client.Timing(name, value, s.formatLabels(labels), s.sampleRate)
 }

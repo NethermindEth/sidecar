@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/metrics"
+	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
 	"github.com/Layr-Labs/sidecar/pkg/rewards/rewardsTypes"
 	"time"
 
@@ -32,6 +34,7 @@ type RewardsCalculator struct {
 	blockStore   storage.BlockStore
 	sog          *stakerOperators.StakerOperatorsGenerator
 	globalConfig *config.Config
+	metricsSink  *metrics.MetricsSink
 
 	isGenerating atomic.Bool
 }
@@ -41,6 +44,7 @@ func NewRewardsCalculator(
 	grm *gorm.DB,
 	bs storage.BlockStore,
 	sog *stakerOperators.StakerOperatorsGenerator,
+	ms *metrics.MetricsSink,
 	l *zap.Logger,
 ) (*RewardsCalculator, error) {
 	rc := &RewardsCalculator{
@@ -49,6 +53,7 @@ func NewRewardsCalculator(
 		blockStore:   bs,
 		sog:          sog,
 		globalConfig: cfg,
+		metricsSink:  ms,
 	}
 
 	return rc, nil
@@ -83,6 +88,12 @@ func (rc *RewardsCalculator) calculateRewardsForSnapshotDate(snapshotDate string
 		rc.logger.Sugar().Infow(err.Error())
 		return err
 	}
+	startTime := time.Now()
+	defer func() {
+		_ = rc.metricsSink.Timing(metricsTypes.Metric_Timing_RewardsCalcDuration, time.Since(startTime), []metricsTypes.MetricsLabel{
+			{Name: "snapshotDate", Value: snapshotDate},
+		})
+	}()
 	rc.acquireGenerationLock()
 	rc.logger.Sugar().Infow("Acquired rewards generation lock", zap.String("snapshotDate", snapshotDate))
 	defer rc.releaseGenerationLock()

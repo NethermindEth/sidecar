@@ -66,7 +66,7 @@ var runCmd = &cobra.Command{
 			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 		}
 
-		sdc, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
+		sink, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
 		if err != nil {
 			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
 		}
@@ -95,7 +95,7 @@ var runCmd = &cobra.Command{
 			log.Fatalf("Failed to initialize core contracts: %v", err)
 		}
 
-		cm := contractManager.NewContractManager(contractStore, client, sdc, l)
+		cm := contractManager.NewContractManager(contractStore, client, sink, l)
 
 		mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 		if err != nil {
@@ -117,7 +117,7 @@ var runCmd = &cobra.Command{
 
 		sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
-		rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, sog, l)
+		rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, sog, sink, l)
 		if err != nil {
 			l.Sugar().Fatalw("Failed to create rewards calculator", zap.Error(err))
 		}
@@ -131,7 +131,7 @@ var runCmd = &cobra.Command{
 
 		go rcq.Process()
 
-		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sdc, eb, l)
+		p := pipeline.NewPipeline(fetchr, idxr, mds, sm, msm, rc, rcq, cfg, sink, eb, l)
 
 		scc, err := sidecarClient.NewSidecarClient(cfg.SidecarPrimaryConfig.Url, !cfg.SidecarPrimaryConfig.Secure)
 		if err != nil {
@@ -146,7 +146,7 @@ var runCmd = &cobra.Command{
 		rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 			GrpcPort: cfg.RpcConfig.GrpcPort,
 			HttpPort: cfg.RpcConfig.HttpPort,
-		}, mds, rc, rcq, eb, rps, pds, rds, scc, l, cfg)
+		}, mds, rc, rcq, eb, rps, pds, rds, scc, sink, l, cfg)
 
 		// RPC channel to notify the RPC server to shutdown gracefully
 		rpcChannel := make(chan bool)

@@ -98,7 +98,7 @@ func main() {
 
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
-	rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, sog, l)
+	rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, sog, sdc, l)
 	if err != nil {
 		l.Sugar().Fatalw("Failed to create rewards calculator", zap.Error(err))
 	}
@@ -123,7 +123,7 @@ func main() {
 	rpc := rpcServer.NewRpcServer(&rpcServer.RpcServerConfig{
 		GrpcPort: cfg.RpcConfig.GrpcPort,
 		HttpPort: cfg.RpcConfig.HttpPort,
-	}, mds, rc, rcq, eb, rps, pds, rds, scc, l, cfg)
+	}, mds, rc, rcq, eb, rps, pds, rds, scc, sdc, l, cfg)
 
 	// RPC channel to notify the RPC server to shutdown gracefully
 	rpcChannel := make(chan bool)

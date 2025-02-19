@@ -3,6 +3,7 @@ package rewards
 import (
 	"errors"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,6 +117,7 @@ func setupRewards() (
 	*config.Config,
 	*gorm.DB,
 	*zap.Logger,
+	*metrics.MetricsSink,
 	error,
 ) {
 	cfg := tests.GetConfig()
@@ -127,12 +129,14 @@ func setupRewards() (
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
+	sink, _ := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, nil)
+
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
-		return dbname, nil, nil, nil, err
+		return dbname, nil, nil, nil, nil, err
 	}
 
-	return dbname, cfg, grm, l, nil
+	return dbname, cfg, grm, l, sink, nil
 }
 
 func setupRewardsV2() (
@@ -140,6 +144,7 @@ func setupRewardsV2() (
 	*config.Config,
 	*gorm.DB,
 	*zap.Logger,
+	*metrics.MetricsSink,
 	error,
 ) {
 	cfg := tests.GetConfig()
@@ -151,12 +156,14 @@ func setupRewardsV2() (
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
+	sink, _ := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, nil)
+
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
-		return dbname, nil, nil, nil, err
+		return dbname, nil, nil, nil, nil, err
 	}
 
-	return dbname, cfg, grm, l, nil
+	return dbname, cfg, grm, l, sink, nil
 }
 
 func Test_Rewards(t *testing.T) {
@@ -165,7 +172,7 @@ func Test_Rewards(t *testing.T) {
 		return
 	}
 
-	dbFileName, cfg, grm, l, err := setupRewards()
+	dbFileName, cfg, grm, l, sink, err := setupRewards()
 	fmt.Printf("Using db file: %+v\n", dbFileName)
 
 	if err != nil {
@@ -182,7 +189,7 @@ func Test_Rewards(t *testing.T) {
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 
 	t.Run("Should initialize the rewards calculator", func(t *testing.T) {
-		rc, err := NewRewardsCalculator(cfg, grm, nil, sog, l)
+		rc, err := NewRewardsCalculator(cfg, grm, nil, sog, sink, l)
 		assert.Nil(t, err)
 		if err != nil {
 			t.Fatal(err)
@@ -432,7 +439,7 @@ func Test_RewardsCalculatorLock(t *testing.T) {
 		return
 	}
 
-	dbFileName, cfg, grm, l, err := setupRewards()
+	dbFileName, cfg, grm, l, sink, err := setupRewards()
 	fmt.Printf("Using db file: %+v\n", dbFileName)
 	if err != nil {
 		t.Fatal(err)
@@ -441,7 +448,7 @@ func Test_RewardsCalculatorLock(t *testing.T) {
 	bs := postgres2.NewPostgresBlockStore(grm, l, cfg)
 
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
-	rc, err := NewRewardsCalculator(cfg, grm, bs, sog, l)
+	rc, err := NewRewardsCalculator(cfg, grm, bs, sog, sink, l)
 	assert.Nil(t, err)
 
 	// Setup all tables and source data

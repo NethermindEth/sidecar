@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/Layr-Labs/sidecar/pkg/rewards"
@@ -20,6 +21,7 @@ func setup() (
 	*gorm.DB,
 	*zap.Logger,
 	*config.Config,
+	*metrics.MetricsSink,
 	error,
 ) {
 	cfg := config.NewConfig()
@@ -28,6 +30,8 @@ func setup() (
 	cfg.DatabaseConfig = *tests.GetDbConfigFromEnv()
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
+
+	sink, _ := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, nil)
 
 	pgConfig := postgres.PostgresConfigFromDbConfig(&cfg.DatabaseConfig)
 	pg, err := postgres.NewPostgres(pgConfig)
@@ -40,7 +44,7 @@ func setup() (
 		l.Fatal("Failed to create gorm instance", zap.Error(err))
 	}
 
-	return grm, l, cfg, nil
+	return grm, l, cfg, sink, nil
 }
 
 // Test_RewardsDataService tests the rewards data service. It assumes that there is a full
@@ -51,7 +55,7 @@ func Test_RewardsDataService(t *testing.T) {
 		return
 	}
 
-	grm, l, cfg, err := setup()
+	grm, l, cfg, sink, err := setup()
 
 	t.Logf("Using database with name: %s", cfg.DatabaseConfig.DbName)
 
@@ -60,7 +64,7 @@ func Test_RewardsDataService(t *testing.T) {
 	}
 
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
-	rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, nil, l)
+	rc, err := rewards.NewRewardsCalculator(cfg, grm, mds, nil, sink, l)
 	if err != nil {
 		t.Fatalf("Failed to create rewards calculator: %v", err)
 	}

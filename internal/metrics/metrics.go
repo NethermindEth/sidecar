@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
 	"github.com/Layr-Labs/sidecar/internal/metrics/prometheus"
 	"go.uber.org/zap"
+	"time"
 )
 
 type MetricsSink struct {
@@ -59,11 +60,22 @@ func (ms *MetricsSink) Gauge(name string, value float64, labels []metricsTypes.M
 	return nil
 }
 
+func (ms *MetricsSink) Timing(name string, value time.Duration, labels []metricsTypes.MetricsLabel) error {
+	mergedLabels := mergeLabels(labels, ms.config.DefaultLabels)
+	for _, client := range ms.clients {
+		err := client.Timing(name, value, mergedLabels)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func InitMetricsSinksFromConfig(cfg *config.Config, l *zap.Logger) ([]metricsTypes.IMetricsClient, error) {
 	clients := []metricsTypes.IMetricsClient{}
 
 	if cfg.DataDogConfig.StatsdConfig.Enabled {
-		dd, err := dogstatsd.NewDogStatsdMetricsClient(cfg.DataDogConfig.StatsdConfig.Url, l)
+		dd, err := dogstatsd.NewDogStatsdMetricsClient(cfg.DataDogConfig.StatsdConfig.Url, cfg.DataDogConfig.StatsdConfig.SampleRate, l)
 		if err != nil {
 			return nil, err
 		}
