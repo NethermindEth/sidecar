@@ -811,15 +811,17 @@ func (rc *RewardsCalculator) ListDistributionRoots(blockHeight uint64) ([]*Distr
 		from submitted_distribution_roots as sdr
 		left join disabled_distribution_roots as ddr on (sdr.root_index = ddr.root_index)
 	`
+	args := make([]interface{}, 0)
 	if blockHeight > 0 {
 		query += `
-			where sdr.block_number = {{.blockHeight}}
+			where sdr.block_number = @blockHeight
 		`
+		args = append(args, sql.Named("blockHeight", blockHeight))
 	}
 	query += ` order by root_index desc`
 
 	var submittedDistributionRoots []*DistributionRoot
-	res := rc.grm.Raw(query).Scan(&submittedDistributionRoots)
+	res := rc.grm.Raw(query, args...).Scan(&submittedDistributionRoots)
 	if res.Error != nil {
 		rc.logger.Sugar().Errorw("Failed to list submitted distribution roots", "error", res.Error)
 		return nil, res.Error
