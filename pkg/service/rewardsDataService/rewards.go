@@ -274,11 +274,8 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 			group by earner, token
 		)
 		select
-			et.earner,
 			et.token,
-			et.amount::numeric as earned_amount,
-			coalesce(ct.amount, 0)::numeric as claimed_amount,
-			(coalesce(et.amount, 0) - coalesce(ct.amount, 0))::numeric as claimable
+			(coalesce(et.amount, 0) - coalesce(ct.amount, 0))::numeric as amount
 		from earner_tokens as et
 		left join claimed_tokens as ct on (
 			ct.token = et.token
