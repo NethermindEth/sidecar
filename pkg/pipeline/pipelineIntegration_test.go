@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/Layr-Labs/sidecar/pkg/metaState"
 	"log"
 	"testing"
 
@@ -91,11 +92,15 @@ func setup(ethConfig *ethereum.EthereumClientConfig) (
 	mds := pgStorage.NewPostgresBlockStore(grm, l, cfg)
 
 	sm := stateManager.NewEigenStateManager(l, grm)
-	msm := metaStateManager.NewMetaStateManager(grm, l, cfg)
-
 	if err := eigenState.LoadEigenStateModels(sm, grm, l, cfg); err != nil {
 		l.Sugar().Fatalw("Failed to load eigen state models", zap.Error(err))
 	}
+
+	msm := metaStateManager.NewMetaStateManager(grm, l, cfg)
+	if err := metaState.LoadMetaStateModels(msm, grm, l, cfg); err != nil {
+		l.Sugar().Fatalw("Failed to load meta state models", zap.Error(err))
+	}
+
 	sog := stakerOperators.NewStakerOperatorGenerator(grm, l, cfg)
 	rc, _ := rewards.NewRewardsCalculator(cfg, grm, mds, sog, sdc, l)
 
