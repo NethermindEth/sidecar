@@ -243,6 +243,11 @@ func (rds *RewardsDataService) GetClaimableRewardsForEarner(
 	}
 	earner = strings.ToLower(earner)
 
+	blockHeight, err := rds.BaseDataService.GetCurrentBlockHeightIfNotPresent(ctx, blockHeight)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	snapshot, err := rds.findDistributionRootClosestToBlockHeight(blockHeight, true)
 	if err != nil {
 		return nil, nil, err
@@ -532,6 +537,9 @@ func (rds *RewardsDataService) ListAvailableRewardsTokens(ctx context.Context, e
 }
 
 func (rds *RewardsDataService) GetDistributionRootForBlockHeight(ctx context.Context, blockHeight uint64) (*rewards.DistributionRoot, error) {
+	if blockHeight == 0 {
+		return nil, fmt.Errorf("blockHeight is required")
+	}
 	query := `
 		select
 			sdr.*,
