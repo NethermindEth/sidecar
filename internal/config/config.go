@@ -67,6 +67,18 @@ type SnapshotConfig struct {
 	InputFile  string
 }
 
+type CreateSnapshotConfig struct {
+	OutputFile           string
+	GenerateMetadataFile bool
+}
+
+type RestoreSnapshotConfig struct {
+	InputFile       string
+	VerifyHash      bool
+	VerifySignature bool
+	ManifestUrl     string
+}
+
 type RpcConfig struct {
 	GrpcPort int
 	HttpPort int
@@ -103,17 +115,18 @@ type IpfsConfig struct {
 }
 
 type Config struct {
-	Debug                bool
-	EthereumRpcConfig    EthereumRpcConfig
-	DatabaseConfig       DatabaseConfig
-	SnapshotConfig       SnapshotConfig
-	RpcConfig            RpcConfig
-	Chain                Chain
-	Rewards              RewardsConfig
-	DataDogConfig        DataDogConfig
-	PrometheusConfig     PrometheusConfig
-	SidecarPrimaryConfig SidecarPrimaryConfig
-	IpfsConfig           IpfsConfig
+	Debug                 bool
+	EthereumRpcConfig     EthereumRpcConfig
+	DatabaseConfig        DatabaseConfig
+	CreateSnapshotConfig  CreateSnapshotConfig
+	RestoreSnapshotConfig RestoreSnapshotConfig
+	RpcConfig             RpcConfig
+	Chain                 Chain
+	Rewards               RewardsConfig
+	DataDogConfig         DataDogConfig
+	PrometheusConfig      PrometheusConfig
+	SidecarPrimaryConfig  SidecarPrimaryConfig
+	IpfsConfig            IpfsConfig
 }
 
 func StringWithDefault(value, defaultValue string) string {
@@ -121,6 +134,15 @@ func StringWithDefault(value, defaultValue string) string {
 		return defaultValue
 	}
 	return value
+}
+
+func StringWithDefaults(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 var (
@@ -133,7 +155,15 @@ var (
 	DatabaseSchemaName = "database.schema_name"
 
 	SnapshotOutputFile = "output_file"
-	SnapshotInputFile  = "input_file"
+	SnapshotOutput     = "output"
+
+	SnapshotInputFile       = "input_file"
+	SnapshotInput           = "input"
+	SnapshotVerifyHash      = "verify-hash"
+	SnapshotVerifySignature = "verify-signature"
+	SnapshotManifestUrl     = "manifest-url"
+
+	SnapshotOutputMetadataFile = "generate-metadata-file"
 
 	RewardsValidateRewardsRoot          = "rewards.validate_rewards_root"
 	RewardsGenerateStakerOperatorsTable = "rewards.generate_staker_operators_table"
@@ -178,9 +208,15 @@ func NewConfig() *Config {
 			SchemaName: viper.GetString(normalizeFlagName(DatabaseSchemaName)),
 		},
 
-		SnapshotConfig: SnapshotConfig{
-			OutputFile: viper.GetString(normalizeFlagName(SnapshotOutputFile)),
-			InputFile:  viper.GetString(normalizeFlagName(SnapshotInputFile)),
+		CreateSnapshotConfig: CreateSnapshotConfig{
+			OutputFile:           StringWithDefaults(viper.GetString(normalizeFlagName(SnapshotOutput)), viper.GetString(normalizeFlagName(SnapshotOutputFile))),
+			GenerateMetadataFile: viper.GetBool(normalizeFlagName(SnapshotOutputMetadataFile)),
+		},
+
+		RestoreSnapshotConfig: RestoreSnapshotConfig{
+			InputFile:       StringWithDefaults(viper.GetString(normalizeFlagName(SnapshotInput)), viper.GetString(normalizeFlagName(SnapshotInputFile))),
+			VerifyHash:      viper.GetBool(normalizeFlagName(SnapshotVerifyHash)),
+			VerifySignature: viper.GetBool(normalizeFlagName(SnapshotVerifySignature)),
 		},
 
 		RpcConfig: RpcConfig{
