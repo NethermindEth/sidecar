@@ -38,6 +38,7 @@ type Snapshot struct {
 	Url            string    `json:"url"`
 	Schema         string    `json:"schema"`
 	Kind           string    `json:"kind"`
+	Signature      string    `json:"signature"`
 }
 
 type Metadata struct {
