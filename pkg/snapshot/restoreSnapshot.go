@@ -59,7 +59,7 @@ func (ss *SnapshotService) downloadManifest(url string) (*snapshotManifest.Snaps
 func (ss *SnapshotService) getRestoreFileFromManifest(cfg *RestoreSnapshotConfig) (*snapshotManifest.Snapshot, error) {
 	manifestUrl := cfg.ManifestUrl
 	if manifestUrl == "" {
-		manifestUrl = DefaultManifestUrl
+		return nil, fmt.Errorf("please provide a manifest URL or a snapshot to use")
 	}
 
 	manifest, err := ss.downloadManifest(manifestUrl)
