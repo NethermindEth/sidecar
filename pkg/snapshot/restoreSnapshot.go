@@ -287,7 +287,7 @@ func (ss *SnapshotService) RestoreFromSnapshot(cfg *RestoreSnapshotConfig) error
 			zap.String("output", res.Error.CmdOutput),
 			zap.Error(res.Error.Err),
 		)
-		return res.Error.Err
+		return fmt.Errorf("error restoring snapshot %s", res.Error.CmdOutput)
 	}
 	return nil
 }
