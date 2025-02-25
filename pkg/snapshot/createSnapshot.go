@@ -61,7 +61,7 @@ func (ss *SnapshotService) CreateSnapshot(cfg *CreateSnapshotConfig) (*SnapshotF
 		return nil, fmt.Errorf("error performing dump: %w", err)
 	}
 	if res.Error != nil {
-		return nil, fmt.Errorf("error creating snapshot: %w", res.Error.Err)
+		return nil, fmt.Errorf("error creating snapshot: %s", res.Error.CmdOutput)
 	}
 	ss.logger.Sugar().Infow("Snapshot dump complete", zap.String("outputFile", snapshotFile.FullPath()))
 
@@ -148,6 +148,7 @@ func (ss *SnapshotService) performDump(snapshotFile *SnapshotFile, cfg *CreateSn
 
 	err = cmd.Wait()
 	if exitError, ok := err.(*exec.ExitError); ok {
+		ss.logger.Sugar().Errorw("pg_dump exited with error", zap.String("error", res.Output))
 		res.Error = &ResultError{Err: err, ExitCode: exitError.ExitCode(), CmdOutput: res.Output}
 	}
 	return res, nil
