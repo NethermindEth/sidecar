@@ -127,6 +127,15 @@ func (rs *RewardSubmissionsModel) handleRewardSubmissionCreatedEvent(log *storag
 		actualOuputData = outputData.RewardsSubmission
 	}
 
+	if actualOuputData.Duration == 0 {
+		rs.logger.Sugar().Debugw("Skipping reward submission with zero duration",
+			zap.Uint64("blockNumber", log.BlockNumber),
+			zap.String("transactionHash", log.TransactionHash),
+			zap.Uint64("logIndex", log.LogIndex),
+		)
+		return []*RewardSubmission{}, nil
+	}
+
 	rewardSubmissions := make([]*RewardSubmission, 0)
 
 	for i, strategyAndMultiplier := range actualOuputData.StrategiesAndMultipliers {

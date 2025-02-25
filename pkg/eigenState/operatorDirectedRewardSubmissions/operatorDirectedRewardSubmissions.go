@@ -142,6 +142,15 @@ func (odrs *OperatorDirectedRewardSubmissionsModel) handleOperatorDirectedReward
 	}
 	outputRewardData := outputData.OperatorDirectedRewardsSubmission
 
+	if outputRewardData.Duration == 0 {
+		odrs.logger.Sugar().Infow("Skipping operator directed reward submission with zero duration",
+			zap.Uint64("blockNumber", log.BlockNumber),
+			zap.String("transactionHash", log.TransactionHash),
+			zap.Uint64("logIndex", log.LogIndex),
+		)
+		return []*OperatorDirectedRewardSubmission{}, nil
+	}
+
 	rewardSubmissions := make([]*OperatorDirectedRewardSubmission, 0)
 
 	for i, strategyAndMultiplier := range outputRewardData.StrategiesAndMultipliers {
