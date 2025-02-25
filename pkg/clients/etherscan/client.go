@@ -23,15 +23,10 @@ var backoffSchedule = []time.Duration{
 	60 * time.Second,
 }
 
-func getBaseUrl(network string) string {
-	return fmt.Sprintf(`https://%s.etherscan.io/api?`, network)
-}
-
-type x struct {
-	BaseUrl string
-	ApiKeys []string
-	client  *http.Client
-	logger  *zap.Logger
+type EtherscanClient struct {
+	httpClient *http.Client
+	Logger     *zap.Logger
+	Config    *config.Config
 }
 
 type EtherscanResponse struct {
@@ -40,9 +35,17 @@ type EtherscanResponse struct {
 	Result  json.RawMessage `json:"result"`
 }
 
-func NewEtherscanClient(cfg *config.Config, l *zap.Logger) (*EtherscanClient, error) {
+func NewEtherscanClient(hc *http.Client, l *zap.Logger, cfg *config.Config) *EtherscanClient {
+	return &EtherscanClient{
+		httpClient: hc,
+		Logger:     l,
+		Config:     cfg,
+	}
+}
+
+func (ec *EtherscanClient) getBaseUrl() (string, error) {
 	var network string
-	switch cfg.Chain {
+	switch ec.Config.Chain {
 	case config.Chain_Mainnet:
 		network = "api"
 	case config.Chain_Holesky:
@@ -50,57 +53,55 @@ func NewEtherscanClient(cfg *config.Config, l *zap.Logger) (*EtherscanClient, er
 	case config.Chain_Preprod:
 		network = "api-holesky"
 	default:
-		return nil, fmt.Errorf("unknown environment when creating an Etherscan client")
+		return "", fmt.Errorf("unknown environment when making a request using the Etherscan client")
 	}
-
-	l.Sugar().Infow("Etherscan client: using network", zap.String("network", network))
-
-	client := &EtherscanClient{
-		BaseUrl: getBaseUrl(network),
-		ApiKeys: cfg.EtherscanConfig.ApiKeys,
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		logger: l,
-	}
-
-	return client, nil
-}
-
-func wrapError(err error, msg string) (errorWithContext error) {
-	if err == nil {
-		return nil
-	}
-	errorWithContext = fmt.Errorf("%s: %w", msg, err)
-	return
+	return fmt.Sprintf(ec.Config.EtherscanConfig.Url, network), nil
 }
 
 func (ec *EtherscanClient) makeRequest(values url.Values) (*EtherscanResponse, error) {
 	values["apikey"] = []string{ec.selectApiKey()}
 
-	fullUrl := ec.BaseUrl + values.Encode()
+	fullUrl, err := ec.getBaseUrl()
+	if err != nil {
+		ec.Logger.Sugar().Errorw("Failed to get the Etherscan base URL",
+			zap.Error(err),
+		)
+		return nil, err
+	}
 
 	req, err := http.NewRequest(http.MethodGet, fullUrl, http.NoBody)
 	if err != nil {
-		return nil, wrapError(err, "failed to create request")
+		ec.Logger.Sugar().Errorw("Failed to create the Etherscan HTTP request",
+			zap.Error(err),
+		)
+		return nil, err
 	}
 
 	req.Header.Set("User-Agent", "etherscan-api(Go)")
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 
-	res, err := ec.client.Do(req)
+	res, err := ec.httpClient.Do(req)
 	if err != nil {
-		return nil, wrapError(err, "failed to send request")
+		ec.Logger.Sugar().Errorw("Failed to perform the Etherscan HTTP request",
+			zap.Error(err),
+		)
+		return nil, err
 	}
 	defer res.Body.Close()
 
 	bodyBytes, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, wrapError(err, "failed to read response")
+		ec.Logger.Sugar().Errorw("Failed to read the Etherscan HTTP response",
+			zap.Error(err),
+		)
+		return nil, err
 	}
 	parsedbody := &EtherscanResponse{}
 	if err := json.Unmarshal(bodyBytes, &parsedbody); err != nil {
-		return nil, wrapError(err, "failed to parse response")
+		ec.Logger.Sugar().Errorw("Failed to parse json from the Etherscan URL content",
+			zap.Error(err),
+		)
+		return nil, err
 	}
 
 	if res.StatusCode != http.StatusOK {
@@ -111,6 +112,7 @@ func (ec *EtherscanClient) makeRequest(values url.Values) (*EtherscanResponse, e
 		return parsedbody, fmt.Errorf("etherscan server: %s", parsedbody.Message)
 	}
 
+	ec.Logger.Sugar().Debug("Successfully fetched data from Etherscan")
 	return parsedbody, nil
 }
 
@@ -118,9 +120,10 @@ func (ec *EtherscanClient) makeRequestWithBackoff(values url.Values) (*Etherscan
 	for _, backoff := range backoffSchedule {
 
 		res, err := ec.makeRequest(values)
-
 		if res == nil {
-			ec.logger.Sugar().Errorw("Failed to make request", zap.Error(err))
+			ec.Logger.Sugar().Errorw("Failed to make the Etherscan HTTP request",
+				zap.Error(err),
+			)
 			return nil, err
 		}
 
@@ -135,27 +138,26 @@ func (ec *EtherscanClient) makeRequestWithBackoff(values url.Values) (*Etherscan
 			return res, err
 		}
 
-		ec.logger.Info("Rate limit reached, backing off",
+		ec.Logger.Info("Rate limit reached, backing off",
 			zap.Duration("backoff", backoff),
 		)
 
 		time.Sleep(backoff)
 	}
 
-	ec.logger.Error("Failed to make request after backoff")
-	return nil, fmt.Errorf("failed to make request after backoff")
+	return nil, fmt.Errorf("failed to make the Etherscan request after backoff")
 }
 
 func (ec *EtherscanClient) selectApiKey() string {
-	maxNumber := len(ec.ApiKeys)
+	maxNumber := len(ec.Config.EtherscanConfig.ApiKeys)
 	randInt := rand.IntN(maxNumber)
 
 	if randInt > maxNumber {
-		ec.logger.Sugar().Warnw("Random number is greater than the number of api keys", "randInt", randInt, "maxNumber", maxNumber)
+		ec.Logger.Sugar().Warnw("Random number is greater than the number of api keys", "randInt", randInt, "maxNumber", maxNumber)
 		randInt = 0
 	}
 
-	return ec.ApiKeys[randInt]
+	return ec.Config.EtherscanConfig.ApiKeys[randInt]
 }
 
 func (ec *EtherscanClient) buildBaseUrlParams(module string, action string) url.Values {
@@ -171,13 +173,19 @@ func (ec *EtherscanClient) ContractABI(address string) (string, error) {
 
 	res, err := ec.makeRequestWithBackoff(baseUrlParams)
 	if err != nil {
+		ec.Logger.Sugar().Errorw("Failed to make the Etherscan HTTP request with backoff",
+			zap.Error(err),
+		)
 		return "", err
 	}
 
 	var decodedOutput string
 	err = json.Unmarshal(res.Result, &decodedOutput)
 	if err != nil {
-		return "", wrapError(err, "failed to decode output")
+		ec.Logger.Sugar().Errorw("Failed to decode output from Etherscan URL content",
+			zap.Error(err),
+		)
+		return "", err
 	}
 
 	return decodedOutput, nil

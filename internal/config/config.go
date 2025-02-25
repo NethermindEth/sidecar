@@ -117,6 +117,7 @@ type IpfsConfig struct {
 }
 
 type EtherscanConfig struct {
+	Url string
 	ApiKeys []string
 }
 
@@ -193,6 +194,7 @@ var (
 
 	IpfsUrl = "ipfs.url"
 
+	EtherscanUrl = "etherscan.url"
 	EtherscanApiKey = "etherscan.api_key"
 )
 
@@ -264,6 +266,7 @@ func NewConfig() *Config {
 		},
 
 		EtherscanConfig: EtherscanConfig{
+			Url: StringWithDefault(viper.GetString(normalizeFlagName(EtherscanUrl)), "https://%s.etherscan.io/api?"),
 			ApiKeys: viper.GetStringSlice(normalizeFlagName(EtherscanApiKey)),
 		},
 	}
