@@ -128,3 +128,7 @@ func (pmc *PrometheusMetricsClient) Histogram(name string, value time.Duration, 
 	m.With(pmc.formatLabels(labels)).Observe(float64(value.Milliseconds()))
 	return nil
 }
+
+func (pmc *PrometheusMetricsClient) Flush() {
+	// No flush needed for Prometheus
+}

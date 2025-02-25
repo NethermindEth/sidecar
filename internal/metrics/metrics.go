@@ -71,6 +71,12 @@ func (ms *MetricsSink) Timing(name string, value time.Duration, labels []metrics
 	return nil
 }
 
+func (ms *MetricsSink) Flush() {
+	for _, client := range ms.clients {
+		client.Flush()
+	}
+}
+
 func InitMetricsSinksFromConfig(cfg *config.Config, l *zap.Logger) ([]metricsTypes.IMetricsClient, error) {
 	clients := []metricsTypes.IMetricsClient{}
 

@@ -6,6 +6,7 @@ type IMetricsClient interface {
 	Incr(name string, labels []MetricsLabel, value float64) error
 	Gauge(name string, value float64, labels []MetricsLabel) error
 	Timing(name string, value time.Duration, labels []MetricsLabel) error
+	Flush()
 }
 
 type MetricsLabel struct {
@@ -32,6 +33,7 @@ var (
 	Metric_Incr_HttpRequest    = "rpc.http.request"
 
 	Metric_Gauge_CurrentBlockHeight = "currentBlockHeight"
+	Metric_Gauge_SnapshotSize       = "snapshots.create.size"
 
 	Metric_Gauge_LastDistributionRootBlockHeight = "lastDistributionRootBlockHeight"
 
@@ -39,6 +41,7 @@ var (
 	Metric_Timing_HttpDuration         = "rpc.http.duration"
 	Metric_Timing_RewardsCalcDuration  = "rewards.duration"
 	Metric_Timing_BlockProcessDuration = "block.process.duration"
+	Metric_Timing_CreateSnapshot       = "snapshots.create.duration"
 )
 
 var MetricTypes = map[MetricsType][]MetricsTypeConfig{
@@ -61,6 +64,10 @@ var MetricTypes = map[MetricsType][]MetricsTypeConfig{
 			Name:   Metric_Gauge_CurrentBlockHeight,
 			Labels: []string{},
 		},
+		MetricsTypeConfig{
+			Name:   Metric_Gauge_SnapshotSize,
+			Labels: []string{},
+		},
 	},
 	MetricsType_Timing: {
 		MetricsTypeConfig{
@@ -69,6 +76,18 @@ var MetricTypes = map[MetricsType][]MetricsTypeConfig{
 		},
 		MetricsTypeConfig{
 			Name:   Metric_Timing_HttpDuration,
+			Labels: []string{},
+		},
+		MetricsTypeConfig{
+			Name:   Metric_Timing_RewardsCalcDuration,
+			Labels: []string{},
+		},
+		MetricsTypeConfig{
+			Name:   Metric_Timing_BlockProcessDuration,
+			Labels: []string{},
+		},
+		MetricsTypeConfig{
+			Name:   Metric_Timing_CreateSnapshot,
 			Labels: []string{},
 		},
 	},
