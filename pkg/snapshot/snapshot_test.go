@@ -182,6 +182,7 @@ func Test_SnapshotService(t *testing.T) {
 				},
 				DestinationPath:      destPath,
 				GenerateMetadataFile: true,
+				Kind:                 Kind_Full,
 			})
 			assert.Nil(t, err)
 			assert.NotNil(t, snapshotFile)
@@ -250,6 +251,7 @@ func Test_SnapshotService(t *testing.T) {
 						DBConfig:       CreateSnapshotDbConfigFromConfig(cfg.DatabaseConfig),
 					},
 					DestinationPath: destPath,
+					Kind:            Kind_Full,
 				})
 				assert.Nil(t, err)
 				assert.NotNil(t, snapshotFile)
@@ -279,6 +281,7 @@ func Test_SnapshotService(t *testing.T) {
 						DBConfig:       CreateSnapshotDbConfigFromConfig(cfg.DatabaseConfig),
 					},
 					Input: snapshotFile.FullPath(),
+					Kind:  Kind_Full,
 				})
 				assert.Nil(t, err)
 

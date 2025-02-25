@@ -56,6 +56,9 @@ func (csc *CreateSnapshotConfig) IsValid() (bool, error) {
 	if csc.DestinationPath == "" {
 		return false, fmt.Errorf("destination path is required")
 	}
+	if csc.Kind == "" {
+		return false, fmt.Errorf("kind is required")
+	}
 	if valid, err := csc.SnapshotConfig.IsValid(); !valid || err != nil {
 		return false, err
 	}
