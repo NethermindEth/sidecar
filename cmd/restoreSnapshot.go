@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/version"
 	"go.uber.org/zap"
 
@@ -29,7 +30,17 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 
-		ss := snapshot.NewSnapshotService(l)
+		metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
+		if err != nil {
+			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
+		}
+
+		sink, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
+		if err != nil {
+			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
+		}
+
+		ss := snapshot.NewSnapshotService(l, sink)
 
 		err = ss.RestoreFromSnapshot(&snapshot.RestoreSnapshotConfig{
 			SnapshotConfig: snapshot.SnapshotConfig{
@@ -43,6 +54,8 @@ Follow the snapshot docs if you need to convert the snapshot to a different sche
 			VerifySnapshotSignature: cfg.RestoreSnapshotConfig.VerifySignature,
 			ManifestUrl:             cfg.RestoreSnapshotConfig.ManifestUrl,
 		})
+		sink.Flush()
+
 		if err != nil {
 			l.Sugar().Fatalw("Failed to restore snapshot", zap.Error(err))
 		}

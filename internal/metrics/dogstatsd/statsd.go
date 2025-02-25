@@ -52,3 +52,9 @@ func (s *DogStatsdMetricsClient) Gauge(name string, value float64, labels []metr
 func (s *DogStatsdMetricsClient) Timing(name string, value time.Duration, labels []metricsTypes.MetricsLabel) error {
 	return s.client.Timing(name, value, s.formatLabels(labels), s.sampleRate)
 }
+
+func (s *DogStatsdMetricsClient) Flush() {
+	if err := s.client.Flush(); err != nil {
+		s.logger.Sugar().Errorw("Failed to flush dogstatsd metrics client", zap.Error(err))
+	}
+}

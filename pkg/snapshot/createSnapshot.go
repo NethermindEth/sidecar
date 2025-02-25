@@ -2,11 +2,13 @@ package snapshot
 
 import (
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/metrics/metricsTypes"
 	"go.uber.org/zap"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func defaultDumpOptions() []string {
@@ -36,6 +38,8 @@ func (ss *SnapshotService) CreateSnapshot(cfg *CreateSnapshotConfig) (*SnapshotF
 		return nil, fmt.Errorf("pg_dump not found in PATH")
 	}
 
+	startTime := time.Now()
+
 	if valid, err := cfg.IsValid(); !valid || err != nil {
 		return nil, err
 	}
@@ -64,6 +68,20 @@ func (ss *SnapshotService) CreateSnapshot(cfg *CreateSnapshotConfig) (*SnapshotF
 		return nil, fmt.Errorf("error creating snapshot: %s", res.Error.CmdOutput)
 	}
 	ss.logger.Sugar().Infow("Snapshot dump complete", zap.String("outputFile", snapshotFile.FullPath()))
+	_ = ss.metricsSink.Timing(metricsTypes.Metric_Timing_CreateSnapshot, time.Since(startTime), []metricsTypes.MetricsLabel{
+		{
+			Name:  "chain",
+			Value: cfg.Chain.String(),
+		},
+		{
+			Name:  "sidecarVersion",
+			Value: cfg.SidecarVersion,
+		},
+		{
+			Name:  "kind",
+			Value: DefaultKind,
+		},
+	})
 
 	ss.logger.Sugar().Infow("Generating snapshot hash", zap.String("outputFile", snapshotFile.FullPath()))
 	if err := snapshotFile.GenerateAndSaveSnapshotHash(); err != nil {

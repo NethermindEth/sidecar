@@ -3,6 +3,7 @@ package snapshot
 import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
+	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -103,12 +104,14 @@ func CreateSnapshotDbConfigFromConfig(cfg config.DatabaseConfig) SnapshotDatabas
 }
 
 type SnapshotService struct {
-	logger *zap.Logger
+	logger      *zap.Logger
+	metricsSink *metrics.MetricsSink
 }
 
-func NewSnapshotService(l *zap.Logger) *SnapshotService {
+func NewSnapshotService(l *zap.Logger, ms *metrics.MetricsSink) *SnapshotService {
 	return &SnapshotService{
-		logger: l,
+		logger:      l,
+		metricsSink: ms,
 	}
 }
 

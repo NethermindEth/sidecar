@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/version"
 	"go.uber.org/zap"
 
@@ -26,7 +27,17 @@ var createSnapshotCmd = &cobra.Command{
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 
-		ss := snapshot.NewSnapshotService(l)
+		metricsClients, err := metrics.InitMetricsSinksFromConfig(cfg, l)
+		if err != nil {
+			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
+		}
+
+		sink, err := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, metricsClients)
+		if err != nil {
+			l.Sugar().Fatal("Failed to setup metrics sink", zap.Error(err))
+		}
+
+		ss := snapshot.NewSnapshotService(l, sink)
 
 		_, err = ss.CreateSnapshot(&snapshot.CreateSnapshotConfig{
 			SnapshotConfig: snapshot.SnapshotConfig{
@@ -38,6 +49,8 @@ var createSnapshotCmd = &cobra.Command{
 			DestinationPath:      cfg.CreateSnapshotConfig.OutputFile,
 			GenerateMetadataFile: cfg.CreateSnapshotConfig.GenerateMetadataFile,
 		})
+
+		sink.Flush()
 
 		if err != nil {
 			l.Sugar().Fatalw("Failed to create snapshot", zap.Error(err))

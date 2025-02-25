@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Layr-Labs/sidecar/internal/config"
 	"github.com/Layr-Labs/sidecar/internal/logger"
+	"github.com/Layr-Labs/sidecar/internal/metrics"
 	"github.com/Layr-Labs/sidecar/internal/tests"
 	"github.com/Layr-Labs/sidecar/pkg/postgres"
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ func setupCreateSnapshot() (
 	*gorm.DB,
 	*zap.Logger,
 	*config.Config,
+	*metrics.MetricsSink,
 	error,
 ) {
 	cfg := config.NewConfig()
@@ -32,13 +34,15 @@ func setupCreateSnapshot() (
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
+	sink, _ := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, nil)
+
 	dbname, _, grm, err := postgres.GetTestPostgresDatabase(cfg.DatabaseConfig, cfg, l)
 	if err != nil {
-		return dbname, nil, nil, nil, err
+		return dbname, nil, nil, nil, nil, err
 	}
 	cfg.DatabaseConfig.DbName = dbname
 
-	return dbname, grm, l, cfg, nil
+	return dbname, grm, l, cfg, sink, nil
 }
 
 func setupRestoreSnapshot() (
@@ -46,6 +50,7 @@ func setupRestoreSnapshot() (
 	*gorm.DB,
 	*zap.Logger,
 	*config.Config,
+	*metrics.MetricsSink,
 	error,
 ) {
 	cfg := config.NewConfig()
@@ -55,13 +60,15 @@ func setupRestoreSnapshot() (
 
 	l, _ := logger.NewLogger(&logger.LoggerConfig{Debug: cfg.Debug})
 
+	sink, _ := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, nil)
+
 	dbname, _, grm, err := postgres.GetTestPostgresDatabaseWithoutMigrations(cfg.DatabaseConfig, l)
 	if err != nil {
-		return dbname, nil, nil, nil, err
+		return dbname, nil, nil, nil, nil, err
 	}
 	cfg.DatabaseConfig.DbName = dbname
 
-	return dbname, grm, l, cfg, nil
+	return dbname, grm, l, cfg, sink, nil
 }
 
 func lsDir(path string) ([]os.DirEntry, error) {
@@ -77,8 +84,9 @@ func Test_SnapshotService(t *testing.T) {
 	t.Run("Should create new snapshot service", func(t *testing.T) {
 		l, err := logger.NewLogger(&logger.LoggerConfig{Debug: false})
 		assert.Nil(t, err)
+		sink, _ := metrics.NewMetricsSink(&metrics.MetricsSinkConfig{}, nil)
 
-		ss := NewSnapshotService(l)
+		ss := NewSnapshotService(l, sink)
 		assert.NotNil(t, ss)
 	})
 
@@ -148,7 +156,7 @@ func Test_SnapshotService(t *testing.T) {
 			assert.NotNil(t, err)
 		})
 		t.Run("Should create a snapshot with hash file and metadata file", func(t *testing.T) {
-			dbName, grm, l, cfg, err := setupCreateSnapshot()
+			dbName, grm, l, cfg, sink, err := setupCreateSnapshot()
 
 			if err != nil {
 				t.Fatal(err)
@@ -165,7 +173,7 @@ func Test_SnapshotService(t *testing.T) {
 			fmt.Printf("destPath: %s\n", destPath)
 			_ = os.MkdirAll(destPath, os.ModePerm)
 
-			ss := NewSnapshotService(l)
+			ss := NewSnapshotService(l, sink)
 			snapshotFile, err := ss.CreateSnapshot(&CreateSnapshotConfig{
 				SnapshotConfig: SnapshotConfig{
 					Chain:          cfg.Chain,
@@ -218,7 +226,7 @@ func Test_SnapshotService(t *testing.T) {
 			var snapshotFile *SnapshotFile
 			var originalMigrations []string
 			t.Run("Should create a snapshot to restore from", func(t *testing.T) {
-				dbName, grm, l, cfg, err := setupCreateSnapshot()
+				dbName, grm, l, cfg, sink, err := setupCreateSnapshot()
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -234,7 +242,7 @@ func Test_SnapshotService(t *testing.T) {
 				fmt.Printf("destPath: %s\n", destPath)
 				_ = os.MkdirAll(destPath, os.ModePerm)
 
-				ss := NewSnapshotService(l)
+				ss := NewSnapshotService(l, sink)
 				snapshotFile, err = ss.CreateSnapshot(&CreateSnapshotConfig{
 					SnapshotConfig: SnapshotConfig{
 						Chain:          cfg.Chain,
@@ -258,12 +266,12 @@ func Test_SnapshotService(t *testing.T) {
 			})
 
 			t.Run("Should restore from a snapshot", func(t *testing.T) {
-				dbName, grm, l, cfg, err := setupRestoreSnapshot()
+				dbName, grm, l, cfg, sink, err := setupRestoreSnapshot()
 				if err != nil {
 					t.Fatal(err)
 				}
 
-				ss := NewSnapshotService(l)
+				ss := NewSnapshotService(l, sink)
 				err = ss.RestoreFromSnapshot(&RestoreSnapshotConfig{
 					SnapshotConfig: SnapshotConfig{
 						Chain:          cfg.Chain,
