@@ -171,6 +171,42 @@ func Test_OperatorDirectedRewardSubmissions(t *testing.T) {
 		})
 	})
 
+	t.Run("Ensure an operator directed reward submission with a duration of 0 is not saved", func(t *testing.T) {
+		esm := stateManager.NewEigenStateManager(l, grm)
+		model, err := NewOperatorDirectedRewardSubmissionsModel(esm, grm, l, cfg)
+		assert.Nil(t, err)
+
+		blockNumber := uint64(102)
+
+		if err := createBlock(model, blockNumber); err != nil {
+			t.Fatal(err)
+		}
+
+		log := &storage.TransactionLog{
+			TransactionHash:  "some hash",
+			TransactionIndex: big.NewInt(100).Uint64(),
+			BlockNumber:      blockNumber,
+			Address:          cfg.GetContractsMapForChain().RewardsCoordinator,
+			Arguments:        `[{"Name": "caller", "Type": "address", "Value": "0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101", "Indexed": true}, {"Name": "avs", "Type": "address", "Value": "0xd36b6e5eee8311d7bffb2f3bb33301a1ab7de101", "Indexed": true}, {"Name": "operatorDirectedRewardsSubmissionHash", "Type": "bytes32", "Value": "0x7402669fb2c8a0cfe8108acb8a0070257c77ec6906ecb07d97c38e8a5ddc66a9", "Indexed": true}, {"Name": "submissionNonce", "Type": "uint256", "Value": 0, "Indexed": false}, {"Name": "rewardsSubmission", "Type": "((address,uint96)[],address,(address,uint256)[],uint32,uint32,string)", "Value": null, "Indexed": false}]`,
+			EventName:        "OperatorDirectedAVSRewardsSubmissionCreated",
+			LogIndex:         big.NewInt(12).Uint64(),
+			OutputData:       `{"submissionNonce": 0, "operatorDirectedRewardsSubmission": {"token": "0x0ddd9dc88e638aef6a8e42d0c98aaa6a48a98d24", "operatorRewards": [{"operator": "0x9401E5E6564DB35C0f86573a9828DF69Fc778aF1", "amount": 30000000000000000000000}, {"operator": "0xF50Cba7a66b5E615587157e43286DaA7aF94009e", "amount": 40000000000000000000000}], "duration": 0, "startTimestamp": 1725494400, "strategiesAndMultipliers": [{"strategy": "0x5074dfd18e9498d9e006fb8d4f3fecdc9af90a2c", "multiplier": 1000000000000000000}, {"strategy": "0xD56e4eAb23cb81f43168F9F45211Eb027b9aC7cc", "multiplier": 2000000000000000000}], "description": "test reward submission"}}`,
+		}
+
+		err = model.SetupStateForBlock(blockNumber)
+		assert.Nil(t, err)
+
+		isInteresting := model.IsInterestingLog(log)
+		assert.True(t, isInteresting)
+
+		change, err := model.HandleStateChange(log)
+		assert.Nil(t, err)
+		assert.NotNil(t, change)
+
+		typedChanges := change.([]*OperatorDirectedRewardSubmission)
+		assert.Equal(t, 0, len(typedChanges))
+	})
+
 	t.Cleanup(func() {
 		postgres.TeardownTestDatabase(dbName, cfg, grm, l)
 	})

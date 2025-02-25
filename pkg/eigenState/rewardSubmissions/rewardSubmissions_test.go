@@ -306,6 +306,42 @@ func Test_RewardSubmissions(t *testing.T) {
 			})
 		})
 
+		t.Run("Ensure a reward submission with a duration of 0 is not saved", func(t *testing.T) {
+			blockNumber := uint64(103)
+
+			if err := createBlock(model, blockNumber); err != nil {
+				t.Fatal(err)
+			}
+
+			log := &storage.TransactionLog{
+				TransactionHash:  "some hash",
+				TransactionIndex: big.NewInt(100).Uint64(),
+				BlockNumber:      blockNumber,
+				Address:          cfg.GetContractsMapForChain().RewardsCoordinator,
+				Arguments:        `[{"Name": "submitter", "Type": "address", "Value": "0x66ae7d7c4d492e4e012b95977f14715b74498bc5", "Indexed": true}, {"Name": "submissionNonce", "Type": "uint256", "Value": 3, "Indexed": true}, {"Name": "rewardsSubmissionHash", "Type": "bytes32", "Value": "0x99ebccb0f68eedbf3dff04c7773d6ff94fc439e0eebdd80918b3785ae8099f96", "Indexed": true}, {"Name": "rewardsSubmission", "Type": "((address,uint96)[],address,uint256,uint32,uint32)", "Value": null, "Indexed": false}]`,
+				EventName:        "RewardsSubmissionForAllCreated",
+				LogIndex:         big.NewInt(12).Uint64(),
+				OutputData:       `{"rewardsSubmission": {"token": "0x554c393923c753d146aa34608523ad7946b61662", "amount": 10000000000000000000, "duration": 0, "startTimestamp": 1717632000, "strategiesAndMultipliers": [{"strategy": "0xd523267698c81a372191136e477fdebfa33d9fb4", "multiplier": 1000000000000000000}, {"strategy": "0xdccf401fd121d8c542e96bc1d0078884422afad2", "multiplier": 2000000000000000000}]}}`,
+			}
+
+			err = model.SetupStateForBlock(blockNumber)
+			assert.Nil(t, err)
+
+			isInteresting := model.IsInterestingLog(log)
+			assert.True(t, isInteresting)
+
+			change, err := model.HandleStateChange(log)
+			assert.Nil(t, err)
+			assert.NotNil(t, change)
+
+			typedChange := change.([]*RewardSubmission)
+			assert.Equal(t, 0, len(typedChange))
+
+			t.Cleanup(func() {
+				teardown(model)
+			})
+		})
+
 		t.Run("Handle a reward submission for all", func(t *testing.T) {
 			blockNumber := uint64(103)
 
