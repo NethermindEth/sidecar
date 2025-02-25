@@ -49,6 +49,7 @@ type CreateSnapshotConfig struct {
 	SnapshotConfig
 	DestinationPath      string
 	GenerateMetadataFile bool
+	Kind                 Kind
 }
 
 func (csc *CreateSnapshotConfig) IsValid() (bool, error) {
@@ -68,6 +69,7 @@ type RestoreSnapshotConfig struct {
 	SnapshotPublicKey       string
 	ManifestUrl             string
 	Input                   string
+	Kind                    Kind
 }
 
 func (rsc *RestoreSnapshotConfig) IsValid() (bool, error) {

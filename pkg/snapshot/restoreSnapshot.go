@@ -67,7 +67,7 @@ func (ss *SnapshotService) getRestoreFileFromManifest(cfg *RestoreSnapshotConfig
 		return nil, err
 	}
 
-	snapshot := manifest.FindSnapshot(cfg.Chain.String(), cfg.SidecarVersion, cfg.DBConfig.SchemaName)
+	snapshot := manifest.FindSnapshot(cfg.Chain.String(), cfg.SidecarVersion, cfg.DBConfig.SchemaName, string(cfg.Kind))
 	if snapshot == nil {
 		return nil, fmt.Errorf("no compatible snapshot found in manifest")
 	}

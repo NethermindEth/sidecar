@@ -50,7 +50,7 @@ type SnapshotManifest struct {
 	Snapshots []*Snapshot `json:"snapshots"`
 }
 
-func (sm *SnapshotManifest) FindSnapshot(chain string, sidecarVersion string, schemaName string) *Snapshot {
+func (sm *SnapshotManifest) FindSnapshot(chain string, sidecarVersion string, schemaName string, kind string) *Snapshot {
 	if len(sm.Snapshots) == 0 {
 		return nil
 	}
@@ -60,6 +60,9 @@ func (sm *SnapshotManifest) FindSnapshot(chain string, sidecarVersion string, sc
 			continue
 		}
 		if snapshot.Schema != schemaName {
+			continue
+		}
+		if kind != "" && snapshot.Kind != kind {
 			continue
 		}
 		snapshotVersion := snapshot.SidecarVersion

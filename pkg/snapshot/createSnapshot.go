@@ -20,7 +20,32 @@ func defaultDumpOptions() []string {
 	}
 }
 
-const DefaultKind = "full"
+type Kind string
+
+const (
+	Kind_Slim    Kind = "slim"
+	Kind_Full    Kind = "full"
+	Kind_Archive Kind = "archive"
+)
+
+var (
+	kindFlags = map[Kind]func(schema string) []string{
+		Kind_Slim: func(schema string) []string {
+			return []string{
+				"-T", fmt.Sprintf(`%s.gold_*`, schema),
+				"-T", fmt.Sprintf(`%s.sot_*`, schema),
+			}
+		},
+		Kind_Full: func(schema string) []string {
+			return []string{
+				"-T", fmt.Sprintf(`%s.sot_*`, schema),
+			}
+		},
+		Kind_Archive: func(schema string) []string {
+			return []string{}
+		},
+	}
+)
 
 func (ss *SnapshotService) isValidDestinationPath(destPath string) (bool, error) {
 	stat, err := os.Stat(destPath)
@@ -58,7 +83,7 @@ func (ss *SnapshotService) CreateSnapshot(cfg *CreateSnapshotConfig) (*SnapshotF
 		return nil, fmt.Errorf("invalid destination path: %w", err)
 	}
 
-	snapshotFile := newSnapshotDumpFile(destPath, cfg.Chain.String(), cfg.SidecarVersion, cfg.DBConfig.SchemaName, DefaultKind)
+	snapshotFile := newSnapshotDumpFile(destPath, cfg.Chain.String(), cfg.SidecarVersion, cfg.DBConfig.SchemaName, cfg.Kind)
 
 	res, err := ss.performDump(snapshotFile, cfg)
 	if err != nil {
@@ -79,7 +104,7 @@ func (ss *SnapshotService) CreateSnapshot(cfg *CreateSnapshotConfig) (*SnapshotF
 		},
 		{
 			Name:  "kind",
-			Value: DefaultKind,
+			Value: string(cfg.Kind),
 		},
 	})
 
@@ -114,6 +139,8 @@ func (ss *SnapshotService) generateMetadataFile(snapshotFile *SnapshotFile, cfg 
 
 func (ss *SnapshotService) performDump(snapshotFile *SnapshotFile, cfg *CreateSnapshotConfig) (*Result, error) {
 	flags := defaultDumpOptions()
+
+	flags = append(flags, kindFlags[cfg.Kind](cfg.DBConfig.SchemaName)...)
 
 	cmdFlags := ss.buildCommand(flags, cfg.SnapshotConfig)
 

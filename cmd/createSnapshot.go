@@ -48,6 +48,7 @@ var createSnapshotCmd = &cobra.Command{
 			},
 			DestinationPath:      cfg.CreateSnapshotConfig.OutputFile,
 			GenerateMetadataFile: cfg.CreateSnapshotConfig.GenerateMetadataFile,
+			Kind:                 snapshot.Kind(cfg.CreateSnapshotConfig.Kind),
 		})
 
 		sink.Flush()

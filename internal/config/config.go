@@ -70,6 +70,7 @@ type SnapshotConfig struct {
 type CreateSnapshotConfig struct {
 	OutputFile           string
 	GenerateMetadataFile bool
+	Kind                 string
 }
 
 type RestoreSnapshotConfig struct {
@@ -77,6 +78,7 @@ type RestoreSnapshotConfig struct {
 	VerifyHash      bool
 	VerifySignature bool
 	ManifestUrl     string
+	Kind            string
 }
 
 type RpcConfig struct {
@@ -156,6 +158,7 @@ var (
 
 	SnapshotOutputFile = "output_file"
 	SnapshotOutput     = "output"
+	SnapshotKind       = "kind"
 
 	SnapshotInputFile       = "input_file"
 	SnapshotInput           = "input"
@@ -211,6 +214,7 @@ func NewConfig() *Config {
 		CreateSnapshotConfig: CreateSnapshotConfig{
 			OutputFile:           StringWithDefaults(viper.GetString(normalizeFlagName(SnapshotOutput)), viper.GetString(normalizeFlagName(SnapshotOutputFile))),
 			GenerateMetadataFile: viper.GetBool(normalizeFlagName(SnapshotOutputMetadataFile)),
+			Kind:                 StringWithDefault(viper.GetString(normalizeFlagName(SnapshotKind)), "full"),
 		},
 
 		RestoreSnapshotConfig: RestoreSnapshotConfig{

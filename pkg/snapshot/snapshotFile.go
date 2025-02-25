@@ -185,7 +185,7 @@ func newSnapshotFile(snapshotFileName string) *SnapshotFile {
 	}
 }
 
-func newSnapshotDumpFile(destPath string, chain string, version string, schemaName string, kind string) *SnapshotFile {
+func newSnapshotDumpFile(destPath string, chain string, version string, schemaName string, kind Kind) *SnapshotFile {
 	// generate date YYYYMMDDhhmmss
 	now := time.Now()
 	date := now.Format("20060102150405")
@@ -199,6 +199,6 @@ func newSnapshotDumpFile(destPath string, chain string, version string, schemaNa
 		Chain:            chain,
 		Version:          version,
 		SchemaName:       schemaName,
-		Kind:             kind,
+		Kind:             string(kind),
 	}
 }
