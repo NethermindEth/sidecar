@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -26,7 +25,7 @@ var backoffSchedule = []time.Duration{
 type EtherscanClient struct {
 	httpClient *http.Client
 	Logger     *zap.Logger
-	Config    *config.Config
+	Config     *config.Config
 }
 
 type EtherscanResponse struct {
@@ -59,7 +58,7 @@ func (ec *EtherscanClient) getBaseUrl() (string, error) {
 }
 
 func (ec *EtherscanClient) makeRequest(values url.Values) (*EtherscanResponse, error) {
-	values["apikey"] = []string{ec.selectApiKey()}
+	values["apikey"] = []string{ec.Config.EtherscanConfig.ApiKey}
 
 	fullUrl, err := ec.getBaseUrl()
 	if err != nil {
@@ -146,18 +145,6 @@ func (ec *EtherscanClient) makeRequestWithBackoff(values url.Values) (*Etherscan
 	}
 
 	return nil, fmt.Errorf("failed to make the Etherscan request after backoff")
-}
-
-func (ec *EtherscanClient) selectApiKey() string {
-	maxNumber := len(ec.Config.EtherscanConfig.ApiKeys)
-	randInt := rand.IntN(maxNumber)
-
-	if randInt > maxNumber {
-		ec.Logger.Sugar().Warnw("Random number is greater than the number of api keys", "randInt", randInt, "maxNumber", maxNumber)
-		randInt = 0
-	}
-
-	return ec.Config.EtherscanConfig.ApiKeys[randInt]
 }
 
 func (ec *EtherscanClient) buildBaseUrlParams(module string, action string) url.Values {

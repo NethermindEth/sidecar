@@ -91,6 +91,6 @@ func Test_IpfsAbiSource(t *testing.T) {
 		assert.Nil(t, err)
 
 		expectedAbi := `"[{\"type\":\"function\",\"name\":\"test\"}]"`
-		assert.Equal(t, abi, expectedAbi)
+		assert.Equal(t, expectedAbi, abi)
 	})
 }
