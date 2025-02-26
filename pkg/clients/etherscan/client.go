@@ -54,7 +54,7 @@ func (ec *EtherscanClient) getBaseUrl() (string, error) {
 	default:
 		return "", fmt.Errorf("unknown environment when making a request using the Etherscan client")
 	}
-	return fmt.Sprintf(ec.Config.EtherscanConfig.Url, network), nil
+	return fmt.Sprintf("https://%s.etherscan.io/api?", network), nil
 }
 
 func (ec *EtherscanClient) makeRequest(values url.Values) (*EtherscanResponse, error) {

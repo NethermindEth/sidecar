@@ -1,4 +1,4 @@
-package ipfsAbiSource
+package ipfs
 
 import (
 	"context"
@@ -10,26 +10,31 @@ import (
 	"strings"
 
 	"github.com/Layr-Labs/sidecar/internal/config"
-	"github.com/Layr-Labs/sidecar/pkg/abiSource"
 	"github.com/btcsuite/btcutil/base58"
 	"go.uber.org/zap"
 )
 
-type IpfsAbiSource struct {
+type Ipfs struct {
 	httpClient *http.Client
-	Logger     *zap.Logger
-	Config     *config.Config
+	logger     *zap.Logger
+	config     *config.Config
 }
 
-func NewIpfsAbiSource(hc *http.Client, l *zap.Logger, cfg *config.Config) *IpfsAbiSource {
-	return &IpfsAbiSource{
+type Response struct {
+	Output struct {
+		ABI json.RawMessage `json:"abi"` // Use json.RawMessage to capture the ABI JSON
+	} `json:"output"`
+}
+
+func NewIpfs(hc *http.Client, l *zap.Logger, cfg *config.Config) *Ipfs {
+	return &Ipfs{
 		httpClient: hc,
-		Logger:     l,
-		Config:     cfg,
+		logger:     l,
+		config:     cfg,
 	}
 }
 
-func (ias *IpfsAbiSource) GetIPFSUrlFromBytecode(bytecode string) (string, error) {
+func (ias *Ipfs) GetIPFSUrlFromBytecode(bytecode string) (string, error) {
 	markerSequence := "a264697066735822"
 	index := strings.Index(strings.ToLower(bytecode), markerSequence)
 
@@ -55,26 +60,26 @@ func (ias *IpfsAbiSource) GetIPFSUrlFromBytecode(bytecode string) (string, error
 	// Convert to base58
 	base58Hash := base58.Encode(bytes)
 
-	return fmt.Sprintf("%s/%s", ias.Config.IpfsConfig.Url, base58Hash), nil
+	return fmt.Sprintf("%s/%s", ias.config.IpfsConfig.Url, base58Hash), nil
 }
 
-func (ias *IpfsAbiSource) FetchAbi(address string, bytecode string) (string, error) {
+func (ias *Ipfs) FetchAbi(address string, bytecode string) (string, error) {
 	url, err := ias.GetIPFSUrlFromBytecode(bytecode)
 	if err != nil {
-		ias.Logger.Sugar().Errorw("Failed to get IPFS URL from bytecode",
+		ias.logger.Sugar().Errorw("Failed to get IPFS URL from bytecode",
 			zap.Error(err),
 			zap.String("address", address),
 		)
 		return "", err
 	}
-	ias.Logger.Sugar().Debug("Successfully retrieved IPFS URL",
+	ias.logger.Sugar().Debug("Successfully retrieved IPFS URL",
 		zap.String("address", address),
 		zap.String("ipfsUrl", url),
 	)
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {
-		ias.Logger.Sugar().Errorw("Failed to create a new HTTP request with context",
+		ias.logger.Sugar().Errorw("Failed to create a new HTTP request with context",
 			zap.Error(err),
 			zap.String("address", address),
 		)
@@ -83,7 +88,7 @@ func (ias *IpfsAbiSource) FetchAbi(address string, bytecode string) (string, err
 
 	resp, err := ias.httpClient.Do(req)
 	if err != nil {
-		ias.Logger.Sugar().Errorw("Failed to perform HTTP request",
+		ias.logger.Sugar().Errorw("Failed to perform HTTP request",
 			zap.Error(err),
 			zap.String("address", address),
 		)
@@ -100,15 +105,15 @@ func (ias *IpfsAbiSource) FetchAbi(address string, bytecode string) (string, err
 		return "", err
 	}
 
-	var result *abiSource.Response
+	var result *Response
 	if err := json.Unmarshal(content, &result); err != nil {
-		ias.Logger.Sugar().Errorw("Failed to parse json from IPFS URL content",
+		ias.logger.Sugar().Errorw("Failed to parse json from IPFS URL content",
 			zap.Error(err),
 		)
 		return "", err
 	}
 
-	ias.Logger.Sugar().Debug("Successfully fetched ABI from IPFS",
+	ias.logger.Sugar().Debug("Successfully fetched ABI from IPFS",
 		zap.String("address", address),
 	)
 	return string(result.Output.ABI), nil

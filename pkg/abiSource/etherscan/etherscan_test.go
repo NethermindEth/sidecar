@@ -1,4 +1,4 @@
-package etherscanAbiSource
+package etherscan
 
 import (
 	"net/http"
@@ -39,7 +39,7 @@ func setup() (
 	return dbname, grm, l, cfg, nil
 }
 
-func Test_EtherscanAbiSource(t *testing.T) {
+func Test_Etherscan(t *testing.T) {
 	_, _, l, cfg, err := setup()
 
 	if err != nil {
@@ -55,7 +55,7 @@ func Test_EtherscanAbiSource(t *testing.T) {
 	}
 
 	ec := etherscan.NewEtherscanClient(mockHttpClient, l, cfg)
-	eas := NewEtherscanAbiSource(ec, l)
+	eas := NewEtherscan(ec, l)
 
 	t.Run("Test fetching ABI from Etherscan", func(t *testing.T) {
 		mockAbiResponse := `{

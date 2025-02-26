@@ -12,11 +12,11 @@ import (
 )
 
 type AbiFetcher struct {
-	EthereumClient *ethereum.Client
+	ethereumClient *ethereum.Client
 	httpClient     *http.Client
-	Logger         *zap.Logger
-	Config         *config.Config
-	AbiSources     []abiSource.AbiSource
+	logger         *zap.Logger
+	config         *config.Config
+	abiSources     []abiSource.AbiSource
 }
 
 func NewAbiFetcher(
@@ -27,18 +27,18 @@ func NewAbiFetcher(
 	sources []abiSource.AbiSource,
 ) *AbiFetcher {
 	return &AbiFetcher{
-		EthereumClient: e,
+		ethereumClient: e,
 		httpClient:     hc,
-		Logger:         l,
-		Config:         cfg,
-		AbiSources:     sources,
+		logger:         l,
+		config:         cfg,
+		abiSources:     sources,
 	}
 }
 
 func (af *AbiFetcher) FetchContractDetails(ctx context.Context, address string) (string, string, error) {
-	bytecode, err := af.EthereumClient.GetCode(ctx, address)
+	bytecode, err := af.ethereumClient.GetCode(ctx, address)
 	if err != nil {
-		af.Logger.Sugar().Errorw("Failed to get the contract bytecode",
+		af.logger.Sugar().Errorw("Failed to get the contract bytecode",
 			zap.Error(err),
 			zap.String("address", address),
 		)
@@ -46,15 +46,18 @@ func (af *AbiFetcher) FetchContractDetails(ctx context.Context, address string) 
 	}
 
 	bytecodeHash := ethereum.HashBytecode(bytecode)
-	af.Logger.Sugar().Debug("Fetched the contract bytecodeHash",
+	af.logger.Sugar().Debug("Fetched the contract bytecodeHash",
 		zap.String("address", address),
 		zap.String("bytecodeHash", bytecodeHash),
 	)
 
 	// fetch ABI in order of AbiSource implementations
-	for _, source := range af.AbiSources {
+	for _, source := range af.abiSources {
 		abi, err := source.FetchAbi(address, bytecode)
 		if err == nil {
+			af.logger.Sugar().Infow("Successfully fetched ABI",
+				zap.String("address", address),
+			)
 			return bytecodeHash, abi, nil
 		}
 	}
