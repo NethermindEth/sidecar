@@ -78,7 +78,7 @@ func (sm *SnapshotManifest) FindSnapshot(chain string, sidecarVersion string, sc
 func NewSnapshotManifestFromJson(data []byte) (*SnapshotManifest, error) {
 	var manifest *SnapshotManifest
 
-	if err := json.Unmarshal(data, manifest); err != nil {
+	if err := json.Unmarshal(data, &manifest); err != nil {
 		return nil, err
 	}
 	return manifest, nil

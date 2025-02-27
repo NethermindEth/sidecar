@@ -221,6 +221,8 @@ func NewConfig() *Config {
 			InputFile:       StringWithDefaults(viper.GetString(normalizeFlagName(SnapshotInput)), viper.GetString(normalizeFlagName(SnapshotInputFile))),
 			VerifyHash:      viper.GetBool(normalizeFlagName(SnapshotVerifyHash)),
 			VerifySignature: viper.GetBool(normalizeFlagName(SnapshotVerifySignature)),
+			ManifestUrl:     viper.GetString(normalizeFlagName(SnapshotManifestUrl)),
+			Kind:            StringWithDefault(viper.GetString(normalizeFlagName(SnapshotKind)), "full"),
 		},
 
 		RpcConfig: RpcConfig{

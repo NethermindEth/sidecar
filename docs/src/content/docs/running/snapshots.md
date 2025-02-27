@@ -5,23 +5,45 @@ description: How to use a snapshot to start or restore your Sidecar
 
 Snapshots are a quicker way to sync to tip and get started.
 
-See [Snapshots Docs](old-docs/snapshots_docs.md) for instructions on creating and restoring snapshots
+## Available snapshots
 
-## Snapshot Sources
+All available snapshots can be found at [https://sidecar.eigenlayer.xyz/snapshots](https://sidecar.eigenlayer.xyz/snapshots).
 
-* Mainnet Ethereum (not yet available)
-* Testnet Holesky ([2025-01-22](https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump))
+## Snapshot types
 
-## Example boot from testnet snapshot
+* **Slim:** Only includes indexed chain data and EigenState. Slim snapshots are roughly 30% of the size of full snapshots and can generate the rewards data found in full snapshots.
+* **Full:** Includes all rewards data but _not_ the generated `staker-operator` data for attributable rewards. 
+* **Archive:** (Not yet available) Includes all rewards data and the generated `staker-operator` data for attributable rewards.
+
+## Restoring from a snapshot
+
+### Using the hosted manifest
+
 ```bash
-curl -LO https://eigenlayer-sidecar.s3.us-east-1.amazonaws.com/snapshots/testnet-holesky/sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump
+sidecar restore-snapshot \                                                                                                                                                                                                                                                         (sm-fixManifest✱) 
+    --ethereum.rpc-url="<rpc url>" \
+    --chain="mainnet" \
+    --database.host="<hostname>" \
+    --database.port="5432" \
+    --database.user="<username>" \
+    --database.password="<password>" \
+    --database.db_name="<database name>" \
+    --kind="full"
+```
 
-./bin/sidecar restore-snapshot \
-  --input_file=sidecar-testnet-holesky_v3.0.0-rc.1_public_20250122.dump \
-  --database.host=localhost \
-  --database.user=sidecar \
-  --database.password=... \
-  --database.port=5432 \
-  --database.db_name=sidecar \
-  --database.schema_name=public 
+### Providing a file directly
+
+Input files can be either a local file or a URL.
+
+```bash
+sidecar restore-snapshot \
+  --ethereum.rpc-url="<rpc url>" \
+    --chain="mainnet" \
+    --database.host="<hostname>" \
+    --database.port="5432" \
+    --database.user="<username>" \
+    --database.password="<password>" \
+    --database.db_name="<database name>" \
+  --input="https://sidecar.eigenlayer.xyz/snapshots/mainnet/sidecar_mainnet_full_v2.4.0_public_20250227160000.dump" \
+  --verify-hash=false # unless you have a corresponding sha256sum hash 
 ```
