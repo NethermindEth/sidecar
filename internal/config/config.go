@@ -60,6 +60,10 @@ type DatabaseConfig struct {
 	Password   string
 	DbName     string
 	SchemaName string
+	SSLMode     string // disable, require, verify-ca, verify-full
+	SSLCert     string // path to client certificate
+	SSLKey      string // path to client private key
+	SSLRootCert string // path to root certificate
 }
 
 type SnapshotConfig struct {
@@ -160,6 +164,10 @@ var (
 	DatabasePassword   = "database.password"
 	DatabaseDbName     = "database.db_name"
 	DatabaseSchemaName = "database.schema_name"
+	DatabaseSSLMode     = "database.ssl_mode"
+	DatabaseSSLCert     = "database.ssl_cert"
+	DatabaseSSLKey      = "database.ssl_key"
+	DatabaseSSLRootCert = "database.ssl_root_cert"
 
 	SnapshotOutputFile = "output_file"
 	SnapshotOutput     = "output"
@@ -216,6 +224,10 @@ func NewConfig() *Config {
 			Password:   viper.GetString(normalizeFlagName(DatabasePassword)),
 			DbName:     viper.GetString(normalizeFlagName(DatabaseDbName)),
 			SchemaName: viper.GetString(normalizeFlagName(DatabaseSchemaName)),
+			SSLMode:     StringWithDefault(viper.GetString(normalizeFlagName(DatabaseSSLMode)), "disable"),
+			SSLCert:     viper.GetString(normalizeFlagName(DatabaseSSLCert)),
+			SSLKey:      viper.GetString(normalizeFlagName(DatabaseSSLKey)),
+			SSLRootCert: viper.GetString(normalizeFlagName(DatabaseSSLRootCert)),
 		},
 
 		CreateSnapshotConfig: CreateSnapshotConfig{
