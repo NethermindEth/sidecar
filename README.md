@@ -10,9 +10,9 @@ Please see our ["Getting Started"](https://layr-labs.github.io/sidecar/running/g
 
 # Current versions
 
-* Mainnet: Sidecar ([v2.0.0](https://github.com/Layr-Labs/sidecar/releases/tag/v2.0.0))
-* Testnet: Sidecar ([v3.0.0-rc.1](https://github.com/Layr-Labs/sidecar/releases/tag/v3.0.0-rc.1))
-* Preprod: Sidecar ([v3.0.0-rc.1](https://github.com/Layr-Labs/sidecar/releases/tag/v3.0.0-rc.1))
+* Mainnet: Sidecar ([v2.4.1](https://github.com/Layr-Labs/sidecar/releases/tag/v2.4.1))
+* Testnet: Sidecar ([v3.0.0-rc.7](https://github.com/Layr-Labs/sidecar/releases/tag/v3.0.0-rc.7))
+* Preprod: Sidecar ([v3.0.0-rc.7](https://github.com/Layr-Labs/sidecar/releases/tag/v3.0.0-rc.7))
 
 **Helpful Links**
 
